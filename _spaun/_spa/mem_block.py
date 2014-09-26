@@ -35,19 +35,19 @@ class MemoryBlock(Module):
         self.reset = nengo.Node(size_in=1)
 
         self.mem1 = WM(n_neurons_per_ensemble, dimensions, radius=radius,
-                       difference_gain=5, **mem_args)
+                       difference_gain=5, gate_gain=3, **mem_args)
         self.mem2 = WM(n_neurons_per_ensemble, dimensions, radius=radius,
-                       difference_gain=6, gate_gain=3, **mem_args)
+                       difference_gain=5, gate_gain=3, **mem_args)
 
         # gate_modes:
         # - 1: Gate mem1 on gate high, gate mem2 on gate low (default)
         # - 2: Gate mem1 on gate low, gate mem2 on gate high
         if gate_mode == 1:
-            nengo.Connection(self.gate, self.mem1.gate)
+            nengo.Connection(self.gateX, self.mem1.gate)
             nengo.Connection(self.gateN, self.mem2.gate)
         else:
             nengo.Connection(self.gateN, self.mem1.gate)
-            nengo.Connection(self.gate, self.mem2.gate)
+            nengo.Connection(self.gateX, self.mem2.gate)
 
         # reset_modes:
         # - 1: Reset only mem1
