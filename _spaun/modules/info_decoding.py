@@ -5,13 +5,14 @@ from nengo.spa.module import Module
 from nengo.utils.distributions import Uniform
 from nengo.utils.distributions import Choice
 
-from ..config import cfg
 from .._spa import AssociativeMemory as AM
 from .._networks import CircularConvolution as CConv
-from .._vocab.vocabs import item_vocab
-from .._vision.lif_vision import am_vis_sps
-from .._vocab.vocabs import mtr_vocab
-from .._vocab.vocabs import dec_out_sel_sp_vecs
+
+from ..config import cfg
+from ..vocabs import item_vocab
+from ..vocabs import mtr_vocab
+from ..vocabs import dec_out_sel_sp_vecs
+from ..vision.lif_vision import am_vis_sps
 
 
 class InfoDecoding(Module):

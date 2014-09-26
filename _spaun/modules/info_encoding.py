@@ -3,14 +3,15 @@ from nengo.spa.module import Module
 from nengo.utils.distributions import Uniform
 from nengo.utils.distributions import Choice
 
-from ..config import cfg
 from .._spa import MemoryBlock as MB
 from .._networks import CircularConvolution as CConv
-from .._vocab.vocabs import vocab
-from .._vocab.vocabs import pos_vocab
-from .._vocab.vocabs import item_vocab
-from .._vocab.vocabs import pos_mb_gate_sp_inds
-from .._vocab.vocabs import pos_mb_rst_sp_inds
+
+from ..config import cfg
+from ..vocabs import vocab
+from ..vocabs import pos_vocab
+from ..vocabs import item_vocab
+from ..vocabs import pos_mb_gate_sp_inds
+from ..vocabs import pos_mb_rst_sp_inds
 
 
 class InfoEncoding(Module):
