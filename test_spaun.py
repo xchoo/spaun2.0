@@ -8,10 +8,10 @@ from nengo.spa.utils import similarity
 # ----- Configurations -----
 from _spaun.config import cfg
 cfg.present_blanks = True
-# cfg.use_opencl = False
+cfg.use_opencl = False
 # cfg.use_opencl = True
 
-# cfg.sp_dim = 256
+cfg.sp_dim = 256
 cfg.max_enum_list_pos = 4
 cfg.neuron_type = nengo.LIFRate()
 
@@ -19,17 +19,17 @@ cfg.neuron_type = nengo.LIFRate()
 # ----- Spaun imports -----
 from _spaun.utils import run_nengo_sim
 from _spaun.utils import get_total_n_neurons
-from _spaun._vocab.vocabs import vis_vocab
-from _spaun._vocab.vocabs import pos_vocab
-from _spaun._vocab.vocabs import enum_vocab
-from _spaun._vocab.vocabs import task_vocab
-from _spaun._vocab.stimulus import stimulus
-from _spaun._vocab.stimulus import get_est_runtime
-from _spaun._spaun import Vision
-from _spaun._spaun import ProdSys
-from _spaun._spaun import InfoEnc
-from _spaun._spaun import Memory
-from _spaun._spaun import InfoDec
+from _spaun.vocabs import vis_vocab
+from _spaun.vocabs import pos_vocab
+from _spaun.vocabs import enum_vocab
+from _spaun.vocabs import task_vocab
+from _spaun.modules import Stimulus
+from _spaun.modules import get_est_runtime
+from _spaun.modules import Vision
+from _spaun.modules import ProdSys
+from _spaun.modules import InfoEnc
+from _spaun.modules import Memory
+from _spaun.modules import InfoDec
 
 
 # ----- Spaun proper -----
@@ -40,7 +40,7 @@ with model:
     model.config[nengo.Ensemble].n_neurons = cfg.n_neurons_ens
     model.config[nengo.Connection].synapse = cfg.pstc
 
-    stimulus(model)
+    model.stim = Stimulus()
     model.vis = Vision()
     model.ps = ProdSys()
     model.enc = InfoEnc()
@@ -58,7 +58,7 @@ with model:
     model.bg = spa.BasalGanglia(actions=actions)
     model.thal = spa.Thalamus(model.bg, mutual_inhibit=2)
 
-    model.vis.connect_from_stimulus(model.stimulus_node)
+    model.vis.connect_from_stimulus(model.stim)
     model.ps.connect_from_vision(model.vis)
     model.enc.connect_from_vision(model.vis)
     model.mem.connect_from_vision(model.vis)
@@ -68,37 +68,39 @@ with model:
     model.dec.connect_from_encoding(model.enc)
     model.dec.connect_from_memory(model.mem)
 
-    p0 = nengo.Probe(model.stimulus_node)
+    p0 = nengo.Probe(model.stim.output)
     p1 = nengo.Probe(model.vis.output, synapse=0.005)
     p2 = nengo.Probe(model.vis.neg_attention, synapse=0.005)
     # p3 = nengo.Probe(model.vis.blank_detect, synapse=0.005)
     # p4 = nengo.Probe(model.enc.pos_mb.gate, synapse=0.005)
     # p5 = nengo.Probe(model.enc.pos_mb.gateX, synapse=0.005)
     # p6 = nengo.Probe(model.enc.pos_mb.gateN, synapse=0.005)
-    # p4 = nengo.Probe(model.mem.mb1.gate, synapse=0.005)
-    # p5 = nengo.Probe(model.mem.mb1.gateX, synapse=0.005)
-    # p6 = nengo.Probe(model.mem.mb1.gateN, synapse=0.005)
-    p4 = nengo.Probe(model.ps.task_mb.gate, synapse=0.005)
-    p5 = nengo.Probe(model.ps.task_mb.gateX, synapse=0.005)
-    p6 = nengo.Probe(model.ps.task_mb.gateN, synapse=0.005)
+    p4 = nengo.Probe(model.mem.mb1a.gate, synapse=0.005)
+    p5 = nengo.Probe(model.mem.mb1a.gateX, synapse=0.005)
+    p6 = nengo.Probe(model.mem.mb1a.gateN, synapse=0.005)
+    # p4 = nengo.Probe(model.ps.task_mb.gate, synapse=0.005)
+    # p5 = nengo.Probe(model.ps.task_mb.gateX, synapse=0.005)
+    # p6 = nengo.Probe(model.ps.task_mb.gateN, synapse=0.005)
     # p7 = nengo.Probe(model.enc.pos_mb.output, synapse=0.005)
     p8 = nengo.Probe(model.mem.mb1, synapse=0.005)
     # p8 = nengo.Probe(model.enc.enc_output, synapse=0.005)
     # p9 = nengo.Probe(model.mem.mb1.gate, synapse=0.005)
     # p10 = nengo.Probe(model.enc.pos_output, synapse=0.005)
     # p11 = nengo.Probe(model.enc.pos_cconv.output, synapse=0.005)
-    p12 = nengo.Probe(model.ps.task_mb.output, synapse=0.005)
-    p13 = nengo.Probe(model.dec.select_am, synapse=0.005)
-    p14 = nengo.Probe(model.dec.select_vis, synapse=0.005)
+    # p12 = nengo.Probe(model.ps.task_mb.output, synapse=0.005)
+    # p12b = nengo.Probe(model.ps.task_mb.mem1.output, synapse=0.005)
+    # p13 = nengo.Probe(model.dec.select_am, synapse=0.005)
+    # p14 = nengo.Probe(model.dec.select_vis, synapse=0.005)
+    # p15 = nengo.Probe(model.thal.output, synapse=0.005)
 
 print "MODEL N_NEURONS: %i" % (get_total_n_neurons(model))
 print "vis n_neurons: %i" % (get_total_n_neurons(model.vis))
-print "enc n_neurons: %i" % (get_total_n_neurons(model.enc))
-print "mem n_neurons: %i" % (get_total_n_neurons(model.mem))
-print "dec n_neurons: %i" % (get_total_n_neurons(model.dec))
 print "ps n_neurons: %i" % (get_total_n_neurons(model.ps))
 print "bg n_neurons: %i" % (get_total_n_neurons(model.bg))
 print "thal n_neurons: %i" % (get_total_n_neurons(model.thal))
+# print "enc n_neurons: %i" % (get_total_n_neurons(model.enc))
+# print "mem n_neurons: %i" % (get_total_n_neurons(model.mem))
+# print "dec n_neurons: %i" % (get_total_n_neurons(model.dec))
 
 # ----- Spaun simulation run -----
 print "START BUILD"
@@ -149,10 +151,10 @@ plt.xlim([trange[0], trange[-1]])
 # plt.subplot(r, 1, 4)
 # plt.plot(trange, sim.data[p3])
 # plt.xlim([trange[0], trange[-1]])
-plt.subplot(r, 1, 4)
-plt.plot(trange, sim.data[p13])
-plt.plot(trange, sim.data[p14])
-plt.xlim([trange[0], trange[-1]])
+# plt.subplot(r, 1, 4)
+# plt.plot(trange, sim.data[p13])
+# plt.plot(trange, sim.data[p14])
+# plt.xlim([trange[0], trange[-1]])
 
 plt.subplot(r, 1, 5)
 plt.plot(trange, sim.data[p4])
@@ -176,7 +178,7 @@ plt.xlim([trange[0], trange[-1]])
 # plt.show()
 
 plt.figure()
-r = 2
+r = 1
 
 plt.subplot(r, 1, 1)
 num_classes = len(enum_vocab.keys)
@@ -185,8 +187,18 @@ plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9,
                                                             num_classes)])
 for i in range(num_classes):
     plt.plot(trange, similarity(sim.data, p8, enum_vocab)[:, i])
-# plt.legend(enum_vocab.keys, loc='upper left')
+plt.legend(enum_vocab.keys, loc='upper left')
 plt.xlim([trange[0], trange[-1]])
+
+# plt.subplot(r, 1, 1)
+# num_classes = sim.data[p15][-1].shape[0]
+# colormap = plt.cm.gist_ncar
+# plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9,
+#                                                             num_classes)])
+# for i in range(num_classes):
+#     plt.plot(trange, sim.data[p15][:, i])
+# # plt.legend(enum_vocab.keys, loc='upper left')
+# plt.xlim([trange[0], trange[-1]])
 
 # plt.subplot(r, 1, 1)
 # num_classes = len(pos_vocab.keys)
@@ -208,14 +220,24 @@ plt.xlim([trange[0], trange[-1]])
 # plt.legend(pos_vocab.keys, loc='upper left')
 # plt.xlim([trange[0], trange[-1]])
 
-plt.subplot(r, 1, 2)
-num_classes = len(task_vocab.keys)
-colormap = plt.cm.gist_ncar
-plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9,
-                                                            num_classes)])
-for i in range(num_classes):
-    plt.plot(trange, similarity(sim.data, p12, task_vocab)[:, i])
-# plt.legend(task_vocab.keys, loc='upper right')
-plt.xlim([trange[0], trange[-1]])
+# plt.subplot(r, 1, 2)
+# num_classes = len(task_vocab.keys)
+# colormap = plt.cm.gist_ncar
+# plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9,
+#                                                             num_classes)])
+# for i in range(num_classes):
+#     plt.plot(trange, similarity(sim.data, p12, task_vocab)[:, i])
+# # plt.legend(task_vocab.keys, loc='upper right')
+# plt.xlim([trange[0], trange[-1]])
+
+# plt.subplot(r, 1, 3)
+# num_classes = len(task_vocab.keys)
+# colormap = plt.cm.gist_ncar
+# plt.gca().set_color_cycle([colormap(i) for i in np.linspace(0, 0.9,
+#                                                             num_classes)])
+# for i in range(num_classes):
+#     plt.plot(trange, similarity(sim.data, p12b, task_vocab)[:, i])
+# # plt.legend(task_vocab.keys, loc='upper right')
+# plt.xlim([trange[0], trange[-1]])
 
 plt.show()

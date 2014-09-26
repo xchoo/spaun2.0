@@ -9,7 +9,7 @@ from .utils import mnist
 from .utils import load_image_data
 from ..config import cfg
 
-vision_filepath = os.path.join('_spaun', '_vision')
+vision_filepath = os.path.join('_spaun', 'vision')
 
 # --- LIF vision network configurations ---
 max_rate = 63.04
