@@ -1,14 +1,15 @@
 import nengo
 from nengo.spa.module import Module
 
-from ..config import cfg
 from .._spa import AssociativeMemory as AM
 from .._spa import MemoryBlock as MB
-from .._vision.lif_vision import LIFVision as LIFVisionNet
-from .._vision.lif_vision import am_vis_sps
-from .._vision.lif_vision import scales_data
-from .._vocab.vocabs import vis_vocab
-from .._vocab.vocabs import item_mb_gate_sp_inds
+
+from ..config import cfg
+from ..vocabs import vis_vocab
+from ..vocabs import item_mb_gate_sp_inds
+from ..vision.lif_vision import LIFVision as LIFVisionNet
+from ..vision.lif_vision import am_vis_sps
+from ..vision.lif_vision import scales_data
 
 # --- Visual associative memory configurations ---
 am_threshold = 0.5 * scales_data
@@ -50,4 +51,4 @@ class LIFVision(Module):
         self.outputs = dict(default=(self.output, vis_vocab))
 
     def connect_from_stimulus(self, stimulus):
-        nengo.Connection(stimulus, self.input)
+        nengo.Connection(stimulus.output, self.input)

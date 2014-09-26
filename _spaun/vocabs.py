@@ -2,8 +2,8 @@ from copy import deepcopy as copy
 
 from nengo.spa import Vocabulary
 
-from ..config import cfg
-from ..utils import sum_vocab_vecs
+from .config import cfg
+from .utils import sum_vocab_vecs
 
 
 ################# Semantic pointer (strings) definitions ######################

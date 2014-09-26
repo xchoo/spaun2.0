@@ -1,10 +1,11 @@
 import nengo
 from nengo.spa.module import Module
 
-from ..config import cfg
 from .._spa import MemoryBlock as MB
-from .._vocab.vocabs import task_mb_gate_sp_inds
-from .._vocab.vocabs import task_vocab
+
+from ..config import cfg
+from ..vocabs import task_mb_gate_sp_inds
+from ..vocabs import task_vocab
 
 
 class ProductionSystem(Module):
