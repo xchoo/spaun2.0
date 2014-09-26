@@ -11,7 +11,7 @@ cfg.present_blanks = True
 # cfg.use_opencl = False
 cfg.use_opencl = True
 
-cfg.sp_dim = 256
+# cfg.sp_dim = 256
 cfg.max_enum_list_pos = 4
 # cfg.neuron_type = nengo.LIFRate()
 
