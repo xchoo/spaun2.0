@@ -9,11 +9,11 @@ from nengo.spa.utils import similarity
 from _spaun.config import cfg
 cfg.present_blanks = True
 # cfg.use_opencl = False
-cfg.use_opencl = True
+# cfg.use_opencl = True
 
 # cfg.sp_dim = 256
 cfg.max_enum_list_pos = 4
-# cfg.neuron_type = nengo.LIFRate()
+cfg.neuron_type = nengo.LIFRate()
 
 
 # ----- Spaun imports -----
