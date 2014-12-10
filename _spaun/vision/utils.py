@@ -60,7 +60,10 @@ class FileObject(object):
 
 ## TODO: Remove debug mapping once lif vision network has been trained
 debug_mapping = {'A': 'SIX', 'OPEN': 'SEV', 'CLOSE': 'EIG', 'QM': 'NIN'}
-def get_image(label=None):
+def get_image(label=None, rng=None):
+    if rng is None:
+        rng = np.random.RandomState()
+
     if isinstance(label, int):
         return (vision_net.images_data[label], label)
     elif label is None:
@@ -73,8 +76,8 @@ def get_image(label=None):
 
         label_ind = np.where(vision_net.images_labels_unique == label)
         if label_ind[0].shape[0] > 0:
-            image_ind = np.random.choice(
+            image_ind = rng.choice(
                 vision_net.images_labels_inds[label_ind[0][0]])
         else:
-            image_ind = np.random.choice(len(vision_net.images_labels_inds))
+            image_ind = rng.choice(len(vision_net.images_labels_inds))
         return (vision_net.images_data[image_ind], image_ind)

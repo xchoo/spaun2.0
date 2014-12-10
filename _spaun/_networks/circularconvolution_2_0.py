@@ -84,12 +84,10 @@ class CircularConvolution(nengo.Network):
     """
 
     # def __init__(self, n_neurons, dimensions, invert_a=False, invert_b=False,
-    #              radius=None, **ens_kwargs):
+    #              radius=2.0, encoders=nengo.Default, **ens_kwargs):
     #     self.dimensions = dimensions
     #     self.invert_a = invert_a
     #     self.invert_b = invert_b
-
-    #     print self.transform_out.shape
 
     #     if radius is None:
     #         # self.radius = min(1.0, 3.5 / math.sqrt(self.dimensions))
@@ -98,10 +96,9 @@ class CircularConvolution(nengo.Network):
     #         # print sp_subvector_optimal_radius(self.dimensions, 1, 2, 3000)
     #         # print self.radius
     #         # self.radius = sp_subvector_optimal_radius(self.transform_out.shape[0], 1, 2, 3000)
-    #         self.radius = math.sqrt(2.0)
+    #         self.radius = np.sqrt(2.0)
     #     else:
     #         self.radius = radius
-    #     print
 
     #     self.A = nengo.Node(size_in=dimensions, label="A")
     #     self.B = nengo.Node(size_in=dimensions, label="B")

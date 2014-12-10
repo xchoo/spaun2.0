@@ -4,6 +4,7 @@ import bisect as bs
 
 import nengo
 from nengo.utils.distributions import Uniform
+from nengo.utils.distributions import Choice
 
 from .utils import mnist
 from .utils import load_image_data
@@ -42,6 +43,8 @@ am_sps_scale = 2.0
 am_vis_sps = weights_class.T * amp / cfg.sim_dt / am_sps_scale
 
 am_num_classes = weights_class.shape[1]
+
+vis_sps_radius = 0.3
 
 # --- Mnist data ---
 _, _, [images_data, images_labels] = mnist(filepath=vision_filepath)
@@ -123,28 +126,9 @@ def LIFVision(net=None):
                          transform=-1)
 
         #######################################################################
-        # net.neg_attention = nengo.Ensemble(cfg.n_neurons_ens, 1,
-        #                                    intercepts=Uniform(0.7, 1),
-        #                                    encoders=[[1]] * cfg.n_neurons_ens)
-        # nengo.Connection(input_diff.abs, net.neg_attention, synapse=0.005,
-        #                  transform=[[0.2] * images_data_dimensions],
-        #                  function=lambda x: x > 0.5)
-
-        # item_detect = nengo.Ensemble(nengo.Default, 1)
-        # nengo.Connection(input_node, item_detect, synapse=0.005,
-        #                  transform=[[1] * images_data_dimensions])
-        # nengo.Connection(item_detect, net.neg_attention, synapse=0.005,
-        #                  function=lambda x: x < 0.5)
-
-        # net.blank_detect = nengo.Ensemble(cfg.n_neurons_ens, 1,
-        #                                   intercepts=Uniform(0.7, 1),
-        #                                   encoders=[[1]] * cfg.n_neurons_ens)
-        # nengo.Connection(item_detect, net.blank_detect, synapse=0.005,
-        #                  function=lambda x: x < 0.5)
-
         net.neg_attention = nengo.Ensemble(cfg.n_neurons_ens, 1,
                                            intercepts=Uniform(0.5, 1),
-                                           encoders=[[1]] * cfg.n_neurons_ens)
+                                           encoders=Choice([[1]]))
         nengo.Connection(input_diff.abs, net.neg_attention, synapse=0.005,
                          transform=[[0.2] * images_data_dimensions])
 
@@ -156,7 +140,7 @@ def LIFVision(net=None):
 
         net.blank_detect = nengo.Ensemble(cfg.n_neurons_ens, 1,
                                           intercepts=Uniform(0.7, 1),
-                                          encoders=[[1]] * cfg.n_neurons_ens)
+                                          encoders=Choice([[1]]))
         nengo.Connection(item_detect, net.blank_detect, synapse=0.005,
                          function=lambda x: 1 - x)
         #######################################################################
@@ -165,10 +149,8 @@ def LIFVision(net=None):
         # change detection
         blank_detect_delay = nengo.Ensemble(cfg.n_neurons_ens, 1,
                                             intercepts=Uniform(0.1, 1),
-                                            encoders=[[1]] * cfg.n_neurons_ens)
+                                            encoders=Choice([[1]]))
         nengo.Connection(net.blank_detect, blank_detect_delay, synapse=0.03)
-        # nengo.Connection(net.blank_detect, net.neg_attention, synapse=0.01,
-        #                  function=lambda x: (x > 0.3) * 2)
         nengo.Connection(net.blank_detect, net.neg_attention, synapse=0.01,
                          transform=2)
 

@@ -2,7 +2,7 @@ import numpy as np
 
 import nengo
 from nengo.networks.ensemblearray import EnsembleArray
-from nengo.utils.compat import is_number
+from nengo.utils.distributions import Choice
 
 
 # TODO unittest pure product
@@ -21,12 +21,8 @@ class Product(nengo.Network):
         self.B = nengo.Node(size_in=dimensions, label="B")
         self.dimensions = dimensions
 
-        ### TODO: Have to update this to use nengo.utils.distributions.Choice
-        #         when nengo_ocl is rebased to master.
         if encoders is nengo.Default:
-            encoders = np.tile(
-                [[1, 1], [1, -1], [-1, 1], [-1, -1]],
-                ((n_neurons // 4) + 1, 1))[:n_neurons]
+            encoders = Choice([[1, 1], [1, -1], [-1, 1], [-1, -1]])
 
         self.product = EnsembleArray(
             n_neurons, n_ensembles=dimensions, ens_dimensions=2,

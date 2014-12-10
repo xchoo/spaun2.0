@@ -1,4 +1,5 @@
 from copy import deepcopy as copy
+import numpy as np
 
 from nengo.spa import Vocabulary
 
@@ -30,6 +31,9 @@ task_vis_sp_strs = ["A"]
 # --- Misc visual semantic pointers ---
 misc_vis_sp_strs = ["OPEN", "CLOSE", "QM"]
 
+# --- 'I don't know' motor response vector
+mtr_sp_strs = ['UNK']
+
 # --- List of all visual semantic pointers ---
 vis_sp_strs = copy(num_sp_strs)
 vis_sp_strs.extend(task_vis_sp_strs)
@@ -48,22 +52,22 @@ unitary_sp_strs.extend(ops_sp_strs)
 
 ######################### Vocabulary definitions ##############################
 # --- Primary vocabulary ---
-vocab = Vocabulary(cfg.sp_dim, unitary=unitary_sp_strs)
+vocab = Vocabulary(cfg.sp_dim, unitary=unitary_sp_strs, rng=cfg.rng)
 
 # --- Add numerical sp's ---
 vocab.parse("%s+%s" % (ops_sp_strs[0], num_sp_strs[0]))
 add_sp = vocab[ops_sp_strs[0]]
-num_sp = vocab[num_sp_strs[0]]
+num_sp = vocab[num_sp_strs[0]].copy()
 for i in range(len(num_sp_strs) - 1):
-    num_sp = num_sp * add_sp
+    num_sp = num_sp.copy() * add_sp
     vocab.add(num_sp_strs[i + 1], num_sp)
 
 # --- Add positional sp's ---
 vocab.parse("%s+%s" % (ops_sp_strs[1], pos_sp_strs[0]))
 inc_sp = vocab[ops_sp_strs[1]]
-pos_sp = vocab[pos_sp_strs[0]]
+pos_sp = vocab[pos_sp_strs[0]].copy()
 for i in range(len(pos_sp_strs) - 1):
-    pos_sp = pos_sp * inc_sp
+    pos_sp = pos_sp.copy() * inc_sp
     vocab.add(pos_sp_strs[i + 1], pos_sp)
 
 # --- Add other visual sp's ---
@@ -73,9 +77,15 @@ vocab.parse("+".join(task_vis_sp_strs))
 # --- Add task sp's ---
 vocab.parse("+".join(task_sp_strs))
 
-### --- Motor vocabulary (for debug purposes) ---
-mtr_vocab = Vocabulary(cfg.mtr_dim)
+### --- Motor vocabularies (for debug purposes) ---
+mtr_vocab = Vocabulary(cfg.mtr_dim, rng=cfg.rng)
 mtr_vocab.parse("+".join(num_sp_strs))
+
+mtr_unk_vocab = Vocabulary(cfg.mtr_dim, rng=cfg.rng)
+mtr_unk_vocab.parse(mtr_sp_strs[0])
+
+mtr_disp_vocab = mtr_vocab.create_subset(num_sp_strs)
+mtr_disp_vocab.add(mtr_sp_strs[0], mtr_unk_vocab[mtr_sp_strs[0]].v)
 
 ####################### Sub-vocabulary definitions ############################
 vis_vocab = vocab.create_subset(vis_sp_strs)
@@ -92,7 +102,7 @@ task_vocab = vocab.create_subset(task_sp_strs)
 ################## Enumerated vocabulary definitions ##########################
 # --- Enumerated vocabulary, enumerates all possible combinations of position
 #     and item vectors (for debug purposes)
-enum_vocab = Vocabulary(cfg.sp_dim)
+enum_vocab = Vocabulary(cfg.sp_dim, rng=cfg.rng)
 
 for pos in pos_sp_strs:
     for num in num_sp_strs:
@@ -108,14 +118,21 @@ item_mb_rst_sp_strs = ["A", "OPEN"]
 item_mb_rst_sp_inds = strs_to_inds(item_mb_rst_sp_strs, vis_sp_strs)
 
 pos_mb_gate_sp_strs = copy(num_sp_strs)
-pos_mb_gate_sp_strs.extend(["A", "OPEN", "QM"])
+# pos_mb_gate_sp_strs.extend(["A", "OPEN", "QM"])
 pos_mb_gate_sp_inds = strs_to_inds(pos_mb_gate_sp_strs, vis_sp_strs)
 pos_mb_rst_sp_strs = ["A", "OPEN", "QM"]
 pos_mb_rst_sp_inds = strs_to_inds(pos_mb_rst_sp_strs, vis_sp_strs)
 
 task_mb_gate_sp_strs = copy(num_sp_strs)
-task_mb_gate_sp_strs.extend(["A", "QM"])
+task_mb_gate_sp_strs.extend(["QM"])
 task_mb_gate_sp_inds = strs_to_inds(task_mb_gate_sp_strs, vis_sp_strs)
 
+task_mb_rst_sp_strs = ["A"]
+task_mb_rst_sp_inds = strs_to_inds(task_mb_rst_sp_strs, vis_sp_strs)
+
+# Note: sum_vocab_vecs have to be fed through threshold before use.
 dec_out_sel_sp_strs = ["DECW"]
 dec_out_sel_sp_vecs = sum_vocab_vecs(vocab, dec_out_sel_sp_strs)
+
+dec_pos_gate_sp_strs = ["DECW", "DEC"]
+dec_pos_gate_sp_vecs = sum_vocab_vecs(vocab, dec_pos_gate_sp_strs)
