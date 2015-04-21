@@ -3,8 +3,8 @@ import numpy as np
 import bisect as bs
 
 import nengo
-from nengo.utils.distributions import Uniform
-from nengo.utils.distributions import Choice
+from nengo.dists import Uniform
+from nengo.dists import Choice
 
 from .utils import mnist
 from .utils import load_image_data
@@ -14,12 +14,13 @@ vision_filepath = os.path.join('_spaun', 'vision')
 
 # --- LIF vision network configurations ---
 max_rate = 63.04
-intercept = 0
+intercept = 0.
 amp = 1.0 / max_rate
 pstc = 0.005
 
 # --- LIF vision network weights configurations ---
-vision_network_filename = os.path.join(vision_filepath, 'lif-126-error.npz')
+# vision_network_filename = os.path.join(vision_filepath, 'lif-126-error.npz')
+vision_network_filename = os.path.join(vision_filepath, 'params.npz')
 vision_network_data = np.load(vision_network_filename)
 dimensions = vision_network_data['Wc'].shape[0]
 
@@ -30,21 +31,27 @@ biases_class = vision_network_data['bc']
 
 # --- LIF vision network neuron model ---
 neuron_type = nengo.LIF(tau_rc=0.02, tau_ref=0.002)
-assert np.allclose(neuron_type.gain_bias(max_rate, intercept), (1, 1),
-                   atol=1e-2)
+# assert np.allclose(neuron_type.gain_bias(max_rate, intercept), (1, 1),
+#                    atol=1e-2)
 
 # --- Visual associative memory configurations ---
-scales_filename = os.path.join(vision_filepath, 'scales_200D.npz')
-scales_data = 1.0 / np.load(scales_filename)['scales']
+# scales_filename = os.path.join(vision_filepath, 'scales_200D.npz')
+# scales_data = 1.0 / np.load(scales_filename)['scales']
 
-am_threshold = 0.5 * scales_data
+# am_threshold = 0.5 * scales_data
 
-am_sps_scale = 2.0
-am_vis_sps = weights_class.T * amp / cfg.sim_dt / am_sps_scale
+# am_sps_scale = 2.0
+# am_vis_sps = weights_class.T * amp / am_sps_scale
+means_filename = os.path.join(vision_filepath, 'class_means.npz')
+means_data = np.matrix(1.0 / np.load(means_filename)['means'])
+
+am_threshold = 0.5
+am_vis_sps = np.multiply(weights_class.T * amp, means_data.T)
 
 am_num_classes = weights_class.shape[1]
 
-vis_sps_radius = 0.3
+vis_sps_scale = 1.0 / (amp * 4.5)
+# For magic number 4.5, see reference_code/vision_2/data_analysis.py
 
 # --- Mnist data ---
 _, _, [images_data, images_labels] = mnist(filepath=vision_filepath)
@@ -100,12 +107,11 @@ def LIFVision(net=None):
                                  synapse=pstc)
                 nengo.Connection(input_bias, layer.neurons,
                                  transform=-np.multiply(images_data_mean,
-                                                        images_data_std) *
-                                 W.T, synapse=pstc)
+                                                        images_data_std) * W.T,
+                                 synapse=pstc)
             else:
                 nengo.Connection(layers[-1].neurons, layer.neurons,
-                                 transform=W.T * amp / cfg.sim_dt,
-                                 synapse=pstc)
+                                 transform=W.T * amp, synapse=pstc)
 
             layers.append(layer)
 

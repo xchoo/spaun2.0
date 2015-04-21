@@ -3,28 +3,32 @@ from warnings import warn
 
 import nengo
 from nengo.spa.module import Module
+from nengo.utils.network import with_self
 
-from .._spa import AssociativeMemory as AM
+from .._networks import AssociativeMemory as AM
 
 from ..vision.lif_vision import am_vis_sps
 from ..config import cfg
-from ..vocabs import item_vocab, mtr_vocab, mtr_unk_vocab
+from ..vocabs import vocab, item_vocab, mtr_vocab, mtr_unk_vocab
 from ..vocabs import dec_out_sel_sp_vecs, dec_pos_gate_sp_vecs
 
 
 class InfoDecoding(Module):
-    def __init__(self):
-        super(InfoDecoding, self).__init__()
+    def __init__(self, label="Info Dec", seed=None, add_to_container=None):
+        super(InfoDecoding, self).__init__(label, seed, add_to_container)
+        self.init_module()
 
+    @with_self
+    def init_module(self):
         bias_node = nengo.Node(output=1)
 
         # MB x POS~
         self.item_dcconv = cfg.make_cir_conv(invert_b=True,
-                                             radius=cfg.dcconv_radius)
+                                             input_magnitude=cfg.dcconv_radius)
 
         # Decoding associative memory
-        self.dec_am = AM(item_vocab, mtr_vocab, wta_output=True,
-                         inhibitable=True, inhibit_scale=3,
+        self.dec_am = AM(item_vocab.vectors, mtr_vocab.vectors,
+                         wta_output=True, inhibitable=True, inhibit_scale=3,
                          wta_inhibit_scale=3.5,
                          threshold=cfg.dec_am_min_thresh,
                          threshold_output=True)
@@ -35,7 +39,7 @@ class InfoDecoding(Module):
         nengo.Connection(self.dec_am.output, am_gated_ens.input)
 
         # Top 2 am utilities difference calculation
-        dec_am2 = AM(item_vocab, item_vocab, wta_output=True,
+        dec_am2 = AM(item_vocab.vectors, item_vocab.vectors, wta_output=True,
                      inhibitable=True, inhibit_scale=3,
                      wta_inhibit_scale=3.5, threshold=0.0,
                      threshold_output=True)
@@ -73,12 +77,11 @@ class InfoDecoding(Module):
 
         # Transform from visual WM to motor semantic pointer [for copy drawing
         # task]
-        ### TODO: Replace with actual transformation matrix
-        from ..vision.lif_vision import scales_data
-        am_threshold = 0.5 * scales_data
+        # ## TODO: Replace with actual transformation matrix
+        from ..vision.lif_vision import am_threshold
         self.vis_transform = AM(am_vis_sps[:len(mtr_vocab.keys), :],
-                                mtr_vocab, wta_output=True,
-                                threshold=am_threshold[:len(mtr_vocab.keys)],
+                                mtr_vocab.vectors, wta_output=True,
+                                threshold=am_threshold,
                                 threshold_output=True,
                                 inhibitable=True, inhibit_scale=3)
 
@@ -122,8 +125,8 @@ class InfoDecoding(Module):
                          synapse=0.01)
 
         # Free recall decoding system
-        self.dec_am.add_output('item_output', item_vocab)
-        recall_mb = cfg.make_mem_block(gate_mode=1)
+        self.dec_am.add_output('item_output', item_vocab.vectors)
+        recall_mb = cfg.make_mem_block(vocab=vocab, gate_mode=1, reset_key=0)
         nengo.Connection(recall_mb.output, recall_mb.input)
         nengo.Connection(self.dec_am.item_output, recall_mb.input,
                          synapse=0.01)
@@ -131,7 +134,7 @@ class InfoDecoding(Module):
         nengo.Connection(self.pos_mb_gate_sig, recall_mb.gate,
                          transform=10)
 
-        self.dec_am_fr = AM(item_vocab, wta_output=True,
+        self.dec_am_fr = AM(item_vocab.vectors, wta_output=True,
                             inhibitable=True, inhibit_scale=5,
                             wta_inhibit_scale=3.5,
                             threshold=cfg.dec_fr_min_thresh,
@@ -222,10 +225,13 @@ class InfoDecoding(Module):
 
         self.am_utils = self.dec_am.utilities
         self.am2_utils = dec_am2.utilities
+        self.fr_utils = self.dec_am_fr.utilities
         self.util_diff = util_diff
 
         self.am_th_utils = self.dec_am.thresholded_utilities
         self.fr_th_utils = self.dec_am_fr.thresholded_utilities
+        self.am_def_th_utils = self.dec_am.default_output_thresholded_utility
+        self.fr_def_th_utils = self.dec_am_fr.default_output_thresholded_utility
 
         self.recall_mb = recall_mb
 

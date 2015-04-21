@@ -58,8 +58,7 @@ class FileObject(object):
         self.__setstate__(d)
         return self
 
-## TODO: Remove debug mapping once lif vision network has been trained
-debug_mapping = {'A': 'SIX', 'OPEN': 'SEV', 'CLOSE': 'EIG', 'QM': 'NIN'}
+
 def get_image(label=None, rng=None):
     if rng is None:
         rng = np.random.RandomState()
@@ -69,11 +68,6 @@ def get_image(label=None, rng=None):
     elif label is None:
         return (np.zeros(vision_net.images_data_dimensions), -1)
     else:
-        #### TODO: remove debug mapping
-        if label in debug_mapping.keys():
-            label = debug_mapping[label]
-        #### END TODO
-
         label_ind = np.where(vision_net.images_labels_unique == label)
         if label_ind[0].shape[0] > 0:
             image_ind = rng.choice(
