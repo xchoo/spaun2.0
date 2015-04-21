@@ -2,7 +2,7 @@ import numpy as np
 
 import nengo
 from nengo.networks.ensemblearray import EnsembleArray
-from nengo.utils.distributions import Choice
+from nengo.dists import Choice
 
 
 # TODO unittest pure product

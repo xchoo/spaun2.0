@@ -4,3 +4,6 @@ from .product_2_0 import Product
 from .workingmemory_3_0 import InputGatedMemory
 from .workingmemory_3_0 import InputGatedCleanupMemory
 from .workingmemory_3_0 import InputGatedCleanupPlusMemory
+from .assoc_mem import AssociativeMemory
+from .routing import Selector
+from .routing import Router

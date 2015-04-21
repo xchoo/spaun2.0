@@ -2,30 +2,30 @@ from warnings import warn
 
 import nengo
 from nengo.spa.module import Module
-from nengo.utils.distributions import Uniform
-from nengo.utils.distributions import Choice
-from nengo.networks import EnsembleArray
+from nengo.utils.network import with_self
 
 from ..config import cfg
 from ..vocabs import vocab
-from ..vocabs import pos_vocab
-from ..vocabs import item_vocab
+from ..vocabs import pos_sp_strs
 from ..vocabs import pos_mb_gate_sp_inds
 from ..vocabs import pos_mb_rst_sp_inds
 
 
 class InfoEncoding(Module):
-    def __init__(self):
-        super(InfoEncoding, self).__init__()
+    def __init__(self, label="Info Enc", seed=None, add_to_container=None):
+        super(InfoEncoding, self).__init__(label, seed, add_to_container)
+        self.init_module()
 
+    @with_self
+    def init_module(self):
         # Node that just outputs the INC vector
         self.inc_vec = nengo.Node(output=vocab['INC'].v)
         self.pos1_vec = nengo.Node(output=vocab['POS1'].v)
 
         # Memory block to store POS vector
-        self.pos_mb = cfg.make_mem_block(label="POS MB",
-                                         cleanup_vecs=pos_vocab.vectors,
-                                         reset_vec=pos_vocab['POS1'].v)
+        self.pos_mb = cfg.make_mem_block(label="POS MB", vocab=vocab,
+                                         cleanup_keys=pos_sp_strs,
+                                         reset_key='POS1')
 
         # POS x INC
         nengo.Connection(self.pos_mb.output, self.pos_mb.input,
@@ -44,8 +44,8 @@ class InfoEncoding(Module):
         self.enc_output = self.item_cconv.output
 
         # Define module inputs and outputs
-        self.inputs = dict(default=(self.item_input, item_vocab))
-        self.outputs = dict(default=(self.pos_output, pos_vocab))
+        self.inputs = dict(default=(self.item_input, vocab))
+        self.outputs = dict(default=(self.pos_output, vocab))
 
     def setup_connections(self, parent_net):
         # Set up connections from vision module

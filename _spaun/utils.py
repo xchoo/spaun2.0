@@ -20,8 +20,48 @@ def print_progress_bar(t, t_max, steps=10, eta_s=None):
     sys.stdout.flush()
 
 
+def run_nengo_data_generator(sim, dt, t_stop, t_sim_step=None,
+                             probe_buffer_size=-1):
+    t = 0.
+    t_index = 0
+
+    if t_sim_step is None:
+        t_sim_step = 5 * dt
+
+    probe_buffer_size = max(probe_buffer_size, t_sim_step) / dt
+    t_index_step = t_sim_step / dt
+
+    data_dict = {}
+    source_data_dict = {}
+
+    t_data = sim.trange()
+    t_data_len = len(t_data)
+    probe_keys = sim.model.probes
+
+    for probe in probe_keys:
+        source_data_dict[probe] = sim.data[probe]
+
+    while t < t_stop:
+        min_t_index = max(0, t_index - probe_buffer_size)
+
+        t_index += t_index_step
+        if t_index >= t_data_len:
+            t = t_stop
+        else:
+            t = t_data[t_index]
+
+        for probe in probe_keys:
+            data_dict[probe] = source_data_dict[probe][min_t_index:t_index + 1,
+                                                       :].T
+
+        yield(t_data[min_t_index:t_index + 1], data_dict)
+
+        # TODO: Pass all data to animation functions instead of bits of it?
+
+
 def run_nengo_sim_generator(sim, dt, t_stop, t_sim_step=None,
-                            probe_buffer_size=-1, use_data_dict=True):
+                            probe_buffer_size=-1, use_data_dict=True,
+                            func_list=[], nengo_sim_run_opts=1):
     t = 0
     if t_sim_step is None:
         t_sim_step = 5 * dt
@@ -38,7 +78,13 @@ def run_nengo_sim_generator(sim, dt, t_stop, t_sim_step=None,
         step_runtime = min(t_sim_step, t_stop - t)
         step_runtime = np.ceil(step_runtime / dt) * dt
 
-        sim.run(step_runtime)
+        for func in func_list:
+            func(t)
+
+        if nengo_sim_run_opts:
+            sim.run(step_runtime, progress_bar=False)
+        else:
+            sim.run(step_runtime)
         timestamp = time.time()
         t = sim.trange()[-1]
 
@@ -46,21 +92,6 @@ def run_nengo_sim_generator(sim, dt, t_stop, t_sim_step=None,
             if num_data_indices > 0:
                 data_len = len(sim._probe_outputs[sim.model.probes[0]])
 
-                ## Pad the data with zeros
-                # if data_len < num_data_indices:
-                #     num_to_fill = num_data_indices - data_len
-
-                #     tdata = np.append(sim.trange(),
-                #                       np.linspace(t + dt,
-                #                                   probe_buffer_size,
-                #                                   num_to_fill))
-                #     for probe in sim.model.probes:
-                #         pdata_dims = sim._probe_outputs[probe][-1].shape[0]
-                #         pdata = np.append(sim.data[probe],
-                #                           [[None] * pdata_dims] * num_to_fill,
-                #                           axis=0).T
-                #         data_dict[probe] = pdata
-                # else:
                 tdata = sim.trange()[-num_data_indices:]
 
                 data_len_remove = data_len - num_data_indices
@@ -84,9 +115,9 @@ def run_nengo_sim_generator(sim, dt, t_stop, t_sim_step=None,
     print ""
 
 
-def run_nengo_sim(sim, dt, t_stop, t_sim_step=None):
+def run_nengo_sim(sim, dt, t_stop, t_sim_step=None, **args):
     for _ in run_nengo_sim_generator(sim, dt, t_stop, t_sim_step,
-                                     use_data_dict=False):
+                                     use_data_dict=False, **args):
         pass
 
 
@@ -115,3 +146,12 @@ def conf_interval(data, num_samples=5000, confidence=0.95):
     high_ind = num_samples - low_ind - 1
 
     return (np.mean(data), mean_data[low_ind], mean_data[high_ind])
+
+
+def strs_to_inds(str_list, ref_str_list):
+    return [ref_str_list.index(s) for s in str_list]
+
+
+def invol_matrix(dim):
+    result = np.eye(dim)
+    return result[-np.arange(dim), :]

@@ -2,17 +2,19 @@ from warnings import warn
 
 import nengo
 from nengo.spa.module import Module
-from nengo.utils.distributions import Uniform
-from nengo.utils.distributions import Choice
+from nengo.utils.network import with_self
 
 from ..config import cfg
 from ..vocabs import dec_pos_gate_sp_vecs
 
 
 class MotorSystem(Module):
-    def __init__(self):
-        super(MotorSystem, self).__init__()
+    def __init__(self, label="Motor Sys", seed=None, add_to_container=None):
+        super(MotorSystem, self).__init__(label, seed, add_to_container)
+        self.init_module()
 
+    @with_self
+    def init_module(self):
         motor_bias = nengo.Node(output=1)
 
         # Motor init signal
