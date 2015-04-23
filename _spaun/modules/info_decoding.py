@@ -5,9 +5,6 @@ import nengo
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
-from .._networks import AssociativeMemory as AM
-
-from ..vision.lif_vision import am_vis_sps
 from ..config import cfg
 from ..vocabs import vocab, item_vocab, mtr_vocab, mtr_unk_vocab
 from ..vocabs import dec_out_sel_sp_vecs, dec_pos_gate_sp_vecs
@@ -27,11 +24,9 @@ class InfoDecoding(Module):
                                              input_magnitude=cfg.dcconv_radius)
 
         # Decoding associative memory
-        self.dec_am = AM(item_vocab.vectors, mtr_vocab.vectors,
-                         wta_output=True, inhibitable=True, inhibit_scale=3,
-                         wta_inhibit_scale=3.5,
-                         threshold=cfg.dec_am_min_thresh,
-                         threshold_output=True)
+        self.dec_am = cfg.make_assoc_mem(item_vocab.vectors, mtr_vocab.vectors,
+                                         inhibitable=True, inhibit_scale=3,
+                                         threshold=cfg.dec_am_min_thresh)
         nengo.Connection(self.item_dcconv.output, self.dec_am.input,
                          synapse=0.01)
 
@@ -39,17 +34,15 @@ class InfoDecoding(Module):
         nengo.Connection(self.dec_am.output, am_gated_ens.input)
 
         # Top 2 am utilities difference calculation
-        dec_am2 = AM(item_vocab.vectors, item_vocab.vectors, wta_output=True,
-                     inhibitable=True, inhibit_scale=3,
-                     wta_inhibit_scale=3.5, threshold=0.0,
-                     threshold_output=True)
+        dec_am2 = cfg.make_assoc_mem(item_vocab.vectors, item_vocab.vectors,
+                                     inhibitable=True, inhibit_scale=3,
+                                     threshold=0.0)
         dec_am2.add_input('dec_am_utils', np.eye(len(item_vocab.keys)) * -3)
         nengo.Connection(self.dec_am.thresholded_utilities,
                          dec_am2.dec_am_utils)
         nengo.Connection(self.item_dcconv.output, dec_am2.input, synapse=0.01)
 
         util_diff = cfg.make_thresh_ens(cfg.dec_am_min_diff)
-        # util_diff = nengo.Ensemble(cfg.n_neurons_ens, 1)
         nengo.Connection(self.dec_am.utilities, util_diff,
                          transform=[[1] * len(item_vocab.keys)], synapse=0.01)
         nengo.Connection(dec_am2.utilities, util_diff,
@@ -57,7 +50,6 @@ class InfoDecoding(Module):
 
         util_diff_neg = cfg.make_thresh_ens(1 - cfg.dec_am_min_diff)
         nengo.Connection(bias_node, util_diff_neg)
-        # nengo.Connection(util_diff, util_diff_neg, transform=-1,
         nengo.Connection(util_diff, util_diff_neg, transform=-2,
                          synapse=0.01)
         nengo.Connection(self.dec_am.inhibit, util_diff_neg, transform=-2)
@@ -78,12 +70,11 @@ class InfoDecoding(Module):
         # Transform from visual WM to motor semantic pointer [for copy drawing
         # task]
         # ## TODO: Replace with actual transformation matrix
-        from ..vision.lif_vision import am_threshold
-        self.vis_transform = AM(am_vis_sps[:len(mtr_vocab.keys), :],
-                                mtr_vocab.vectors, wta_output=True,
-                                threshold=am_threshold,
-                                threshold_output=True,
-                                inhibitable=True, inhibit_scale=3)
+        from ..vision.lif_vision import am_threshold, am_vis_sps
+        self.vis_transform = \
+            cfg.make_assoc_mem(am_vis_sps[:len(mtr_vocab.keys), :],
+                               mtr_vocab.vectors, threshold=am_threshold,
+                               inhibitable=True, inhibit_scale=3)
 
         # Decoding output selector (selects between decoded from item WM or
         # transformed from visual WM)
@@ -134,11 +125,10 @@ class InfoDecoding(Module):
         nengo.Connection(self.pos_mb_gate_sig, recall_mb.gate,
                          transform=10)
 
-        self.dec_am_fr = AM(item_vocab.vectors, wta_output=True,
-                            inhibitable=True, inhibit_scale=5,
-                            wta_inhibit_scale=3.5,
-                            threshold=cfg.dec_fr_min_thresh,
-                            threshold_output=True)
+        self.dec_am_fr = \
+            cfg.make_assoc_mem(item_vocab.vectors, item_vocab.vectors,
+                               inhibitable=True, inhibit_scale=5,
+                               threshold=cfg.dec_fr_min_thresh)
         nengo.Connection(recall_mb.output, self.dec_am_fr.input,
                          transform=-1)
         nengo.Connection(self.pos_mb_gate_sig, self.dec_am_fr.inhibit,
@@ -214,7 +204,7 @@ class InfoDecoding(Module):
             nengo.Connection(output_unk, e.neurons,
                              transform=[[-3]] * e.n_neurons)
 
-        ############################## DEBUG ##################################
+        # ############################ DEBUG ##################################
         self.select_am = inhibit_am
         self.select_vis = inhibit_vis
 
@@ -231,7 +221,7 @@ class InfoDecoding(Module):
         self.am_th_utils = self.dec_am.thresholded_utilities
         self.fr_th_utils = self.dec_am_fr.thresholded_utilities
         self.am_def_th_utils = self.dec_am.default_output_thresholded_utility
-        self.fr_def_th_utils = self.dec_am_fr.default_output_thresholded_utility
+        self.fr_def_th_utils = self.dec_am_fr.default_output_thresholded_utility # noqa
 
         self.recall_mb = recall_mb
 
@@ -242,7 +232,7 @@ class InfoDecoding(Module):
 
         self.util_diff_neg = util_diff_neg
 
-        ############################ END DEBUG ################################
+        # ########################## END DEBUG ################################
 
         # Define network inputs and outputs
         self.dec_input = self.item_dcconv.A
@@ -259,12 +249,6 @@ class InfoDecoding(Module):
     def setup_connections(self, parent_net):
         p_net = parent_net
 
-        # Set up connections from vision module
-        if hasattr(p_net, 'vis'):
-            nengo.Connection(p_net.vis.mb_output, self.vis_input)
-        else:
-            warn("InfoDecoding Module - Could not connect from 'vis'")
-
         # Set up connections from production system module
         if hasattr(p_net, 'ps'):
             nengo.Connection(p_net.ps.task, self.select_out,
@@ -274,7 +258,7 @@ class InfoDecoding(Module):
             nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit,
                              transform=[dec_pos_gate_sp_vecs * -1.0])
 
-            ####### DEBUG ########
+            # ###### DEBUG ########
             nengo.Connection(p_net.ps.task, self.debug_task,
                              transform=[dec_pos_gate_sp_vecs * 1.0])
         else:
@@ -283,21 +267,17 @@ class InfoDecoding(Module):
         # Set up connections from encoding module
         if hasattr(p_net, 'enc'):
             nengo.Connection(p_net.enc.pos_output, self.pos_input)
-            nengo.Connection(self.pos_mb_gate_bias, p_net.enc.pos_mb.gate,
-                             transform=4, synapse=0.01)
-            nengo.Connection(self.pos_mb_gate_sig, p_net.enc.pos_mb.gate,
-                             transform=-4, synapse=0.01)
         else:
             warn("InfoDecoding Module - Could not connect from 'enc'")
 
-        # Set up connections from memory module
-        if hasattr(p_net, 'mem'):
-            nengo.Connection(p_net.mem.output, self.dec_input,
+        # Set up connections from transform module
+        if hasattr(p_net, 'trfm'):
+            nengo.Connection(p_net.trfm.output, self.dec_input,
                              transform=cfg.dcconv_item_in_scale)
-            nengo.Connection(p_net.mem.output, self.dec_am_fr.input,
+            nengo.Connection(p_net.trfm.output, self.dec_am_fr.input,
                              transform=cfg.dec_fr_item_in_scale)
         else:
-            warn("InfoDecoding Module - Could not connect from 'mem'")
+            warn("InfoDecoding Module - Could not connect from 'trfm'")
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):

@@ -59,11 +59,6 @@ class MemoryBlock(Module):
             nengo.Connection(self.gate, self.gateN, transform=-1)
             nengo.Connection(bias_node, self.gateN)
 
-            wm_args = copy(mem_args)
-            wm_args['radius'] = radius
-            wm_args['gate_gain'] = mem_args.get('gate_gain', 5)
-            wm_args['difference_gain'] = mem_args.get('difference_gain', 5)
-
             # cleanup_mode:
             # - 0 (or cleanup_vecs == None): No cleanup
             # - 1: Cleanup memory vectors using provided vectors. Only store
@@ -71,25 +66,29 @@ class MemoryBlock(Module):
             # - 2: Cleanup memory vectors using provided vectors but also allow
             #      vectors that do not match any of the cleanup vectors to be
             #      stored as well.
+            wm_args = copy(mem_args)
             if cleanup_vecs is None or cleanup_mode == 0:
                 self.mem1 = WM(n_neurons, dimensions, radius=radius,
-                               reset_value=reset_vec, **mem_args)
+                               reset_value=reset_vec, **wm_args)
+                wm_args.pop('input_transform', 1)
                 self.mem2 = WM(n_neurons, dimensions, radius=radius,
-                               reset_value=reset_vec, **mem_args)
+                               reset_value=reset_vec, **wm_args)
             elif cleanup_mode == 1:
                 self.mem1 = WMC(n_neurons, dimensions, radius=radius,
                                 cleanup_values=cleanup_vecs,
-                                reset_value=reset_vec, **mem_args)
+                                reset_value=reset_vec, **wm_args)
+                wm_args.pop('input_transform', 1)
                 self.mem2 = WMC(n_neurons, dimensions, radius=radius,
                                 cleanup_values=cleanup_vecs,
-                                reset_value=reset_vec, **mem_args)
+                                reset_value=reset_vec, **wm_args)
             else:
                 self.mem1 = WMCP(n_neurons, dimensions, radius=radius,
                                  cleanup_values=cleanup_vecs,
-                                 reset_value=reset_vec, **mem_args)
+                                 reset_value=reset_vec, **wm_args)
+                wm_args.pop('input_transform', 1)
                 self.mem2 = WMCP(n_neurons, dimensions, radius=radius,
                                  cleanup_values=cleanup_vecs,
-                                 reset_value=reset_vec, **mem_args)
+                                 reset_value=reset_vec, **wm_args)
 
             # gate_modes:
             # - 1: Gate mem1 on gate high, gate mem2 on gate low (default)

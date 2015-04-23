@@ -19,7 +19,6 @@ amp = 1.0 / max_rate
 pstc = 0.005
 
 # --- LIF vision network weights configurations ---
-# vision_network_filename = os.path.join(vision_filepath, 'lif-126-error.npz')
 vision_network_filename = os.path.join(vision_filepath, 'params.npz')
 vision_network_data = np.load(vision_network_filename)
 dimensions = vision_network_data['Wc'].shape[0]
@@ -31,17 +30,11 @@ biases_class = vision_network_data['bc']
 
 # --- LIF vision network neuron model ---
 neuron_type = nengo.LIF(tau_rc=0.02, tau_ref=0.002)
-# assert np.allclose(neuron_type.gain_bias(max_rate, intercept), (1, 1),
-#                    atol=1e-2)
+assert np.allclose(neuron_type.gain_bias(np.asarray([max_rate]),
+                                         np.asarray([intercept])),
+                   (1, 1), atol=1e-2)
 
 # --- Visual associative memory configurations ---
-# scales_filename = os.path.join(vision_filepath, 'scales_200D.npz')
-# scales_data = 1.0 / np.load(scales_filename)['scales']
-
-# am_threshold = 0.5 * scales_data
-
-# am_sps_scale = 2.0
-# am_vis_sps = weights_class.T * amp / am_sps_scale
 means_filename = os.path.join(vision_filepath, 'class_means.npz')
 means_data = np.matrix(1.0 / np.load(means_filename)['means'])
 

@@ -66,3 +66,12 @@ class InfoEncoding(Module):
             nengo.Connection(parent_net.vis.output, self.enc_output)
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
+
+        # Set up connections from decoding module
+        if hasattr(parent_net, 'dec'):
+            nengo.Connection(parent_net.dec.pos_mb_gate_bias, self.pos_mb.gate,
+                             transform=4, synapse=0.01)
+            nengo.Connection(parent_net.dec.pos_mb_gate_sig, self.pos_mb.gate,
+                             transform=-4, synapse=0.01)
+        else:
+            warn("InfoEncoding Module - Cannot connect from 'dec'")
