@@ -152,6 +152,6 @@ def strs_to_inds(str_list, ref_str_list):
     return [ref_str_list.index(s) for s in str_list]
 
 
-def invol_matrix(dim):
-    result = np.eye(dim)
-    return result[-np.arange(dim), :]
+def str_to_bool(string):
+    return string.lower() in ['yes', 'true', 't', '1']
+

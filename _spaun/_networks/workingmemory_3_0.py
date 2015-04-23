@@ -70,6 +70,7 @@ class InputGatedCleanupMemory(nengo.Network):
     def __init__(self, n_neurons, dimensions, mem_synapse=0.1,
                  fdbk_transform=1.0, input_transform=1.0, difference_gain=1.0,
                  gate_gain=3, reset_value=None, cleanup_values=None,
+                 wta_output=False, wta_inhibit_scale=1, 
                  label=None, seed=None, add_to_container=None, **mem_args):
 
         super(InputGatedCleanupMemory, self).__init__(label, seed,
@@ -92,8 +93,8 @@ class InputGatedCleanupMemory(nengo.Network):
         cu_args = copy(mem_args)
         cu_args['radius'] = 1
         cu_args['encoders'] = Choice([[1]])
-        cu_args['intercepts'] = Uniform(0.3, 1)
-        cu_args['eval_points'] = Uniform(0.4, 1.3)
+        cu_args['intercepts'] = Uniform(0.5, 1)
+        cu_args['eval_points'] = Uniform(0.6, 1.3)
         cu_args['n_eval_points'] = 5000
 
         with self:
@@ -102,11 +103,14 @@ class InputGatedCleanupMemory(nengo.Network):
 
             self.mem = EnsembleArray(n_neurons, cleanup_values.shape[0],
                                      label="mem", **cu_args)
-            # self.mem.add_output('thresh', function=lambda x: 1)
-            # nengo.Connection(self.mem.thresh, self.mem.input,
-            #                  synapse=mem_synapse)
-            nengo.Connection(self.mem.output, self.mem.input,
+            self.mem.add_output('thresh', function=lambda x: 1)
+            nengo.Connection(self.mem.thresh, self.mem.input,
                              synapse=mem_synapse)
+
+            if wta_output:
+                nengo.Connection(self.mem.output, self.mem.input,
+                                 transform=(np.eye(cleanup_values.shape[0]) 
+                                            - 1) * wta_inhibit_scale)
 
             # calculate difference between stored value and input
             diff_args = copy(mem_args)
@@ -124,9 +128,7 @@ class InputGatedCleanupMemory(nengo.Network):
                              transform=difference_gain, synapse=mem_synapse)
 
             # connect cleanup to output
-            # nengo.Connection(self.mem.thresh, self.output,
-            #                  transform=cleanup_values.T, synapse=None)
-            nengo.Connection(self.mem.output, self.output,
+            nengo.Connection(self.mem.thresh, self.output,
                              transform=cleanup_values.T, synapse=None)
 
             # gate difference (if gate==0, update stored value,
@@ -146,6 +148,7 @@ class InputGatedCleanupPlusMemory(nengo.Network):
     def __init__(self, n_neurons, dimensions, mem_synapse=0.1,
                  fdbk_transform=1.0, input_transform=1.0, difference_gain=1.0,
                  gate_gain=3, reset_value=None, cleanup_values=None,
+                 wta_output=False, wta_inhibit_scale=1, 
                  label=None, seed=None, add_to_container=None, **mem_args):
 
         super(InputGatedCleanupPlusMemory, self).__init__(label, seed,
@@ -173,6 +176,7 @@ class InputGatedCleanupPlusMemory(nengo.Network):
                                             fdbk_transform, input_transform,
                                             difference_gain, gate_gain,
                                             reset_value, cleanup_values,
+                                            wta_output, wta_inhibit_scale, 
                                             **mem_args)
                 self.mem_regular = \
                     InputGatedMemory(n_neurons, dimensions, mem_synapse,
@@ -207,45 +211,39 @@ class InputGatedCleanupPlusMemory(nengo.Network):
 
 
 def make_resettable(mem_network, reset_value):
-    if np.isscalar(reset_value) and reset_value == 0:
-        with mem_network as net:
-            net.reset = nengo.Ensemble(net.n_neurons, 1, 
-                                       encoders=Choice([[1]]),
-                                       intercepts=Uniform(0.5, 1))
-            for e in net.mem.all_ensembles:
-                nengo.Connection(net.reset, e.neurons,
-                                 transform=[[-net.gate_gain]] * e.n_neurons)
+    # Why have all this extra hardware to reset WM when inhibition can do it?
+    # - Makes the reset more reliable (storing a zero, rather than just 
+    #   wiping it out), so that reset signal can be shorter.
+    if np.isscalar(reset_value):
+        reset_value = np.matrix(np.ones(mem_network.dimensions) *
+                                reset_value)
     else:
-        if np.isscalar(reset_value):
-            reset_value = np.matrix(np.ones(mem_network.dimensions) *
-                                    reset_value)
-        else:
-            reset_value = np.matrix(reset_value)
+        reset_value = np.matrix(reset_value)
 
-        with mem_network as net:
-            bias = nengo.Node(output=1)
-            net.reset = nengo.Node(size_in=1)
+    with mem_network as net:
+        bias = nengo.Node(output=1)
+        net.reset = nengo.Node(size_in=1)
 
-            resetX = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
-                                    intercepts=Uniform(0.5, 1))
-            resetN = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
-                                    intercepts=Uniform(0.5, 1))
-            reset_gate = EnsembleArray(net.n_neurons, net.dimensions,
-                                       label="reset gate", **net.mem_args)
+        resetX = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
+                                intercepts=Uniform(0.5, 1))
+        resetN = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
+                                intercepts=Uniform(0.5, 1))
+        reset_gate = EnsembleArray(net.n_neurons, net.dimensions,
+                                   label="reset gate", **net.mem_args)
 
-            nengo.Connection(net.reset, resetX, synapse=None)
-            nengo.Connection(net.reset, resetN, transform=-1, synapse=None)
-            nengo.Connection(bias, resetN, synapse=None)
+        nengo.Connection(net.reset, resetX, synapse=None)
+        nengo.Connection(net.reset, resetN, transform=-1, synapse=None)
+        nengo.Connection(bias, resetN, synapse=None)
 
-            nengo.Connection(bias, reset_gate.input, transform=reset_value.T,
-                             synapse=None)
-            nengo.Connection(net.input, reset_gate.input, transform=-1,
-                             synapse=None)
+        nengo.Connection(bias, reset_gate.input, transform=reset_value.T,
+                         synapse=None)
+        nengo.Connection(net.input, reset_gate.input, transform=-1,
+                         synapse=None)
 
-            nengo.Connection(reset_gate.output, net.diff_input,
-                             transform=net.input_transform)
+        nengo.Connection(reset_gate.output, net.diff_input,
+                         transform=net.input_transform)
 
-            nengo.Connection(resetX, net.gate, transform=-1)
-            for e in reset_gate.ensembles:
-                nengo.Connection(resetN, e.neurons,
-                                 transform=[[-net.gate_gain]] * e.n_neurons)
+        nengo.Connection(resetX, net.gate, transform=-3)
+        for e in reset_gate.ensembles:
+            nengo.Connection(resetN, e.neurons,
+                             transform=[[-net.gate_gain]] * e.n_neurons)
