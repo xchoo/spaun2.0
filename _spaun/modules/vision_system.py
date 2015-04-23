@@ -5,7 +5,6 @@ from nengo.spa import Vocabulary
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
-from .._networks import AssociativeMemory as AM
 from .._spa import MemoryBlock as MB
 
 from ..config import cfg
@@ -28,9 +27,9 @@ class VisionSystem(Module):
 
         # Make associative memory to map visual image semantic pointers to
         # visual conceptual semantic pointers
-        self.am = AM(am_vis_sps, vis_vocab.vectors, wta_output=True,
-                     threshold=am_threshold, threshold_output=True,
-                     inhibitable=True, inhibit_scale=5)
+        self.am = cfg.make_assoc_mem(am_vis_sps, vis_vocab.vectors,
+                                     threshold=am_threshold,
+                                     inhibitable=True, inhibit_scale=5)
         nengo.Connection(self.vis_net.output, self.am.input, synapse=0.005)
         nengo.Connection(self.vis_net.neg_attention, self.am.inhibit,
                          synapse=0.005)

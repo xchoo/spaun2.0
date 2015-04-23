@@ -1,8 +1,9 @@
+import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-supported_data_version = 1
+supported_data_version = 3
 
 # default_filename = 'probe_data_nospc_LIF_256_list3.npz'
 # default_filename = 'probe_data_nospc_LIFRate_256.npz'
@@ -20,9 +21,25 @@ if len(sys.argv) > 1:
 else:
     data_filename = default_filename
 
-config_filename = data_filename[:-4] + '_cfg.npz'
+gen_trange = False
 
-probe_data = np.load(data_filename)
+if data_filename.endswith('.npz'):
+    config_filename = data_filename[:-4] + '_cfg.npz'
+    probe_data = np.load(data_filename)
+
+elif data_filename.endswith('.h5'):
+    config_dir, filename = os.path.split(data_filename[:-3])
+    nameparts = filename.split('+')
+    config_filename = os.path.join(config_dir,
+                                   'probe_data_' + nameparts[1] + '_cfg.npz')
+
+    import h5py
+    probe_data = h5py.File(data_filename)
+
+    gen_trange = True
+else:
+    raise RuntimeError('File format not supported.')
+
 config_data = np.load(config_filename)
 
 data_version = 0 if 'version' not in config_data.keys() else \
@@ -31,35 +48,47 @@ if int(data_version) != int(supported_data_version):
     raise Exception('Unsupported data version number. Expected %i, got %i.'
                     % (supported_data_version, data_version))
 
-trange = probe_data['trange']
+if not gen_trange:
+    trange = probe_data['trange']
+else:
+    sim_dt = config_data['dt']
+    data_len = probe_data[probe_data.keys()[0]].shape[0]
+    trange = np.arange(0, data_len * sim_dt, sim_dt)
+
 probe_list = config_data['probe_list']
 vocab_dict = config_data['vocab_dict'].item()
 
-# probe_list = np.array(probe_list)
 print "\nDISPLAYING PROBE DATA. PROBE LIST:"
 print probe_list
 
-num_rows = np.where(probe_list == '0')[0]
-num_rows = np.append(num_rows, probe_list.shape[0])
-
-max_r_ind = 0
-max_r = -1
-r = 1
-for probe in probe_list:
-    disp_legend = False
-    if probe[-1] == "*":
-        disp_legend = True
-        probe = probe[:-1]
-
-    if probe == '0':
-        r = 1
-        max_r = num_rows[max_r_ind]
-        max_r_ind += 1
-        plt.figure()
+title_list = [[]]
+figs_list = [[]]
+for p in probe_list:
+    if p == '0':
+        figs_list.append([])
+        title_list.append([])
+    elif p.isdigit() or p[:-1].isdigit():
+        figs_list[-1].append(p)
     else:
+        title_list[-1].append(p)
+
+for n, fig in enumerate(figs_list):
+    plt.figure()
+
+    if len(title_list[n]) > 0:
+        plt.suptitle(title_list[n][-1])
+
+    max_r = len(fig)
+    for r, probe in enumerate(fig):
+        disp_legend = False
+        if probe[-1] == '*':
+            disp_legend = True
+            probe = probe[:-1]
+
+        plt.subplot(max_r, 1, r + 1)
+
         colormap = plt.cm.gist_ncar
 
-        plt.subplot(num_rows[max_r_ind] - max_r - 1, 1, r)
         if probe in vocab_dict.keys():
             vocab = vocab_dict[probe]
             num_classes = len(vocab.keys)
@@ -72,7 +101,7 @@ for probe in probe_list:
             if disp_legend:
                 plt.legend(vocab.keys, loc='center left')
         else:
-            num_classes = probe_data[probe][-1].shape[0]
+            num_classes = probe_data[probe][-1].size
 
             if num_classes < 30:
                 plt.gca().set_color_cycle([colormap(i) for i in
@@ -83,7 +112,10 @@ for probe in probe_list:
                     plt.legend(map(str, range(num_classes)), loc='center left')
             else:
                 plt.plot(trange, probe_data[probe])
+
         plt.xlim([trange[0], trange[-1]])
-        plt.ylabel('%i,%i' % (max_r_ind + 1, r))
-        r += 1
+        plt.ylabel('%i,%i' % (n + 1, r + 1))
+
 plt.show()
+
+probe_data.close()
