@@ -25,13 +25,13 @@ num_sp_strs = ['ZER', 'ONE', 'TWO', 'THR', 'FOR',
 # X - Task precursor
 # DEC - Decoding task (output to motor system)
 # DECW - Decoding task (output to motor system, but for drawing task)
-# DECC - Decoding task (output to motor system, but for counting task)
+# DECI - Decoding task (output to motor system, but for induction tasks)
 ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X', 'DEC', 'DECW',
-                   'DECC']
+                   'DECI']
 ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R', 'V', 'W']
 
 # --- Production system semantic pointers ---
-ps_state_sp_strs = ['INIT', 'QAP', 'QAN', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT']
+ps_state_sp_strs = ['QAP', 'QAN', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT']
 ps_dec_sp_strs = ['FWD', 'REV', 'CNT']
 
 # --- Misc visual semantic pointers ---

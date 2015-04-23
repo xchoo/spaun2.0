@@ -19,17 +19,23 @@ class ProductionSystem(Module):
     @with_self
     def init_module(self):
         # Memory block to hold task information
-        self.ps_task_mb = cfg.make_mem_block(vocab=ps_task_vocab,
-                                             cleanup_mode=1,
-                                             reset_key='X')
+        self.ps_task_mb = \
+            cfg.make_mem_block(vocab=ps_task_vocab,
+                               input_transform=cfg.ps_mb_gain_scale,
+                               cleanup_mode=1, fdbk_transform=1.02,
+                               wta_output=True, reset_key='X')
 
-        self.ps_state_mb = cfg.make_mem_block(vocab=ps_state_vocab,
-                                              cleanup_mode=1,
-                                              reset_key='INIT')
+        self.ps_state_mb = \
+            cfg.make_mem_block(vocab=ps_state_vocab,
+                               input_transform=cfg.ps_mb_gain_scale,
+                               cleanup_mode=1, fdbk_transform=1.02,
+                               wta_output=True, reset_key='TRANS0')
 
-        self.ps_dec_mb = cfg.make_mem_block(vocab=ps_dec_vocab,
-                                            cleanup_mode=1,
-                                            reset_key='FWD')
+        self.ps_dec_mb = \
+            cfg.make_mem_block(vocab=ps_dec_vocab,
+                               input_transform=cfg.ps_mb_gain_scale,
+                               cleanup_mode=1, fdbk_transform=1.02,
+                               wta_output=True, reset_key='FWD')
 
         # Define inputs and outputs
         self.task = self.ps_task_mb.output
