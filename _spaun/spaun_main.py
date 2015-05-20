@@ -2,14 +2,17 @@ import nengo
 from nengo import spa
 
 from .config import cfg
+from _spaun.modules.stimulus import parse_raw_seq
 from _spaun.modules import Stimulus, Vision, ProdSys, InfoEnc, InfoDec, Motor
-from _spaun.modules import TrfmSys
-# from _spaun.modules import Memory
-from _spaun.modules.working_memory import WorkingMemoryDummy as Memory
-from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
+from _spaun.modules import TrfmSys, Memory
+# from _spaun.modules.working_memory import WorkingMemoryDummy as Memory
+# from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
 
 
 def Spaun():
+    # Process the raw stimulus provided to spaun
+    parse_raw_seq()
+
     model = spa.SPA(label='Spaun', seed=cfg.seed)
     with model:
         model.config[nengo.Ensemble].max_rates = cfg.max_rates
@@ -19,12 +22,12 @@ def Spaun():
 
         model.stim = Stimulus()
         model.vis = Vision()
-        # model.ps = ProdSys()
-        # model.enc = InfoEnc()
-        # model.mem = Memory()
-        # model.trfm = TrfmSys()
-        # model.dec = InfoDec()
-        # model.mtr = Motor()
+        model.ps = ProdSys()
+        model.enc = InfoEnc()
+        model.mem = Memory()
+        model.trfm = TrfmSys()
+        model.dec = InfoDec()
+        model.mtr = Motor()
 
         if hasattr(model, 'vis') and hasattr(model, 'ps'):
             copy_draw_action = \
@@ -45,8 +48,8 @@ def Spaun():
             # Count action is incomplete!
             qa_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, FIV)) --> ps_task = A',  # noqa
-                 'dot(ps_task, A) - 0.5 * dot(vis, M + P + QM) --> ps_task = A, ps_state = ps_state',  # noqa
-                 '0.5 * (dot(ps_task, A) + dot(vis, M)) --> ps_task = M, ps_state = QAN',  # noqa
+                 'dot(ps_task, A) - 0.5 * dot(vis, K + P + QM) --> ps_task = A, ps_state = ps_state',  # noqa
+                 '0.5 * (dot(ps_task, A) + dot(vis, K)) --> ps_task = M, ps_state = QAK',  # noqa
                  '0.5 * (dot(ps_task, A) + dot(vis, P)) --> ps_task = M, ps_state = QAP']  # noqa
             rvc_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, SIX)) --> ps_task = V',  # noqa

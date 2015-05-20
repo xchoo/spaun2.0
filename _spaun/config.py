@@ -115,17 +115,22 @@ class SpaunConfig(object):
             dim = self.sp_dim
         return 3.5 / np.sqrt(dim)
 
-    def get_probe_data_filename(self, label):
-        label = label.replace('?', '@')
-        return "_".join(["probe_data",
-                         "spc" if self.present_blanks else "nospc",
-                         str(type(self.neuron_type).__name__),
-                         str(self.sp_dim)]) + \
-               ("" if label is '' else "_" + label) + \
-               ".npz"
+    def get_probe_data_filename(self, label='probe_data', suffix=''):
+        suffix = str(suffix).replace('?', '@')
 
-    def gen_probe_data_filename(self, label=''):
-        self.probe_data_filename = self.get_probe_data_filename(label)
+        raw_seq = cfg.raw_seq_str.replace('?', '@')
+        if self.present_blanks:
+            raw_seq = '-'.join(raw_seq)
+
+        return "+".join([label,
+                         "_".join([str(type(self.neuron_type).__name__),
+                                   str(self.sp_dim)]),
+                         raw_seq,
+                         str(self.seed)]) + \
+               ("" if suffix is '' else '(' + suffix + ')') + ".npz"
+
+    def gen_probe_data_filename(self, label='probe_data', suffix=''):
+        self.probe_data_filename = self.get_probe_data_filename(label, suffix)
 
     def make_assoc_mem(self, input_vectors, output_vectors=None, **args):
         am_args = copy(args)

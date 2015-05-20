@@ -15,6 +15,8 @@ def_seq = 'A'
 # def_seq = 'A1[1]?XXX'
 # def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 # def_seq = 'A3[1234]?XXXX'
+# def_seq = 'A3[123]?XXXX'
+def_seq = 'A3[222]?XXXX'
 # def_seq = 'A3[2567589]?XXXX'
 # def_seq = 'A4[1][4]?XXXXXX'
 # def_seq = 'A5[123]M[1]?X'
@@ -57,6 +59,9 @@ parser.add_argument(
 parser.add_argument(
     '--seed', type=int, default=-1,
     help='Random seed to use.')
+parser.add_argument(
+    '--showdisp', action='store_true',
+    help='Supply to show graphing of probe data.')
 
 parser.add_argument(
     '--ocl', action='store_true',
@@ -80,6 +85,9 @@ parser.add_argument(
 parser.add_argument(
     '--mpi_p_auto', action='store_true',
     help='MPI Only: Use the automatic partitioner')
+parser.add_argument(
+    '--mpi_compress_save', action='store_true',
+    help='Supply to compress the saved net file with gzip.')
 
 parser.add_argument(
     '--spinn', action='store_true',
@@ -87,7 +95,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# ----- Configurations -----
+# ----- Backend Configurations -----
 from _spaun.config import cfg
 
 cfg.backend = args.b
@@ -100,24 +108,32 @@ if args.spinn:
 
 print "BACKEND: %s" % cfg.backend.upper()
 
-cfg.sp_dim = args.d
-cfg.raw_seq_str = args.s
-cfg.present_blanks = args.addblanks
-cfg.present_interval = args.present_int
-cfg.gen_probe_data_filename(args.s)
-cfg.data_dir = args.data_dir
-
-if cfg.use_mpi:
-    sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
-
-make_probes = not args.noprobes
-
 # ----- Seeeeeeeed -----
 # cfg.set_seed(1413987955)
 # cfg.set_seed(1414248095)
 # cfg.set_seed(1429562767)
 cfg.set_seed(args.seed)
 print "MODEL SEED: %i" % cfg.seed
+
+# ----- Model Configurations -----
+cfg.sp_dim = args.d
+cfg.raw_seq_str = args.s
+cfg.present_blanks = args.addblanks
+cfg.present_interval = args.present_int
+cfg.data_dir = args.data_dir
+
+if cfg.use_mpi:
+    sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
+
+    mpi_save = args.mpi_save.split('.')
+    mpi_savename = '.'.join(mpi_save[:-1])
+    mpi_saveext = mpi_save[-1]
+
+    cfg.gen_probe_data_filename(mpi_savename)
+else:
+    cfg.gen_probe_data_filename()
+
+make_probes = not args.noprobes
 
 # ----- Spaun imports -----
 from _spaun.utils import run_nengo_sim
@@ -149,7 +165,7 @@ if hasattr(model, 'enc'):
 if hasattr(model, 'mem'):
     print "- mem  n_neurons: %i" % (get_total_n_neurons(model.mem))
 if hasattr(model, 'trfm'):
-    print "- trfm  n_neurons: %i" % (get_total_n_neurons(model.trfm))
+    print "- trfm n_neurons: %i" % (get_total_n_neurons(model.trfm))
 if hasattr(model, 'dec'):
     print "- dec  n_neurons: %i" % (get_total_n_neurons(model.dec))
 if hasattr(model, 'mtr'):
@@ -170,13 +186,11 @@ if cfg.use_opencl:
 elif cfg.use_mpi:
     import nengo_mpi
 
-    mpi_save = args.mpi_save.split('.')
-    mpi_savefile = ('+'.join(['.'.join(mpi_save[:-1]),
-                              cfg.probe_data_filename[11:-4],
+    mpi_savefile = ('+'.join([cfg.get_probe_data_filename(mpi_savename)[:-4],
                               ('%ip' % args.mpi_p if not args.mpi_p_auto else
                                'autop'),
                               '%0.2fs' % get_est_runtime()])
-                    + '.' + mpi_save[-1])
+                    + '.' + mpi_saveext)
     mpi_savefile = os.path.join(cfg.data_dir, mpi_savefile)
 
     print "USING MPI - Saving to: %s" % (mpi_savefile)
@@ -219,7 +233,20 @@ else:
     print "MODEL N_NEURONS: %i" % (get_total_n_neurons(model))
     print "FINISHED! - Build time: %fs" % (t_build)
 
-    print "UPLOAD '%s' to MPI cluster to run" % mpi_savefile
+    if args.mpi_compress_save:
+        import gzip
+        print "COMPRESSING net file to '%s'" % (mpi_savefile + '.gz')
+
+        with open(mpi_savefile, 'rb') as f_in:
+            with gzip.open(mpi_savefile + '.gz', 'wb') as f_out:
+                f_out.writelines(f_in)
+
+        os.remove(mpi_savefile)
+
+        print "UPLOAD '%s' to MPI cluster and decompress to run" % \
+            (mpi_savefile + '.gz')
+    else:
+        print "UPLOAD '%s' to MPI cluster to run" % mpi_savefile
     t_simrun = -1
 
 # ----- Write probe data to file -----
@@ -233,9 +260,11 @@ if make_probes and not cfg.use_mpi:
     np.savez_compressed(os.path.join(cfg.data_dir, cfg.probe_data_filename),
                         **probe_data)
 
-    import subprocess
-    subprocess.Popen(["python", os.path.join(cur_dir, 'disp_probe_data.py'),
-                      os.path.join(cfg.data_dir, cfg.probe_data_filename)])
+    if args.showdisp:
+        import subprocess
+        subprocess.Popen(["python", os.path.join(cur_dir,
+                                                 'disp_probe_data.py'),
+                          os.path.join(cfg.data_dir, cfg.probe_data_filename)])
 
 # ----- Write runtime data -----
 runtime_filename = os.path.join(cfg.data_dir, 'runtimes.txt')

@@ -31,7 +31,7 @@ ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X', 'DEC', 'DECW',
 ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R', 'V', 'W']
 
 # --- Production system semantic pointers ---
-ps_state_sp_strs = ['QAP', 'QAN', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT']
+ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT']
 ps_dec_sp_strs = ['FWD', 'REV', 'CNT']
 
 # --- Misc visual semantic pointers ---
@@ -145,7 +145,7 @@ ps_task_mb_gate_sp_inds = strs_to_inds(ps_task_mb_gate_sp_strs, vis_sp_strs)
 ps_task_mb_rst_sp_strs = ['A']
 ps_task_mb_rst_sp_inds = strs_to_inds(ps_task_mb_rst_sp_strs, vis_sp_strs)
 
-ps_state_mb_gate_sp_strs = ['CLOSE', 'M', 'P']
+ps_state_mb_gate_sp_strs = ['CLOSE', 'K', 'P']
 ps_state_mb_gate_sp_inds = strs_to_inds(ps_state_mb_gate_sp_strs, vis_sp_strs)
 
 ps_state_mb_rst_sp_strs = ['A']
