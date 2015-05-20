@@ -93,6 +93,10 @@ parser.add_argument(
     '--spinn', action='store_true',
     help='Supply to use the SpiNNaker backend (will override -b).')
 
+parser.add_argument(
+    '--nengo_viz', action='store_true',
+    help='Supply to use the nengo_viz vizualizer to run Spaun.')
+
 args = parser.parse_args()
 
 # ----- Backend Configurations -----
@@ -174,6 +178,13 @@ if hasattr(model, 'mtr'):
 # ----- Spaun simulation build -----
 print "START BUILD"
 timestamp = time.time()
+
+if args.nengo_viz:
+    print "STARTING NENGO_VIZ"
+    import nengo_viz
+    nengo_viz.Viz(__file__, model=model, locals=locals()).start()
+    print "NENGO_VIZ STOPPED"
+    sys.exit()
 
 if cfg.use_opencl:
     import pyopencl as cl
