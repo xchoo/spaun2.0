@@ -104,9 +104,9 @@ class TransformationSystem(Module):
             ps_task_mb_thresh = p_net.ps.ps_task_mb.mem2.mem.thresh
 
             # Select CC1 A
-            # - sel0 (MB1): State = QAP + QAN + TRANS1
+            # - sel0 (MB1): State = QAP + QAK + TRANS1
             # - sel1 (MB2): State = TRANS2
-            cc1a_sel0_inds = strs_to_inds(['QAP', 'QAN', 'TRANS1'],
+            cc1a_sel0_inds = strs_to_inds(['QAP', 'QAK', 'TRANS1'],
                                           ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[cc1a_sel0_inds],
                              self.select_cc1a.sel0,
@@ -119,7 +119,7 @@ class TransformationSystem(Module):
 
             # Select CC1 B
             # - sel0 (~AM_P1): State = QAP
-            # - sel1 (~AM_N1): State = QAN
+            # - sel1 (~AM_N1): State = QAK
             # - sel2 (~MB2): State = TRANS1; Task = -DECI
             # - sel3 (~MB3): State = TRANS2; Task = -DECI
             # - sel4 (MBAve): Task = DECI
@@ -127,7 +127,7 @@ class TransformationSystem(Module):
             nengo.Connection(ps_state_mb_thresh[cc1b_sel0_inds],
                              self.select_cc1b.sel0)
 
-            cc1b_sel1_inds = strs_to_inds(['QAN'], ps_state_sp_strs)
+            cc1b_sel1_inds = strs_to_inds(['QAK'], ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[cc1b_sel1_inds],
                              self.select_cc1b.sel1)
 
@@ -151,14 +151,14 @@ class TransformationSystem(Module):
 
             # Select Output
             # - sel0 (AM_N2): State = QAP
-            # - sel1 (AM_P2): State = QAN
+            # - sel1 (AM_P2): State = QAK
             # - sel2 (MB1): State = TRANS0 + CNT
             # - sel3 (CC1 Out): State = TRANS1 + TRANS2
             out_sel0_inds = strs_to_inds(['QAP'], ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[out_sel0_inds],
                              self.select_out.sel0)
 
-            out_sel1_inds = strs_to_inds(['QAN'], ps_state_sp_strs)
+            out_sel1_inds = strs_to_inds(['QAK'], ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[out_sel1_inds],
                              self.select_out.sel1)
 
