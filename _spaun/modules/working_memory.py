@@ -27,7 +27,7 @@ class WorkingMemory(Module):
         self.sel_mb1_in = cfg.make_selector(2, default_sel=0)
         nengo.Connection(self.mem_in, self.sel_mb1_in.input0, synapse=None)
 
-        self.mb1 = nengo.Node(size_in=cfg.sp_dim, label='MB1 In Node')
+        self.mb1 = nengo.Node(size_in=cfg.sp_dim, label='MB1 Out Node')
         self.mb1_gate = nengo.Node(size_in=1, label='MB1 Gate Node')
         self.mb1_reset = nengo.Node(size_in=1, label='MB1 Reset Node')
 
@@ -59,7 +59,7 @@ class WorkingMemory(Module):
         self.sel_mb2_in = cfg.make_selector(2, default_sel=0)
         nengo.Connection(self.mem_in, self.sel_mb2_in.input0, synapse=None)
 
-        self.mb2 = nengo.Node(size_in=cfg.sp_dim, label='MB2 In Node')
+        self.mb2 = nengo.Node(size_in=cfg.sp_dim, label='MB2 Out Node')
         self.mb2_gate = nengo.Node(size_in=1, label='MB2 Gate Node')
         self.mb2_reset = nengo.Node(size_in=1, label='MB2 Reset Node')
 
@@ -91,7 +91,7 @@ class WorkingMemory(Module):
         self.sel_mb3_in = cfg.make_selector(2, default_sel=0)
         nengo.Connection(self.mem_in, self.sel_mb3_in.input0, synapse=None)
 
-        self.mb3 = nengo.Node(size_in=cfg.sp_dim, label='MB3 In Node')
+        self.mb3 = nengo.Node(size_in=cfg.sp_dim, label='MB3 Out Node')
         self.mb3_gate = nengo.Node(size_in=1, label='MB3 Gate Node')
         self.mb3_reset = nengo.Node(size_in=1, label='MB3 Reset Node')
 
@@ -104,7 +104,7 @@ class WorkingMemory(Module):
         nengo.Connection(self.sel_mb3_in.output, self.mb3a.input)
         nengo.Connection(self.sel_mb3_in.output, self.mb3b.input,
                          transform=cfg.mb_decaybuf_input_scale)
-        nengo.Connection(self.mb1a.output, self.mb3a.input,
+        nengo.Connection(self.mb3a.output, self.mb3a.input,
                          transform=cfg.mb_fdbk_val)
         nengo.Connection(self.mb3b.output, self.mb3b.input)
         nengo.Connection(self.mb3a.output, self.mb3, synapse=None)
