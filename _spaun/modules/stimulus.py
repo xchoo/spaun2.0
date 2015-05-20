@@ -71,7 +71,6 @@ def get_est_runtime():
 class Stimulus(Module):
     def __init__(self, label="Stimulus", seed=None, add_to_container=None):
         super(Stimulus, self).__init__(label, seed, add_to_container)
-        parse_raw_seq()
         self.init_module()
 
     @with_self
