@@ -31,7 +31,7 @@ elif data_filename.endswith('.h5'):
     config_dir, filename = os.path.split(data_filename[:-3])
     nameparts = filename.split('+')
     config_filename = os.path.join(config_dir,
-                                   'probe_data_' + nameparts[1] + '_cfg.npz')
+                                   '+'.join(nameparts[:2]) + '_cfg.npz')
 
     import h5py
     probe_data = h5py.File(data_filename)

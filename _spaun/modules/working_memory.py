@@ -204,7 +204,7 @@ class WorkingMemory(Module):
             ps_task_mb_thresh = p_net.ps.ps_task_mb.mem2.mem.thresh
 
             # ###### MB1 ########
-            mb1_no_gate_strs = ['QAP', 'QAN', 'TRANS1', 'TRANS2']
+            mb1_no_gate_strs = ['QAP', 'QAK', 'TRANS1', 'TRANS2']
             mb1_no_gate_inds = strs_to_inds(mb1_no_gate_strs,
                                             ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[mb1_no_gate_inds],
@@ -212,7 +212,7 @@ class WorkingMemory(Module):
                              transform=[[-cfg.mb_gate_scale] *
                                         len(mb1_no_gate_inds)])
 
-            mb1_no_reset_strs = ['QAP', 'QAN', 'TRANS1', 'TRANS0']
+            mb1_no_reset_strs = ['QAP', 'QAK', 'TRANS1', 'TRANS0']
             mb1_no_reset_inds = strs_to_inds(mb1_no_reset_strs,
                                              ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[mb1_no_reset_inds],
@@ -243,7 +243,7 @@ class WorkingMemory(Module):
                              transform=[[-cfg.mb_gate_scale] *
                                         len(mb2_no_gate_inds)])
 
-            mb2_no_reset_strs = ['QAP', 'QAN', 'TRANS1', 'TRANS2']
+            mb2_no_reset_strs = ['QAP', 'QAK', 'TRANS1', 'TRANS2']
             mb2_no_reset_inds = strs_to_inds(mb2_no_reset_strs,
                                              ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[mb2_no_reset_inds],
@@ -260,7 +260,7 @@ class WorkingMemory(Module):
                                         len(mb2_no_gate_inds)])
 
             # ###### MB3 ########
-            mb3_no_gate_strs = ['QAP', 'QAN', 'TRANS0', 'TRANS1']
+            mb3_no_gate_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1']
             mb3_no_gate_inds = strs_to_inds(mb3_no_gate_strs,
                                             ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[mb3_no_gate_inds],
@@ -291,7 +291,7 @@ class WorkingMemory(Module):
                              self.sel_mb3_in.sel1)
 
             # ###### MBAVe ########
-            mbave_no_gate_strs = ['QAP', 'QAN', 'TRANS0']
+            mbave_no_gate_strs = ['QAP', 'QAK', 'TRANS0']
             mbave_no_gate_inds = strs_to_inds(mbave_no_gate_strs,
                                               ps_state_sp_strs)
             nengo.Connection(ps_state_mb_thresh[mbave_no_gate_inds],

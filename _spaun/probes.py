@@ -5,7 +5,7 @@ import nengo
 
 from .config import cfg
 from .vocabs import vis_vocab, pos_vocab, enum_vocab # noqa
-from .vocabs import ps_task_vocab, ps_state_vocab, ps_dec_vocab  # noqa
+from .vocabs import ps_task_vocab, ps_state_vocab, ps_dec_vocab, mtr_vocab  # noqa
 from .vocabs import mtr_disp_vocab, item_vocab, pos1_vocab, vocab  # noqa
 from .modules.working_memory import WorkingMemoryDummy
 from .modules.transform_system import TransformationSystemDummy
@@ -292,7 +292,10 @@ def setup_probes_generic(model):
         sub_vocab2.add('ADD*ADD', vocab.parse('ADD*ADD'))
         sub_vocab2.add('ADD*ADD*ADD', vocab.parse('ADD*ADD*ADD'))
 
-        p0 = nengo.Probe(model.stim.output)
+        if hasattr(model, 'stim'):
+            p0 = nengo.Probe(model.stim.output)
+        else:
+            p0 = 0
 
         if hasattr(model, 'vis') and True:
             pvs1 = nengo.Probe(model.vis.output, synapse=0.005)
@@ -323,6 +326,22 @@ def setup_probes_generic(model):
             vocab_dict[idstr(pps4)] = ps_task_vocab
             vocab_dict[idstr(pps5)] = ps_task_vocab
             vocab_dict[idstr(pps6)] = ps_task_vocab
+
+        if hasattr(model, 'enc') and True:
+            pen1 = nengo.Probe(model.enc.pos_mb.gate, synapse=0.005)
+            # pen2 = nengo.Probe(model.enc.pos_mb.gateX, synapse=0.005)
+            # pen3 = nengo.Probe(model.enc.pos_mb.gateN, synapse=0.005)
+            pen4 = nengo.Probe(model.enc.pos_mb.mem2.output, synapse=0.005)
+            pen5 = nengo.Probe(model.enc.pos_mb.mem1.output, synapse=0.005)
+            # pen6 = nengo.Probe(model.enc.pos_mb.am.output, synapse=0.005)
+            pen6 = nengo.Probe(model.enc.pos_mb.reset, synapse=0.005)
+
+            probes = gen_probe_list(['enc', p0, pen1, pen4, pen5, pen6],
+                                    [pen4, pen5])
+            probe_list.extend(probes)
+
+            vocab_dict[idstr(pen4)] = pos_vocab
+            vocab_dict[idstr(pen5)] = pos_vocab
 
         if hasattr(model, 'mem') and True:
             pmm1 = nengo.Probe(model.mem.mb1, synapse=0.005)
@@ -407,32 +426,41 @@ def setup_probes_generic(model):
             probes = gen_probe_list(['bg', p0, pbg1, pbg2])
             probe_list.extend(probes)
 
-        # if hasattr(model, 'dec') and True:
+        if hasattr(model, 'dec') and True:
+            pde1 = nengo.Probe(model.dec.item_dcconv.output, synapse=0.005)
+            # pde2 = nengo.Probe(model.dec.select_am, synapse=0.005)
+            # pde3 = nengo.Probe(model.dec.select_vis, synapse=0.005)
+            pde4 = nengo.Probe(model.dec.am_out, synapse=0.01)
+            # pde5 = nengo.Probe(model.dec.vt_out, synapse=0.005)
+            pde6 = nengo.Probe(model.dec.pos_mb_gate_sig, synapse=0.005)
+            # pde7 = nengo.Probe(model.dec.util_diff_neg, synapse=0.005)
+            pde8 = nengo.Probe(model.dec.am_utils, synapse=0.005)
+            pde9 = nengo.Probe(model.dec.am2_utils, synapse=0.005)
+            # pde10 = nengo.Probe(model.dec.util_diff, synapse=0.005)
+            # pde11 = nengo.Probe(model.dec.recall_mb.output, synapse=0.005)
+            # pde12 = nengo.Probe(model.dec.dec_am_fr.output, synapse=0.005)
+            # pde13 = nengo.Probe(model.dec.dec_am.item_output, synapse=0.005)
+            # pde14 = nengo.Probe(model.dec.recall_mb.mem1.output, synapse=0.005)
+            pde15 = nengo.Probe(model.dec.output_know, synapse=0.005)
+            pde16 = nengo.Probe(model.dec.output_unk, synapse=0.005)
+            pde18 = nengo.Probe(model.dec.output_stop, synapse=0.005)
+            # pde19 = nengo.Probe(model.dec.am_th_utils, synapse=0.005)
+            # pde20 = nengo.Probe(model.dec.fr_th_utils, synapse=0.005)
+            pde21 = nengo.Probe(model.dec.dec_output, synapse=0.005)
+            # pde22 = nengo.Probe(model.dec.dec_am_fr.input, synapse=0.005)
+            # pde23 = nengo.Probe(model.dec.am_def_th_utils, synapse=0.005)
+            # pde24 = nengo.Probe(model.dec.fr_def_th_utils, synapse=0.005)
+            pde25 = nengo.Probe(model.dec.fr_utils, synapse=0.005)
 
-        # pde1 = nengo.Probe(model.dec.item_dcconv.output, synapse=0.005)
-        # pde2 = nengo.Probe(model.dec.select_am, synapse=0.005)
-        # pde3 = nengo.Probe(model.dec.select_vis, synapse=0.005)
-        # pde4 = nengo.Probe(model.dec.am_out, synapse=0.01)
-        # pde5 = nengo.Probe(model.dec.vt_out, synapse=0.005)
-        # pde6 = nengo.Probe(model.dec.pos_mb_gate_sig, synapse=0.005)
-        # pde7 = nengo.Probe(model.dec.util_diff_neg, synapse=0.005)
-        # pde8 = nengo.Probe(model.dec.am_utils, synapse=0.005)
-        # pde9 = nengo.Probe(model.dec.am2_utils, synapse=0.005)
-        # pde10 = nengo.Probe(model.dec.util_diff, synapse=0.005)
-        # pde11 = nengo.Probe(model.dec.recall_mb.output, synapse=0.005)
-        # pde12 = nengo.Probe(model.dec.dec_am_fr.output, synapse=0.005)
-        # pde13 = nengo.Probe(model.dec.dec_am.item_output, synapse=0.005)
-        # # pde14 = nengo.Probe(model.dec.recall_mb.mem1.output, synapse=0.005)
-        # pde15 = nengo.Probe(model.dec.output_know, synapse=0.005)
-        # pde16 = nengo.Probe(model.dec.output_unk, synapse=0.005)
-        # pde18 = nengo.Probe(model.dec.output_stop, synapse=0.005)
-        # pde19 = nengo.Probe(model.dec.am_th_utils, synapse=0.005)
-        # pde20 = nengo.Probe(model.dec.fr_th_utils, synapse=0.005)
-        # pde21 = nengo.Probe(model.dec.dec_output, synapse=0.005)
-        # pde22 = nengo.Probe(model.dec.dec_am_fr.input, synapse=0.005)
-        # pde23 = nengo.Probe(model.dec.am_def_th_utils, synapse=0.005)
-        # pde24 = nengo.Probe(model.dec.fr_def_th_utils, synapse=0.005)
-        # pde25 = nengo.Probe(model.dec.fr_utils, synapse=0.005)
+            probes = gen_probe_list(['dec decconv', pde1, pde4, pde21, 0,
+                                     'dec kn unk st', pde15, pde16, pde18, 0,
+                                     'dec am utils', pde8, pde9, pde25, 0,
+                                     'dec sigs', pde6])
+            probe_list.extend(probes)
+
+            vocab_dict[idstr(pde1)] = item_vocab
+            vocab_dict[idstr(pde4)] = mtr_vocab
+            vocab_dict[idstr(pde21)] = mtr_vocab
 
         if hasattr(model, 'mtr'):
             pmt1 = nengo.Probe(model.mtr.ramp, synapse=0.005)
