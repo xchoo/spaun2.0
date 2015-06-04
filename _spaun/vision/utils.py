@@ -63,6 +63,9 @@ def get_image(label=None, rng=None):
     if rng is None:
         rng = np.random.RandomState()
 
+    if isinstance(label, tuple):
+        label = label[0]
+
     if isinstance(label, int):
         return (vision_net.images_data[label], label)
     elif label is None:
@@ -75,3 +78,10 @@ def get_image(label=None, rng=None):
         else:
             image_ind = rng.choice(len(vision_net.images_labels_inds))
         return (vision_net.images_data[image_ind], image_ind)
+
+
+def get_label(label):
+    for ind, lbls in enumerate(vision_net.images_labels_inds):
+        if label in lbls:
+            return ind
+    return -1

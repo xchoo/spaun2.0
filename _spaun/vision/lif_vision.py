@@ -3,12 +3,9 @@ import numpy as np
 import bisect as bs
 
 import nengo
-from nengo.dists import Uniform
-from nengo.dists import Choice
 
 from .utils import mnist
 from .utils import load_image_data
-from ..config import cfg
 
 vision_filepath = os.path.join('_spaun', 'vision')
 
@@ -43,7 +40,7 @@ am_vis_sps = np.multiply(weights_class.T * amp, means_data.T)
 
 am_num_classes = weights_class.shape[1]
 
-vis_sps_scale = 1.0 / (amp * 4.5)
+vis_sps_scale = 4.5
 # For magic number 4.5, see reference_code/vision_2/data_analysis.py
 
 # --- Mnist data ---
@@ -111,46 +108,5 @@ def LIFVision(net=None):
         # Set up input and outputs to the LIF vision system
         net.input = input_node
         net.output = layers[-1].neurons
-
-        # Negative attention signal generation. Generates a high valued signal
-        # when the input is changing or when there is nothing being presented
-        # to the visual system
-        input_diff = nengo.networks.EnsembleArray(nengo.Default,
-                                                  images_data_dimensions,
-                                                  label='input differentiator',
-                                                  intercepts=Uniform(0.1, 1))
-        input_diff.add_output('abs', lambda x: abs(x))
-        nengo.Connection(input_node, input_diff.input, synapse=0.005)
-        nengo.Connection(input_node, input_diff.input, synapse=0.020,
-                         transform=-1)
-
-        #######################################################################
-        net.neg_attention = nengo.Ensemble(cfg.n_neurons_ens, 1,
-                                           intercepts=Uniform(0.5, 1),
-                                           encoders=Choice([[1]]))
-        nengo.Connection(input_diff.abs, net.neg_attention, synapse=0.005,
-                         transform=[[0.2] * images_data_dimensions])
-
-        item_detect = nengo.Ensemble(nengo.Default, 1)
-        nengo.Connection(input_node, item_detect, synapse=0.005,
-                         transform=[[1] * images_data_dimensions])
-        nengo.Connection(item_detect, net.neg_attention, synapse=0.005,
-                         function=lambda x: 1 - x)
-
-        net.blank_detect = nengo.Ensemble(cfg.n_neurons_ens, 1,
-                                          intercepts=Uniform(0.7, 1),
-                                          encoders=Choice([[1]]))
-        nengo.Connection(item_detect, net.blank_detect, synapse=0.005,
-                         function=lambda x: 1 - x)
-        #######################################################################
-
-        # Delay ensemble needed to smooth out transition from blank to
-        # change detection
-        blank_detect_delay = nengo.Ensemble(cfg.n_neurons_ens, 1,
-                                            intercepts=Uniform(0.1, 1),
-                                            encoders=Choice([[1]]))
-        nengo.Connection(net.blank_detect, blank_detect_delay, synapse=0.03)
-        nengo.Connection(net.blank_detect, net.neg_attention, synapse=0.01,
-                         transform=2)
-
+        net.raw_output = input_node
     return net
