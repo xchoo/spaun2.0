@@ -94,7 +94,8 @@ class TransformationSystem(Module):
         # Set up connections from vision module
         # Set up connections from vision module
         if hasattr(p_net, 'vis'):
-            nengo.Connection(p_net.vis.mb_output, self.vis_transform.input)
+            if p_net.vis.mb_output.size_out == cfg.vis_dim:
+                nengo.Connection(p_net.vis.mb_output, self.vis_transform.input)
         else:
             warn("TransformationSystem Module - Cannot connect from 'vis'")
 
