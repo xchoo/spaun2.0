@@ -302,9 +302,19 @@ def setup_probes_generic(model):
             pvs2 = nengo.Probe(model.vis.neg_attention, synapse=0.005)
             pvs3 = nengo.Probe(model.vis.am_utilities, synapse=0.005)
 
-            probes = gen_probe_list(['vis', p0, pvs1, pvs2, pvs3], pvs1)
+            # probes = gen_probe_list(['vis', p0, pvs1, pvs2, pvs3], pvs1)
+            probes = gen_probe_list(['vis', p0, pvs1, pvs2, pvs3])
             probe_list.extend(probes)
             vocab_dict[idstr(pvs1)] = vis_vocab
+
+        # ############ FOR DEBUGGING VIS DETECT SYSTEM ########################
+        # if hasattr(model, 'vis') and True:
+        #     pvsd1 = nengo.Probe(model.vis.detect_change_net.input_diff, synapse=0.005)
+        #     pvsd2 = nengo.Probe(model.vis.detect_change_net.item_detect, synapse=0.005)
+        #     pvsd3 = nengo.Probe(model.vis.detect_change_net.blank_detect, synapse=0.005)
+
+        #     probes = gen_probe_list(['vis detect', p0, pvsd1, pvsd2, pvsd3])
+        #     probe_list.extend(probes)
 
         if hasattr(model, 'ps') and True:
             pps1 = nengo.Probe(model.ps.task, synapse=0.005)

@@ -10,13 +10,13 @@ import nengo
 # ----- Defaults -----
 def_dim = 256
 def_seq = 'A'
-# def_seq = 'A0[1]?X'
-# def_seq = 'A0[123]?XXX'
-# def_seq = 'A1[1]?XXX'
+def_seq = 'A0[#1]?X'
+# def_seq = 'A0[#1#2#3]?XXX'
+# def_seq = 'A1[#1]?XXX'
 # def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 # def_seq = 'A3[1234]?XXXX'
 # def_seq = 'A3[123]?XXXX'
-def_seq = 'A3[222]?XXXX'
+# def_seq = 'A3[222]?XXXX'
 # def_seq = 'A3[2567589]?XXXX'
 # def_seq = 'A4[1][4]?XXXXXX'
 # def_seq = 'A5[123]M[1]?X'
@@ -39,7 +39,10 @@ parser.add_argument(
           ' from the stimulus sequence.'))
 parser.add_argument(
     '-s', type=str, default=def_seq,
-    help='Stimulus sequence. e.g. A3[1234]?XXXX')
+    help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
+         '"#" to a digit to use handwritten digits, a "[" for the open ' +
+         'bracket, a "]" for the close bracket, and a "X" for each expected ' +
+         'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
 parser.add_argument(
     '-b', type=str, default='ref',
     help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
