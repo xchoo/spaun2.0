@@ -5,6 +5,9 @@ from .config import cfg
 from _spaun.modules.stimulus import parse_raw_seq
 from _spaun.modules import Stimulus, Vision, ProdSys, InfoEnc, InfoDec, Motor
 from _spaun.modules import TrfmSys, Memory
+
+# #### DEBUG DUMMY NETWORK IMPORTS ####
+# from _spaun.modules.vision_system import VisionSystemDummy as Vision
 # from _spaun.modules.working_memory import WorkingMemoryDummy as Memory
 # from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
 
