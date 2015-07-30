@@ -7,11 +7,11 @@ import numpy as np
 import os
 import urllib
 import csv
+import collections
 
 home = os.getenv("HOME")
 
-data_path = home + '/spaun2.0/_spaun/vision/'
-dest_path = data_path + 'spaun_vision_data.csv'
+vision_dir = home + '/spaun2.0/_spaun/vision/'
 
 
 def load_image_data(filename):
@@ -24,7 +24,7 @@ def load_image_data(filename):
     return train, valid, test
 
 
-mnist_filename = os.path.join(data_path, 'mnist.pkl.gz')
+mnist_filename = os.path.join(vision_dir, 'mnist.pkl.gz')
 
 if not os.path.exists(mnist_filename):
     url = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
@@ -34,15 +34,56 @@ _, _, [data, labels] = load_image_data(mnist_filename)
 
 labels = map(str, labels)
 
-symbols_filename = os.path.join(data_path, 'spaun_sym.pkl.gz')
+symbols_filename = os.path.join(vision_dir, 'spaun_sym.pkl.gz')
 _, _, [symbol_data, symbol_labels] = load_image_data(symbols_filename)
 
 data = np.append(data, symbol_data, axis=0)
 labels = np.append(labels, symbol_labels, axis=0)
 
-with open(dest_path, 'wb') as csvfile:
-    writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
+labelled_data = zip(labels, data)
 
-    for l, d in zip(labels, data):
-        writer.writerow(l)
-        writer.writerow(d)
+format = 'folder'
+if format == 'folder':
+
+    data_path = os.path.join(vision_dir, 'spaun_vision_data')
+
+    if os.path.isdir(data_path):
+        raise Exception(
+            "Not unpacking spaun data. Directory %s already "
+            "exists." % data_path)
+
+    os.makedirs(data_path)
+
+    data_dict = collections.defaultdict(list)
+    lbl_dirs = []
+    for lbl in list(set(labels)):
+        lbl_dir = os.path.join(data_path, lbl)
+        if not os.path.isdir(lbl_dir):
+            os.makedirs(lbl_dir)
+        lbl_dirs.append(lbl_dir)
+
+        data_dict[lbl] = [d for (l, d) in labelled_data if l == lbl]
+
+    for lbl_dir, (lbl, dlist) in zip(lbl_dirs, data_dict.iteritems()):
+        print "Processing imgs with label %s" % lbl
+
+        for i, d in enumerate(dlist):
+            with open(os.path.join(lbl_dir, str(i)), 'wb') as csvfile:
+                writer = csv.writer(
+                    csvfile, delimiter=',', lineterminator='\n')
+                writer.writerow(d)
+
+    print "Writing counts file"
+    with open(os.path.join(data_path, 'counts'), 'wb') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
+        for lbl, dlist in data_dict.iteritems():
+            writer.writerow([lbl, len(dlist)])
+else:
+    data_path = os.path.join(vision_dir, 'spaun_vision_data.csv')
+
+    with open(data_path, 'wb') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
+
+        for l, d in zip(labels, data):
+            writer.writerow(l)
+            writer.writerow(d)
