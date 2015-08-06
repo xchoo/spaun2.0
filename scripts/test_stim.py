@@ -1,5 +1,3 @@
-
-import numpy as np
 import time
 import sys
 
@@ -19,6 +17,14 @@ parser.add_argument(
          "later be used by the stand-alone version of nengo_mpi). "
          "In this case, the network will not be simulated.")
 
+def_seq = 'A0[#1]?X'
+parser.add_argument(
+    '-s', type=str, default=def_seq,
+    help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
+         '"#" to a digit to use handwritten digits, a "[" for the open ' +
+         'bracket, a "]" for the close bracket, and a "X" for each expected ' +
+         'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
+
 args = parser.parse_args()
 print "Parameters are: ", args
 
@@ -31,7 +37,8 @@ setup_probes = True
 from _spaun.config import cfg
 # cfg.present_blanks = True
 
-cfg.use_mpi = True
+cfg.backend = 'mpi'
+cfg.raw_seq_str = args.s
 
 cfg.sp_dim = 16
 cfg.neuron_type = nengo.LIFRate()
@@ -43,7 +50,6 @@ print "MODEL SEED: %i" % cfg.seed
 from _spaun.utils import get_total_n_neurons
 from _spaun.modules import get_est_runtime
 from _spaun.modules import Stimulus
-from _spaun.modules.stimulus import stim_seq
 
 print cfg.probe_data_filename
 
@@ -67,7 +73,7 @@ if hasattr(model, 'vis'):
 
 # ----- Spaun simulation run -----
 print "START BUILD"
-print "STIMULUS SEQ: %s" % (str(stim_seq))
+print "STIMULUS SEQ: %s" % (str(cfg.stim_seq))
 timestamp = time.time()
 
 if cfg.use_mpi:
