@@ -7,7 +7,10 @@ import nengo
 from .utils import mnist
 from .utils import load_image_data
 
-vision_filepath = os.path.join('_spaun', 'vision')
+import _spaun
+
+spaun_directory = os.path.split(_spaun.__file__)[0]
+vision_filepath = os.path.join(spaun_directory, 'vision')
 
 # --- LIF vision network configurations ---
 max_rate = 63.04
