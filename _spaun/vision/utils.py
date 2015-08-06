@@ -14,9 +14,10 @@ def mnist(filepath=''):
     import urllib
 
     filename = 'mnist.pkl.gz'
-    if not os.path.exists(filename):
+    vision_data = os.path.join(filepath, filename)
+    if not os.path.exists(vision_data):
         url = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
-        urllib.urlretrieve(url, filename=os.path.join(filepath, filename))
+        urllib.urlretrieve(url, filename=vision_data)
 
     return load_image_data(filename, filepath)
 
