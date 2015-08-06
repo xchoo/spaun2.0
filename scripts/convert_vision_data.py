@@ -6,6 +6,7 @@ it to a csv file, which can be more easily read from C++
 import numpy as np
 import os
 import urllib
+import shutil
 import csv
 import collections
 
@@ -22,6 +23,16 @@ def load_image_data(filename):
         train, valid, test = pickle.load(f)
 
     return train, valid, test
+
+
+def image_string(image):
+    s = int(np.sqrt(len(image)))
+    string = ""
+    for i in range(s):
+        for j in range(s):
+            string += str(1 if image[i * s + j] > 0 else 0)
+        string += '\n'
+    return string
 
 
 mnist_filename = os.path.join(vision_dir, 'mnist.pkl.gz')
@@ -44,17 +55,14 @@ labelled_data = zip(labels, data)
 
 format = 'folder'
 if format == 'folder':
-
     data_path = os.path.join(vision_dir, 'spaun_vision_data')
 
     if os.path.isdir(data_path):
-        raise Exception(
-            "Not unpacking spaun data. Directory %s already "
-            "exists." % data_path)
+        shutil.rmtree(data_path)
 
     os.makedirs(data_path)
 
-    data_dict = collections.defaultdict(list)
+    data_dict = collections.OrderedDict()
     lbl_dirs = []
     for lbl in list(set(labels)):
         lbl_dir = os.path.join(data_path, lbl)
@@ -67,6 +75,7 @@ if format == 'folder':
     for lbl_dir, (lbl, dlist) in zip(lbl_dirs, data_dict.iteritems()):
         print "Processing imgs with label %s" % lbl
 
+        assert lbl in lbl_dir
         for i, d in enumerate(dlist):
             with open(os.path.join(lbl_dir, str(i)), 'wb') as csvfile:
                 writer = csv.writer(
@@ -77,7 +86,8 @@ if format == 'folder':
     with open(os.path.join(data_path, 'counts'), 'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
         for lbl, dlist in data_dict.iteritems():
-            writer.writerow([lbl, len(dlist)])
+            writer.writerow([lbl])
+            writer.writerow([len(dlist)])
 else:
     data_path = os.path.join(vision_dir, 'spaun_vision_data.csv')
 
