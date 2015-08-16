@@ -100,7 +100,14 @@ parser.add_argument(
     '--nengo_viz', action='store_true',
     help='Supply to use the nengo_viz vizualizer to run Spaun.')
 
+parser.add_argument(
+    '--split-mn', type=int, default=0,
+    help="Max number of neurons for splitting ensemble arrays. "
+         "Only has an effect when using mpi backend. Defaults to 0. "
+         "If given a value less than 1, no splitting is done.")
+
 args = parser.parse_args()
+print args
 
 # ----- Backend Configurations -----
 from _spaun.config import cfg
@@ -137,6 +144,7 @@ if cfg.use_mpi:
     mpi_saveext = mpi_save[-1]
 
     cfg.gen_probe_data_filename(mpi_savename)
+    split_mn = args.split_mn
 else:
     cfg.gen_probe_data_filename()
 
@@ -199,6 +207,10 @@ if cfg.use_opencl:
     sim = nengo_ocl.sim_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx)
 elif cfg.use_mpi:
     import nengo_mpi
+
+    if split_mn > 0:
+        splitter = nengo_mpi.partition.EnsembleArraySplitter()
+        splitter.split(model, split_mn)
 
     mpi_savefile = ('+'.join([cfg.get_probe_data_filename(mpi_savename)[:-4],
                               ('%ip' % args.mpi_p if not args.mpi_p_auto else
