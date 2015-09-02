@@ -75,6 +75,10 @@ parser.add_argument(
           ' backend can be listed using "pyopencl.get_platforms()"'))
 
 parser.add_argument(
+    '--omit', type=str, nargs='*',
+    help='Supply the names of modules that should be omitted from this build.')
+
+parser.add_argument(
     '--mpi', action='store_true',
     help='Supply to use the MPI backend (will override -b).')
 parser.add_argument(
@@ -136,15 +140,22 @@ cfg.present_blanks = args.addblanks
 cfg.present_interval = args.present_int
 cfg.data_dir = args.data_dir
 
+split_mn = args.split_mn
+
+omit = args.omit if args.omit else []
+modules = [
+    'stim', 'vis', 'prod', 'info_enc', 'mem', 'trfm', 'info_dec', 'motor']
+
+for module in modules:
+    attr = 'do_' + module
+    setattr(cfg, attr, module not in omit)
+
 if cfg.use_mpi:
     sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
 
-    mpi_save = args.mpi_save.split('.')
-    mpi_savename = '.'.join(mpi_save[:-1])
-    mpi_saveext = mpi_save[-1]
+    mpi_save = args.mpi_save.split('.')[0]
 
-    cfg.gen_probe_data_filename(mpi_savename)
-    split_mn = args.split_mn
+    cfg.gen_probe_data_filename(mpi_save)
 else:
     cfg.gen_probe_data_filename()
 
@@ -212,11 +223,10 @@ elif cfg.use_mpi:
         splitter = nengo_mpi.partition.EnsembleArraySplitter()
         splitter.split(model, split_mn)
 
-    mpi_savefile = ('+'.join([cfg.get_probe_data_filename(mpi_savename)[:-4],
-                              ('%ip' % args.mpi_p if not args.mpi_p_auto else
-                               'autop'),
-                              '%0.2fs' % get_est_runtime()])
-                    + '.' + mpi_saveext)
+    mpi_savefile = '+'.join([cfg.get_probe_data_filename(mpi_save)[:-4],
+                             ('%ip' % args.mpi_p_auto
+                                 if not args.mpi_p_auto else 'autop'),
+                             '%0.2fs' % get_est_runtime()])
     mpi_savefile = os.path.join(cfg.data_dir, mpi_savefile)
 
     print "USING MPI - Saving to: %s" % (mpi_savefile)

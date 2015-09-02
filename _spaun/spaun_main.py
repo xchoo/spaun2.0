@@ -23,14 +23,22 @@ def Spaun():
         model.config[nengo.Ensemble].n_neurons = cfg.n_neurons_ens
         model.config[nengo.Connection].synapse = cfg.pstc
 
-        model.stim = Stimulus()
-        model.vis = Vision()
-        model.ps = ProdSys()
-        model.enc = InfoEnc()
-        model.mem = Memory()
-        model.trfm = TrfmSys()
-        model.dec = InfoDec()
-        model.mtr = Motor()
+        if cfg.do_stim:
+            model.stim = Stimulus()
+        if cfg.do_vis:
+            model.vis = Vision()
+        if cfg.do_prod:
+            model.ps = ProdSys()
+        if cfg.do_info_enc:
+            model.enc = InfoEnc()
+        if cfg.do_mem:
+            model.mem = Memory()
+        if cfg.do_trfm:
+            model.trfm = TrfmSys()
+        if cfg.do_info_dec:
+            model.dec = InfoDec()
+        if cfg.do_motor:
+            model.mtr = Motor()
 
         if hasattr(model, 'vis') and hasattr(model, 'ps'):
             copy_draw_action = \
