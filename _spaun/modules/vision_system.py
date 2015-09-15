@@ -14,7 +14,7 @@ from ..vocabs import item_mb_gate_sp_inds
 from .stimulus import stim_func_vocab
 from ..vision.lif_vision import LIFVision as LIFVisionNet
 from ..vision.lif_vision import vis_sps_scale as lif_vis_sps_scale
-from ..vision.lif_vision import am_vis_sps, am_threshold
+from ..vision.lif_vision import am_vis_sps, am_threshold, amp
 from ..vision.lif_vision import images_data_dimensions
 
 
@@ -31,7 +31,7 @@ def DetectChangeNet(net=None, dim=images_data_dimensions, diff_scale=0.2,
         # Negative attention signal generation. Generates a high valued signal
         # when the input is changing or when there is nothing being presented
         # to the visual system
-        input_diff = nengo.networks.EnsembleArray(nengo.Default, dim,
+        input_diff = nengo.networks.EnsembleArray(cfg.n_neurons_ens, dim,
                                                   label='input differentiator',
                                                   intercepts=Uniform(0.1, 1))
         input_diff.add_output('abs', lambda x: abs(x))
@@ -43,11 +43,12 @@ def DetectChangeNet(net=None, dim=images_data_dimensions, diff_scale=0.2,
         #######################################################################
         net.output = nengo.Ensemble(cfg.n_neurons_ens, 1,
                                     intercepts=Uniform(0.5, 1),
-                                    encoders=Choice([[1]]))
+                                    encoders=Choice([[1]]),
+                                    eval_points=Uniform(0.5, 1))
         nengo.Connection(input_diff.abs, net.output, synapse=0.005,
                          transform=[[diff_scale] * dim])
 
-        item_detect = nengo.Ensemble(nengo.Default, 1)
+        item_detect = nengo.Ensemble(cfg.n_neurons_ens * 3, 1)
         nengo.Connection(net.input, item_detect, synapse=0.005,
                          transform=[[1.0 / item_magnitude] * dim])
         nengo.Connection(item_detect, net.output, synapse=0.005,
@@ -55,7 +56,8 @@ def DetectChangeNet(net=None, dim=images_data_dimensions, diff_scale=0.2,
 
         blank_detect = nengo.Ensemble(cfg.n_neurons_ens, 1,
                                       intercepts=Uniform(0.7, 1),
-                                      encoders=Choice([[1]]))
+                                      encoders=Choice([[1]]),
+                                      eval_points=Uniform(0.7, 1))
         nengo.Connection(item_detect, blank_detect, synapse=0.005,
                          function=lambda x: 1 - abs(x))
         #######################################################################
@@ -63,8 +65,9 @@ def DetectChangeNet(net=None, dim=images_data_dimensions, diff_scale=0.2,
         # Delay ensemble needed to smooth out transition from blank to
         # change detection
         blank_detect_delay = nengo.Ensemble(cfg.n_neurons_ens, 1,
-                                            intercepts=Uniform(0.1, 1),
-                                            encoders=Choice([[1]]))
+                                            intercepts=Uniform(0.5, 1),
+                                            encoders=Choice([[1]]),
+                                            eval_points=Uniform(0.5, 1))
         nengo.Connection(blank_detect, blank_detect_delay, synapse=0.03)
         nengo.Connection(blank_detect, net.output, synapse=0.01,
                          transform=2)
@@ -80,14 +83,17 @@ def DetectChangeNet(net=None, dim=images_data_dimensions, diff_scale=0.2,
 class VisionSystem(Module):
     def __init__(self, label="Vision Sys", seed=None, add_to_container=None,
                  vis_net=LIFVisionNet, detect_net=DetectChangeNet,
-                 vis_sps=am_vis_sps, vis_sps_scale=lif_vis_sps_scale):
+                 vis_sps=am_vis_sps, vis_sps_scale=lif_vis_sps_scale,
+                 vis_net_neuron_type=None):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
-        self.init_module(vis_net, detect_net, vis_sps, vis_sps_scale)
+        self.init_module(vis_net, detect_net, vis_sps, vis_sps_scale,
+                         vis_net_neuron_type)
 
     @with_self
-    def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale):
+    def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale,
+                    vis_net_neuron_type):
         # Make LIF vision network
-        self.vis_net = vis_net()
+        self.vis_net = vis_net(net_neuron_type=vis_net_neuron_type)
 
         # Make network to detect changes in visual input stream
         self.detect_change_net = detect_net()
@@ -114,7 +120,8 @@ class VisionSystem(Module):
                          self.vis_mb.gate,
                          transform=[[cfg.mb_gate_scale] *
                                     len(item_mb_gate_sp_inds)])
-        nengo.Connection(self.vis_net.output, self.vis_mb.input, synapse=0.01)
+        nengo.Connection(self.vis_net.output, self.vis_mb.input, transform=amp,
+                         synapse=0.03)
         nengo.Connection(self.detect_change_net.output,
                          self.vis_mb.gate, transform=-1, synapse=0.01)
 

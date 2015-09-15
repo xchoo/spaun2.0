@@ -10,7 +10,7 @@ import nengo
 # ----- Defaults -----
 def_dim = 256
 def_seq = 'A'
-def_seq = 'A0[#1]?X'
+# def_seq = 'A0[#1]?X'
 # def_seq = 'A0[#1#2#3]?XXX'
 # def_seq = 'A1[#1]?XXX'
 # def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
@@ -18,12 +18,14 @@ def_seq = 'A0[#1]?X'
 # def_seq = 'A3[123]?XXXX'
 # def_seq = 'A3[222]?XXXX'
 # def_seq = 'A3[2567589]?XXXX'
-# def_seq = 'A4[1][4]?XXXXXX'
-# def_seq = 'A5[123]M[1]?X'
+# def_seq = 'A4[5][3]?XXXXXX'
+# def_seq = 'A5[123]K[3]?X'
 # def_seq = 'A5[123]P[1]?X'
-# def_seq = 'A6[12][2][82][2][42]?X'
-# def_seq = 'A7[1][2][3][2][3][4][3][4]?X'
-# def_seq = 'A7[1][2][3][2]?X'
+# def_seq = 'A6[12][2][82][2][42]?XXXXX'
+# def_seq = 'A6[8812][12][8842][42][8862][62][8832]?XXXXX'
+# def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
+# def_seq = 'A7[1][2][3][2]?XX'
+def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
 
 def_mpi_p = 128
 
@@ -97,7 +99,7 @@ parser.add_argument(
     help='Supply to use the SpiNNaker backend (will override -b).')
 
 parser.add_argument(
-    '--nengo_viz', action='store_true',
+    '--nengo_gui', action='store_true',
     help='Supply to use the nengo_viz vizualizer to run Spaun.')
 
 args = parser.parse_args()
@@ -182,10 +184,11 @@ if hasattr(model, 'mtr'):
 print "START BUILD"
 timestamp = time.time()
 
-if args.nengo_viz:
-    print "STARTING NENGO_VIZ"
-    import nengo_viz
-    nengo_viz.Viz(__file__, model=model, locals=locals()).start()
+if args.nengo_gui:
+    print "STARTING NENGO_GUI"
+    import nengo_gui
+    nengo_gui.Viz(__file__, model=model, locals=locals(),
+                  interactive=False).start()
     print "NENGO_VIZ STOPPED"
     sys.exit()
 
@@ -226,6 +229,7 @@ else:
 
 t_build = time.time() - timestamp
 timestamp = time.time()
+print "BUILD FINISHED - build time: %fs" % t_build
 
 # ----- Spaun simulation run -----
 runtime = args.t if args.t > 0 else get_est_runtime()

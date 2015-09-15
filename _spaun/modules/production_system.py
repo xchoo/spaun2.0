@@ -94,3 +94,15 @@ class ProductionSystem(Module):
                 transform=[[cfg.mb_gate_scale] * len(ps_dec_mb_rst_sp_inds)])
         else:
             warn("ProductionSystem Module - Cannot connect from 'vis'")
+
+        # Set up connections from motor module
+        if hasattr(parent_net, 'dec'):
+            # ###### State MB ########
+            nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
+                             self.ps_state_mb.gate, transform=4)
+
+            # ###### Dec MB ########
+            nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
+                             self.ps_dec_mb.gate, transform=4)
+        else:
+            warn("ProductionSystem Module - Could not connect from 'dec'")
