@@ -1,10 +1,7 @@
-from copy import deepcopy as copy
-
 from nengo.spa import Vocabulary
 # from ._spa import Vocabulary
 
 from .config import cfg
-from .utils import sum_vocab_vecs
 from .utils import strs_to_inds
 
 
@@ -24,24 +21,26 @@ num_sp_strs = ['ZER', 'ONE', 'TWO', 'THR', 'FOR',
 # F - Fluid Induction (Ravens)
 # X - Task precursor
 # DEC - Decoding task (output to motor system)
-# DECW - Decoding task (output to motor system, but for drawing task)
-# DECI - Decoding task (output to motor system, but for induction tasks)
-ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X', 'DEC', 'DECW',
-                   'DECI']
+ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X', 'DEC']
 ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R', 'V', 'W']
 
 # --- Production system semantic pointers ---
-ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT']
-ps_dec_sp_strs = ['FWD', 'REV', 'CNT']
+# DECW - Decoding state (output to motor system, but for drawing task)
+# DECI - Decoding state (output to motor system, but for induction tasks)
+ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2', 'CNT0', 'CNT1']
+ps_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI']
 
 # --- Misc visual semantic pointers ---
 misc_vis_sp_strs = ['OPEN', 'CLOSE', 'SPACE', 'QM']
+
+# --- Misc state semantic pointers ---
+misc_ps_sp_strs = ['MATCH', 'NO_MATCH']
 
 # --- 'I don't know' motor response vector
 mtr_sp_strs = ['UNK']
 
 # --- List of all visual semantic pointers ---
-vis_sp_strs = copy(num_sp_strs)
+vis_sp_strs = list(num_sp_strs)
 vis_sp_strs.extend(misc_vis_sp_strs)
 vis_sp_strs.extend(ps_task_vis_sp_strs)
 
@@ -84,6 +83,7 @@ vocab.parse('+'.join(ps_task_vis_sp_strs))
 vocab.parse('+'.join(ps_task_sp_strs))
 vocab.parse('+'.join(ps_state_sp_strs))
 vocab.parse('+'.join(ps_dec_sp_strs))
+vocab.parse('+'.join(misc_ps_sp_strs))
 
 # ## --- Motor vocabularies (for debug purposes) ---
 mtr_vocab = Vocabulary(cfg.mtr_dim, rng=cfg.rng)
@@ -107,6 +107,7 @@ item_vocab = vocab.create_subset(num_sp_strs)
 ps_task_vocab = vocab.create_subset(ps_task_sp_strs)
 ps_state_vocab = vocab.create_subset(ps_state_sp_strs)
 ps_dec_vocab = vocab.create_subset(ps_dec_sp_strs)
+ps_cmp_vocab = vocab.create_subset(misc_ps_sp_strs)
 
 # ################ Enumerated vocabulary definitions ##########################
 # --- Enumerated vocabulary, enumerates all possible combinations of position
@@ -122,7 +123,7 @@ for num in num_sp_strs:
                    vocab[pos_sp_strs[0]] * vocab[num])
 
 # ############## Semantic pointer lists for signal generation #################
-item_mb_gate_sp_strs = copy(num_sp_strs)
+item_mb_gate_sp_strs = list(num_sp_strs)
 item_mb_gate_sp_inds = strs_to_inds(item_mb_gate_sp_strs, vis_sp_strs)
 item_mb_rst_sp_strs = ['A', 'OPEN']
 item_mb_rst_sp_inds = strs_to_inds(item_mb_rst_sp_strs, vis_sp_strs)
@@ -132,13 +133,13 @@ ave_mb_gate_sp_inds = strs_to_inds(ave_mb_gate_sp_strs, vis_sp_strs)
 ave_mb_rst_sp_strs = ['A']
 ave_mb_rst_sp_inds = strs_to_inds(ave_mb_rst_sp_strs, vis_sp_strs)
 
-pos_mb_gate_sp_strs = copy(num_sp_strs)
+pos_mb_gate_sp_strs = list(num_sp_strs)
 # pos_mb_gate_sp_strs.extend(['A', 'OPEN', 'QM'])
 pos_mb_gate_sp_inds = strs_to_inds(pos_mb_gate_sp_strs, vis_sp_strs)
 pos_mb_rst_sp_strs = ['A', 'OPEN', 'QM']
 pos_mb_rst_sp_inds = strs_to_inds(pos_mb_rst_sp_strs, vis_sp_strs)
 
-ps_task_mb_gate_sp_strs = copy(num_sp_strs)
+ps_task_mb_gate_sp_strs = list(num_sp_strs)
 ps_task_mb_gate_sp_strs.extend(['QM'])
 ps_task_mb_gate_sp_inds = strs_to_inds(ps_task_mb_gate_sp_strs, vis_sp_strs)
 
@@ -158,8 +159,9 @@ ps_dec_mb_rst_sp_strs = ['A']
 ps_dec_mb_rst_sp_inds = strs_to_inds(ps_dec_mb_rst_sp_strs, vis_sp_strs)
 
 # Note: sum_vocab_vecs have to be fed through threshold before use.
-dec_out_sel_sp_strs = ['DECW']
-dec_out_sel_sp_vecs = sum_vocab_vecs(vocab, dec_out_sel_sp_strs)
+dec_out_sel_sp_vecs = vocab.parse('DECW').v
 
-dec_pos_gate_sp_strs = ['DECW', 'DEC', 'DECC']
-dec_pos_gate_sp_vecs = sum_vocab_vecs(vocab, dec_pos_gate_sp_strs)
+dec_pos_gate_dec_sp_vecs = vocab.parse('DECW + DECI + FWD + REV').v
+dec_pos_gate_task_sp_vecs = vocab.parse('DEC').v
+
+dec_mtr_init_sp_vecs = vocab.parse('DEC').v

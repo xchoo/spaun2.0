@@ -7,7 +7,8 @@ from nengo.utils.network import with_self
 
 from ..config import cfg
 from ..vocabs import vocab, item_vocab, mtr_vocab, mtr_unk_vocab
-from ..vocabs import dec_out_sel_sp_vecs, dec_pos_gate_sp_vecs
+from ..vocabs import dec_out_sel_sp_vecs, dec_pos_gate_dec_sp_vecs
+from ..vocabs import dec_pos_gate_task_sp_vecs
 
 
 class InfoDecoding(Module):
@@ -24,9 +25,11 @@ class InfoDecoding(Module):
                                              input_magnitude=cfg.dcconv_radius)
 
         # Decoding associative memory
-        self.dec_am = cfg.make_assoc_mem(item_vocab.vectors, mtr_vocab.vectors,
-                                         inhibitable=True, inhibit_scale=3,
-                                         threshold=cfg.dec_am_min_thresh)
+        self.dec_am = \
+            cfg.make_assoc_mem(item_vocab.vectors, mtr_vocab.vectors,
+                               inhibitable=True, inhibit_scale=3,
+                               threshold=cfg.dec_am_min_thresh,
+                               default_output_vector=np.zeros(cfg.mtr_dim))
         nengo.Connection(self.item_dcconv.output, self.dec_am.input,
                          synapse=0.01)
 
@@ -42,30 +45,31 @@ class InfoDecoding(Module):
                          dec_am2.dec_am_utils)
         nengo.Connection(self.item_dcconv.output, dec_am2.input, synapse=0.01)
 
-        util_diff = cfg.make_thresh_ens(cfg.dec_am_min_diff)
-        nengo.Connection(self.dec_am.utilities, util_diff,
+        util_diff = cfg.make_thresh_ens_net(cfg.dec_am_min_diff)
+        nengo.Connection(self.dec_am.utilities, util_diff.input,
                          transform=[[1] * len(item_vocab.keys)], synapse=0.01)
-        nengo.Connection(dec_am2.utilities, util_diff,
+        nengo.Connection(dec_am2.utilities, util_diff.input,
                          transform=[[-1] * len(item_vocab.keys)], synapse=0.01)
 
-        util_diff_neg = cfg.make_thresh_ens(1 - cfg.dec_am_min_diff)
-        nengo.Connection(bias_node, util_diff_neg)
-        nengo.Connection(util_diff, util_diff_neg, transform=-2,
+        util_diff_neg = cfg.make_thresh_ens_net(1 - cfg.dec_am_min_diff)
+        nengo.Connection(bias_node, util_diff_neg.input)
+        nengo.Connection(util_diff.output, util_diff_neg.input, transform=-2,
                          synapse=0.01)
-        nengo.Connection(self.dec_am.inhibit, util_diff_neg, transform=-2)
+        nengo.Connection(self.dec_am.inhibit, util_diff_neg.input,
+                         transform=-2)
 
-        util_diff_thresh = cfg.make_thresh_ens()    # Clean util_diff signal
-        nengo.Connection(bias_node, util_diff_thresh)
-        nengo.Connection(util_diff_neg, util_diff_thresh, transform=-2,
-                         synapse=0.01)
+        util_diff_thresh = cfg.make_thresh_ens_net()   # Clean util_diff signal
+        nengo.Connection(bias_node, util_diff_thresh.input)
+        nengo.Connection(util_diff_neg.output, util_diff_thresh.input,
+                         transform=-2, synapse=0.01)
 
         # Inhibit decoding associative memory when task != (DEC or DECW)
-        self.dec_am_task_inhibit = cfg.make_thresh_ens()
-        nengo.Connection(bias_node, self.dec_am_task_inhibit)
-        nengo.Connection(self.dec_am_task_inhibit, self.dec_am.inhibit,
-                         synapse=0.01)
-        nengo.Connection(self.dec_am_task_inhibit, dec_am2.inhibit,
-                         synapse=0.01)
+        self.dec_am_task_inhibit = cfg.make_thresh_ens_net()
+        nengo.Connection(bias_node, self.dec_am_task_inhibit.input)
+        nengo.Connection(self.dec_am_task_inhibit.output,
+                         self.dec_am.inhibit, synapse=0.01)
+        nengo.Connection(self.dec_am_task_inhibit.output,
+                         dec_am2.inhibit, synapse=0.01)
 
         # Transform from visual WM to motor semantic pointer [for copy drawing
         # task]
@@ -79,25 +83,28 @@ class InfoDecoding(Module):
         # Decoding output selector (selects between decoded from item WM or
         # transformed from visual WM)
         self.select_out = nengo.Ensemble(cfg.n_neurons_ens, 1)
-        inhibit_am = cfg.make_thresh_ens()
-        inhibit_vis = cfg.make_thresh_ens()
-        nengo.Connection(self.select_out, inhibit_am)
-        nengo.Connection(self.select_out, inhibit_vis,
+        inhibit_am = cfg.make_thresh_ens_net()
+        inhibit_vis = cfg.make_thresh_ens_net()
+        nengo.Connection(self.select_out, inhibit_am.input)
+        nengo.Connection(self.select_out, inhibit_vis.input,
                          function=lambda x: 1 - x)
         for ens in am_gated_ens.ensembles:
-            nengo.Connection(inhibit_am, ens.neurons,
+            nengo.Connection(inhibit_am.output, ens.neurons,
                              transform=[[-3]] * ens.n_neurons)
-        nengo.Connection(inhibit_vis, self.vis_transform.inhibit)
+        nengo.Connection(inhibit_vis.output, self.vis_transform.inhibit)
 
         # Decoding POS mem block gate signal generation (from motor system)
-        self.pos_mb_gate_bias = cfg.make_thresh_ens()
-        self.pos_mb_gate_sig = cfg.make_thresh_ens(0.1)
+        self.pos_mb_gate_bias = cfg.make_thresh_ens_net()
+        self.pos_mb_gate_sig = cfg.make_thresh_ens_net(0.3)
+
+        # Suppress pos_mb gate bias unless task=DEC + dec=FWD|REV|DECI|DECW
+        nengo.Connection(bias_node, self.pos_mb_gate_bias.input, transform=-1)
 
         # Use pos mb gate signal as inhibition for dec_am2 assoc mem
         # nengo.Connection(self.pos_mb_gate_sig, dec_am2.inhibit,
         #                  synapse=0.01)
 
-        self.dec_am_inhibit = cfg.make_thresh_ens(0.1)
+        self.dec_am_inhibit = cfg.make_thresh_ens_net(0.1)
         # nengo.Connection(self.dec_am_inhibit, self.dec_am.inhibit,
         #                  synapse=0.01)
         # nengo.Connection(self.dec_am_inhibit, dec_am2.inhibit,
@@ -105,15 +112,15 @@ class InfoDecoding(Module):
 
         # Delay inhibition to dec_am and vis_transform to allow recall_mb
         # to capture data
-        dec_am_inhibit_delay = cfg.make_thresh_ens()
-        nengo.Connection(self.dec_am_inhibit, dec_am_inhibit_delay,
+        dec_am_inhibit_delay = cfg.make_thresh_ens_net()
+        nengo.Connection(self.dec_am_inhibit.output,
+                         dec_am_inhibit_delay.input, synapse=0.01)
+        nengo.Connection(dec_am_inhibit_delay.output, self.dec_am.inhibit,
                          synapse=0.01)
-        nengo.Connection(dec_am_inhibit_delay, self.dec_am.inhibit,
+        nengo.Connection(dec_am_inhibit_delay.output, dec_am2.inhibit,
                          synapse=0.01)
-        nengo.Connection(dec_am_inhibit_delay, dec_am2.inhibit,
-                         synapse=0.01)
-        nengo.Connection(dec_am_inhibit_delay, self.vis_transform.inhibit,
-                         synapse=0.01)
+        nengo.Connection(dec_am_inhibit_delay.output,
+                         self.vis_transform.inhibit, synapse=0.01)
 
         # Free recall decoding system
         self.dec_am.add_output('item_output', item_vocab.vectors)
@@ -121,17 +128,20 @@ class InfoDecoding(Module):
         nengo.Connection(recall_mb.output, recall_mb.input)
         nengo.Connection(self.dec_am.item_output, recall_mb.input,
                          synapse=0.01)
-        nengo.Connection(self.dec_am_task_inhibit, recall_mb.reset)
-        nengo.Connection(self.pos_mb_gate_sig, recall_mb.gate,
+        nengo.Connection(self.dec_am_task_inhibit.output, recall_mb.reset)
+        nengo.Connection(self.pos_mb_gate_sig.output, recall_mb.gate,
                          transform=10)
 
         self.dec_am_fr = \
             cfg.make_assoc_mem(item_vocab.vectors, item_vocab.vectors,
                                inhibitable=True, inhibit_scale=5,
-                               threshold=cfg.dec_fr_min_thresh)
+                               threshold=cfg.dec_fr_min_thresh,
+                               default_output_vector=np.zeros(cfg.sp_dim))
         nengo.Connection(recall_mb.output, self.dec_am_fr.input,
                          transform=-1)
-        nengo.Connection(self.pos_mb_gate_sig, self.dec_am_fr.inhibit,
+        nengo.Connection(self.dec_am_task_inhibit.output,
+                         self.dec_am_fr.inhibit, synapse=0.01)
+        nengo.Connection(self.pos_mb_gate_sig.output, self.dec_am_fr.inhibit,
                          synapse=0.01)
 
         # Add output of free recall am as a small bias to dec_am
@@ -154,32 +164,34 @@ class InfoDecoding(Module):
         dec_am_y = self.dec_am.thresholded_utilities
         dec_am_n = self.dec_am.default_output_thresholded_utility
 
-        dec_am_diff_y = util_diff_thresh
+        dec_am_diff_y = util_diff_thresh.output
 
         fr_am_n = self.dec_am_fr.default_output_thresholded_utility
 
-        output_know = cfg.make_thresh_ens(0.55)
-        output_unk = cfg.make_thresh_ens(0.80)
-        output_stop = cfg.make_thresh_ens(0.75)
+        output_know = cfg.make_thresh_ens_net(0.55)
+        output_unk = cfg.make_thresh_ens_net(0.80)
+        output_stop = cfg.make_thresh_ens_net(0.75)
 
-        nengo.Connection(dec_am_y, output_know,
-                         transform=[[0.5] * self.dec_am.num_items],
+        nengo.Connection(dec_am_y, output_know.input,
+                         transform=[[1.0] * self.dec_am.num_items],
                          synapse=0.01)
-        nengo.Connection(dec_am_diff_y, output_know, transform=0.5,
-                         synapse=0.01)
-
-        nengo.Connection(bias_node, output_unk)
-        nengo.Connection(output_know, output_unk, transform=-5,
-                         synapse=0.01)
-        nengo.Connection(self.pos_mb_gate_sig, output_unk, transform=-2,
-                         synapse=0.01)
-        nengo.Connection(self.dec_am.inhibit, output_unk, transform=-2,
+        nengo.Connection(dec_am_diff_y, output_know.input, transform=0.5,
                          synapse=0.01)
 
-        nengo.Connection(dec_am_n, output_stop, transform=0.5, synapse=0.01)
-        nengo.Connection(fr_am_n, output_stop, transform=0.5, synapse=0.01)
-        nengo.Connection(self.pos_mb_gate_sig, output_stop, transform=-2,
+        nengo.Connection(bias_node, output_unk.input)
+        nengo.Connection(output_know.output, output_unk.input, transform=-5,
                          synapse=0.01)
+        nengo.Connection(self.pos_mb_gate_sig.output, output_unk.input,
+                         transform=-2, synapse=0.01)
+        nengo.Connection(self.dec_am.inhibit, output_unk.input, transform=-2,
+                         synapse=0.01)
+
+        nengo.Connection(dec_am_n, output_stop.input, transform=0.5,
+                         synapse=0.01)
+        nengo.Connection(fr_am_n, output_stop.input, transform=0.5,
+                         synapse=0.01)
+        nengo.Connection(self.pos_mb_gate_sig.output, output_stop.input,
+                         transform=-2, synapse=0.01)
 
         # Output "UNK" vector to motor system.
         # Inhibited if output is KNOW, or if not using dec_am outputs
@@ -189,19 +201,19 @@ class InfoDecoding(Module):
         nengo.Connection(self.dec_am.inhibit, bias_unk_vec.neurons,
                          transform=[[-3]] * bias_unk_vec.n_neurons,
                          synapse=0.01)
-        nengo.Connection(self.pos_mb_gate_sig, bias_unk_vec.neurons,
+        nengo.Connection(self.pos_mb_gate_sig.output, bias_unk_vec.neurons,
                          transform=[[-3]] * bias_unk_vec.n_neurons,
                          synapse=0.01)
-        nengo.Connection(output_know, bias_unk_vec.neurons,
+        nengo.Connection(output_know.output, bias_unk_vec.neurons,
                          transform=[[-3]] * bias_unk_vec.n_neurons,
                          synapse=0.01)
-        nengo.Connection(output_stop, bias_unk_vec.neurons,
+        nengo.Connection(output_stop.output, bias_unk_vec.neurons,
                          transform=[[-3]] * bias_unk_vec.n_neurons,
                          synapse=0.01)
 
         # Inhibit dec_am output (through am_gated_ens) if output is DON'T KNOW
         for e in am_gated_ens.ensembles:
-            nengo.Connection(output_unk, e.neurons,
+            nengo.Connection(output_unk.output, e.neurons,
                              transform=[[-3]] * e.n_neurons)
 
         # ############################ DEBUG ##################################
@@ -227,10 +239,10 @@ class InfoDecoding(Module):
 
         self.debug_task = nengo.Node(size_in=1)
 
-        self.output_know = output_know
-        self.output_unk = output_unk
+        self.output_know = output_know.output
+        self.output_unk = output_unk.output
 
-        self.util_diff_neg = util_diff_neg
+        self.util_diff_neg = util_diff_neg.output
 
         # ########################## END DEBUG ################################
 
@@ -251,16 +263,18 @@ class InfoDecoding(Module):
 
         # Set up connections from production system module
         if hasattr(p_net, 'ps'):
-            nengo.Connection(p_net.ps.task, self.select_out,
+            nengo.Connection(p_net.ps.dec, self.select_out,
                              transform=[dec_out_sel_sp_vecs * 1.0])
-            nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias,
-                             transform=[dec_pos_gate_sp_vecs * 1.0])
-            nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit,
-                             transform=[dec_pos_gate_sp_vecs * -1.0])
+            nengo.Connection(p_net.ps.dec, self.pos_mb_gate_bias.input,
+                             transform=[dec_pos_gate_dec_sp_vecs * 1.0])
+            nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias.input,
+                             transform=[dec_pos_gate_task_sp_vecs * 1.0])
+            nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
+                             transform=[dec_pos_gate_task_sp_vecs * -1.0])
 
             # ###### DEBUG ########
-            nengo.Connection(p_net.ps.task, self.debug_task,
-                             transform=[dec_pos_gate_sp_vecs * 1.0])
+            nengo.Connection(p_net.ps.dec, self.debug_task,
+                             transform=[dec_pos_gate_dec_sp_vecs * 1.0])
         else:
             warn("InfoDecoding Module - Could not connect from 'ps'")
 
@@ -281,22 +295,18 @@ class InfoDecoding(Module):
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
-                             self.pos_mb_gate_sig,
-                             synapse=0.005, transform=5,
-                             function=lambda x: x > 0.1)
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
-                             self.pos_mb_gate_sig,
-                             synapse=0.08, transform=-10,
-                             function=lambda x: x > 0.1)
+            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+                             self.pos_mb_gate_sig.input,
+                             synapse=0.005, transform=5)
+            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+                             self.pos_mb_gate_sig.input,
+                             synapse=0.08, transform=-10)
 
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
-                             self.dec_am_inhibit,
-                             synapse=0.005, transform=5,
-                             function=lambda x: x > 0.1)
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
-                             self.dec_am_inhibit,
-                             synapse=0.01, transform=-10,
-                             function=lambda x: x > 0.1)
+            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+                             self.dec_am_inhibit.input,
+                             synapse=0.005, transform=5)
+            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+                             self.dec_am_inhibit.input,
+                             synapse=0.01, transform=-10)
         else:
             warn("InfoDecoding Module - Could not connect from 'mtr'")

@@ -71,9 +71,12 @@ for lbl in images_labels_unique:
                                     bs.bisect_right(images_labels, lbl)))
 
 
-def LIFVision(net=None):
+def LIFVision(net=None, net_neuron_type=None):
     if net is None:
         net = nengo.Network(label="LIF Vision")
+
+    if net_neuron_type is None:
+        net_neuron_type = neuron_type
 
     with net:
         # --- LIF vision network proper
@@ -84,7 +87,7 @@ def LIFVision(net=None):
         for i, [W, b] in enumerate(zip(weights, biases)):
             n = b.size
             layer = nengo.Ensemble(n, 1, label='layer %d' % i,
-                                   neuron_type=neuron_type,
+                                   neuron_type=net_neuron_type,
                                    max_rates=max_rate * np.ones(n),
                                    intercepts=intercept * np.ones(n))
             bias = nengo.Node(output=b)

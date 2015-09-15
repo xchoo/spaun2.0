@@ -29,13 +29,12 @@ class Product(nengo.Network):
             encoders=encoders, radius=np.sqrt(2) * radius,
             **ens_kwargs)
 
-        nengo.Connection(
-            self.A, self.product.input[0::2], synapse=None)
-        nengo.Connection(
-            self.B, self.product.input[1::2], synapse=None)
+        nengo.Connection(self.A, self.product.input[0::2], synapse=None)
+        nengo.Connection(self.B, self.product.input[1::2], synapse=None)
 
         self.output = self.product.add_output('product', lambda x: x[0] * x[1])
 
-    def dot_product_transform(self, scale=1.0):
-        """Returns a transform for output to compute the scaled dot product."""
-        return scale * np.ones((1, self.dimensions))
+
+def dot_product_transform(self, scale=1.0):
+    """Returns a transform for output to compute the scaled dot product."""
+    return scale * np.ones((1, self.dimensions))

@@ -51,10 +51,12 @@ class MemoryBlock(Module):
 
             self.gateX = nengo.Ensemble(n_neurons, 1, label="gateX",
                                         intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]))
+                                        encoders=Choice([[1]]),
+                                        eval_points=Uniform(0.5, 1))
             self.gateN = nengo.Ensemble(n_neurons, 1, label="gateN",
                                         intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]))
+                                        encoders=Choice([[1]]),
+                                        eval_points=Uniform(0.5, 1))
             nengo.Connection(self.gate, self.gateX)
             nengo.Connection(self.gate, self.gateN, transform=-1)
             nengo.Connection(bias_node, self.gateN)
@@ -70,14 +72,16 @@ class MemoryBlock(Module):
             if cleanup_vecs is None or cleanup_mode == 0:
                 self.mem1 = WM(n_neurons, dimensions, radius=radius,
                                reset_value=reset_vec, **wm_args)
-                wm_args.pop('input_transform', 1)
+                wm_args.pop('input_transform', None)
+                wm_args.pop('wta_output', None)
                 self.mem2 = WM(n_neurons, dimensions, radius=radius,
                                reset_value=reset_vec, **wm_args)
             elif cleanup_mode == 1:
                 self.mem1 = WMC(n_neurons, dimensions, radius=radius,
                                 cleanup_values=cleanup_vecs,
                                 reset_value=reset_vec, **wm_args)
-                wm_args.pop('input_transform', 1)
+                wm_args.pop('input_transform', None)
+                wm_args.pop('wta_output', None)
                 self.mem2 = WMC(n_neurons, dimensions, radius=radius,
                                 cleanup_values=cleanup_vecs,
                                 reset_value=reset_vec, **wm_args)
@@ -85,7 +89,8 @@ class MemoryBlock(Module):
                 self.mem1 = WMCP(n_neurons, dimensions, radius=radius,
                                  cleanup_values=cleanup_vecs,
                                  reset_value=reset_vec, **wm_args)
-                wm_args.pop('input_transform', 1)
+                wm_args.pop('input_transform', None)
+                wm_args.pop('wta_output', None)
                 self.mem2 = WMCP(n_neurons, dimensions, radius=radius,
                                  cleanup_values=cleanup_vecs,
                                  reset_value=reset_vec, **wm_args)
@@ -108,11 +113,14 @@ class MemoryBlock(Module):
             # - 2: Reset only mem2
             # - 3: Reset both mem1 and mem2
             if reset_mode:
-                self.reset = nengo.Node(size_in=1)
+                self.reset = nengo.Ensemble(n_neurons, 1, label="reset",
+                                            intercepts=Uniform(0.5, 1),
+                                            encoders=Choice([[1]]),
+                                            eval_points=Uniform(0.5, 1))
             if reset_mode & 1:
-                nengo.Connection(self.reset, self.mem1.reset, synapse=None)
+                nengo.Connection(self.reset, self.mem1.reset, synapse=0.005)
             if reset_mode & 2:
-                nengo.Connection(self.reset, self.mem2.reset, synapse=None)
+                nengo.Connection(self.reset, self.mem2.reset, synapse=0.005)
 
             nengo.Connection(self.mem1.output, self.mem2.input, synapse=0.005)
 

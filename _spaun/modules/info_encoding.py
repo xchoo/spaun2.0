@@ -63,15 +63,22 @@ class InfoEncoding(Module):
                                         len(pos_mb_rst_sp_inds)])
 
             nengo.Connection(parent_net.vis.output, self.item_input)
-            nengo.Connection(parent_net.vis.output, self.enc_output)
+
+            # TODO: Fix no resetting for REV recall
+
+            # Encode item in encoding (POSxITEM + ITEM)
+            nengo.Connection(parent_net.vis.output, self.enc_output,
+                             synapse=None)
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 
         # Set up connections from decoding module
         if hasattr(parent_net, 'dec'):
-            nengo.Connection(parent_net.dec.pos_mb_gate_bias, self.pos_mb.gate,
-                             transform=4, synapse=0.01)
-            nengo.Connection(parent_net.dec.pos_mb_gate_sig, self.pos_mb.gate,
-                             transform=-4, synapse=0.01)
+            nengo.Connection(parent_net.dec.pos_mb_gate_bias.output,
+                             self.pos_mb.gate, transform=5, synapse=0.01)
+            nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
+                             self.pos_mb.gate, transform=-4, synapse=0.01)
         else:
             warn("InfoEncoding Module - Cannot connect from 'dec'")
+
+        # TODO: Add connection from PS to do REV recall
