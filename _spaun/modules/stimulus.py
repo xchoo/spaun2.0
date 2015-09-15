@@ -7,7 +7,6 @@ from nengo.utils.network import with_self
 from ..config import cfg
 from ..vocabs import vis_vocab
 from ..vision import get_image as vis_get_image
-from ..vision import get_label as vis_get_label
 
 
 num_map = {'0': 'ZER', '1': 'ONE', '2': 'TWO', '3': 'THR', '4': 'FOR',
@@ -32,6 +31,7 @@ def get_vocab(label=None):
 def parse_raw_seq():
     raw_seq = list(cfg.raw_seq_str)
     hw_num = False  # Flag to indicate to use a hand written number
+    prev_c = ''
 
     cfg.raw_seq = []
     cfg.stim_seq = []
@@ -52,11 +52,18 @@ def parse_raw_seq():
 
         cfg.raw_seq.append(c)
 
+        # If previous character is identical to current character, insert a
+        # space between them.
+        if prev_c == c:
+            cfg.stim_seq.append('.')
+
         if c.isdigit():
             cfg.stim_seq.append((get_image(c)[1], c))
             hw_num = False
         else:
             cfg.stim_seq.append(c)
+
+        prev_c = c
 
     est_mtr_response_time = num_mtr_responses * cfg.mtr_est_digit_response_time
     extra_spaces = int(est_mtr_response_time / (cfg.present_interval * 2 **
@@ -70,7 +77,7 @@ def stim_func(t, stim_seq=None, get_func=None):
     ind = t / cfg.present_interval / (2 ** cfg.present_blanks)
 
     if (cfg.present_blanks and int(ind) != int(round(ind))) or \
-       int(ind) >= len(stim_seq):
+       int(ind) >= len(stim_seq) or stim_seq[int(ind)] == '.':
         image_data = get_func()
     else:
         image_data = get_func(stim_seq[int(ind)])
@@ -108,6 +115,20 @@ class Stimulus(Module):
         else:
             self.output = nengo.Node(output=stim_func_vis,
                                      label='Stim Module Out')
+
+        # Define vocabulary inputs and outputs
+        self.outputs = dict(default=(self.output, vis_vocab))
+
+
+class StimulusDummy(Module):
+    def __init__(self, label="Stimulus", seed=None, add_to_container=None):
+        super(StimulusDummy, self).__init__(label, seed, add_to_container)
+        self.init_module()
+
+    @with_self
+    def init_module(self):
+        dimension = 28 * 28
+        self.output = nengo.Node(output=np.random.uniform(size=dimension))
 
         # Define vocabulary inputs and outputs
         self.outputs = dict(default=(self.output, vis_vocab))
