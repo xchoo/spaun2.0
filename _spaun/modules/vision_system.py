@@ -86,8 +86,12 @@ class VisionSystem(Module):
 
     @with_self
     def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale):
+
         # Make LIF vision network
-        self.vis_net = vis_net()
+        if cfg.use_mpi and cfg.split_lifvis:
+            self.vis_net = vis_net(max_neurons=100)
+        else:
+            self.vis_net = vis_net()
 
         # Make network to detect changes in visual input stream
         self.detect_change_net = detect_net()

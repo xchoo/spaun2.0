@@ -95,6 +95,14 @@ parser.add_argument(
 parser.add_argument(
     '--mpi_compress_save', action='store_true',
     help='Supply to compress the saved net file with gzip.')
+parser.add_argument(
+    '--split_lifvis', action='store_true',
+    help='Supply to split-up the lif_vision network.')
+parser.add_argument(
+    '--split_mn', type=int, default=0,
+    help="Max number of neurons for splitting ensemble arrays. "
+         "Only has an effect when using mpi backend. Defaults to 0. "
+         "If given a value less than 1, no splitting is done.")
 
 parser.add_argument(
     '--spinn', action='store_true',
@@ -103,13 +111,6 @@ parser.add_argument(
 parser.add_argument(
     '--nengo_viz', action='store_true',
     help='Supply to use the nengo_viz vizualizer to run Spaun.')
-
-parser.add_argument(
-    '--split-mn', type=int, default=0,
-    help="Max number of neurons for splitting ensemble arrays. "
-         "Only has an effect when using mpi backend. Defaults to 0. "
-         "If given a value less than 1, no splitting is done.")
-
 args = parser.parse_args()
 print args
 
@@ -141,6 +142,7 @@ cfg.present_interval = args.present_int
 cfg.data_dir = args.data_dir
 
 split_mn = args.split_mn
+cfg.split_lifvis = args.split_lifvis
 
 omit = args.omit if args.omit else []
 modules = [

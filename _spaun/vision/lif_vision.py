@@ -74,7 +74,7 @@ for lbl in images_labels_unique:
                                     bs.bisect_right(images_labels, lbl)))
 
 
-def LIFVision(net=None):
+def LIFVision(net=None, max_neurons=0):
     if net is None:
         net = nengo.Network(label="LIF Vision")
 
@@ -83,33 +83,95 @@ def LIFVision(net=None):
         input_node = nengo.Node(size_in=images_data_dimensions, label='Input')
         input_bias = nengo.Node(output=[1] * images_data_dimensions)
 
-        layers = []
-        for i, [W, b] in enumerate(zip(weights, biases)):
-            n = b.size
-            layer = nengo.Ensemble(n, 1, label='layer %d' % i,
-                                   neuron_type=neuron_type,
-                                   max_rates=max_rate * np.ones(n),
-                                   intercepts=intercept * np.ones(n))
-            bias = nengo.Node(output=b)
-            nengo.Connection(bias, layer.neurons, transform=np.eye(n),
-                             synapse=None)
+        if max_neurons and max_neurons > 0:
+            output_node = nengo.Node(size_in=biases[-1].size, label='Output')
 
-            if i == 0:
-                nengo.Connection(input_node, layer.neurons,
-                                 transform=images_data_std * W.T,
-                                 synapse=pstc)
-                nengo.Connection(input_bias, layer.neurons,
-                                 transform=-np.multiply(images_data_mean,
-                                                        images_data_std) * W.T,
-                                 synapse=pstc)
-            else:
-                nengo.Connection(layers[-1].neurons, layer.neurons,
-                                 transform=W.T * amp, synapse=pstc)
+            layers = []
+            im_std_W = images_data_std * weights[0].T
+            im_bias_W = (
+                -np.multiply(images_data_mean, images_data_std) * weights[0].T)
 
-            layers.append(layer)
+            for i, [W, b] in enumerate(zip(weights, biases)):
+                n_neurons = b.size
+                n_ensembles = int(np.ceil(float(n_neurons) / max_neurons))
 
-        # Set up input and outputs to the LIF vision system
-        net.input = input_node
-        net.output = layers[-1].neurons
-        net.raw_output = input_node
+                layer = []
+                for j in range(n_ensembles):
+                    n = min(max_neurons, n_neurons - j * max_neurons)
+                    offset = j * max_neurons
+
+                    ens = nengo.Ensemble(
+                        n, 1, label='layer %d, ens %d' % (i, j),
+                        neuron_type=neuron_type,
+                        max_rates=max_rate*np.ones(n),
+                        intercepts=intercept*np.ones(n))
+
+                    bias = nengo.Node(output=b[offset:offset+n])
+                    nengo.Connection(
+                        bias, ens.neurons, transform=np.eye(n), synapse=None)
+                    layer.append(ens)
+
+                    if i == 0:
+                        nengo.Connection(
+                            input_node, ens.neurons,
+                            transform=im_std_W[offset:offset+n, :],
+                            synapse=pstc)
+
+                        nengo.Connection(
+                            input_bias, ens.neurons,
+                            transform=im_bias_W[offset:offset+n],
+                            synapse=pstc)
+                    else:
+                        WT_amp = W.T * amp
+                        for k, e in enumerate(layers[-1]):
+                            transform = WT_amp[
+                                offset:offset+n,
+                                k*max_neurons: k*max_neurons + e.n_neurons]
+                            nengo.Connection(
+                                e.neurons, ens.neurons,
+                                transform=transform, synapse=pstc)
+
+                layers.append(layer)
+
+            for i, e in enumerate(layers[-1]):
+                nengo.Connection(
+                    e.neurons,
+                    output_node[i*max_neurons: i*max_neurons+e.n_neurons],
+                    synapse=None)
+
+            net.input = input_node
+            net.output = output_node
+            net.raw_output = input_node
+        else:
+            layers = []
+            for i, [W, b] in enumerate(zip(weights, biases)):
+                n = b.size
+                layer = nengo.Ensemble(n, 1, label='layer %d' % i,
+                                       neuron_type=neuron_type,
+                                       max_rates=max_rate * np.ones(n),
+                                       intercepts=intercept * np.ones(n))
+                bias = nengo.Node(output=b)
+                nengo.Connection(bias, layer.neurons, transform=np.eye(n),
+                                 synapse=None)
+
+                if i == 0:
+                    nengo.Connection(input_node, layer.neurons,
+                                     transform=images_data_std * W.T,
+                                     synapse=pstc)
+                    nengo.Connection(
+                        input_bias, layer.neurons,
+                        transform=-np.multiply(
+                            images_data_mean, images_data_std) * W.T,
+                        synapse=pstc)
+                else:
+                    nengo.Connection(layers[-1].neurons, layer.neurons,
+                                     transform=W.T * amp, synapse=pstc)
+
+                layers.append(layer)
+
+            # Set up input and outputs to the LIF vision system
+            net.input = input_node
+            net.output = layers[-1].neurons
+            net.raw_output = input_node
+
     return net
