@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 import nengo
@@ -142,3 +143,46 @@ class StimulusDummy(Module):
 
         # Define vocabulary inputs and outputs
         self.outputs = dict(default=(self.output, vis_vocab))
+
+
+def monitor_func(t, monitor_data_obj, stim_seq=None):
+    ind = t / cfg.present_interval / (2 ** cfg.present_blanks)
+
+    if (cfg.present_blanks and int(ind) != int(round(ind))) or \
+       int(ind) >= len(stim_seq) or stim_seq[int(ind)] == '.':
+        pass
+    else:
+        pass
+
+
+class MonitorData(object):
+    def __init__(self):
+        self.prev_ind = -1
+        self.data_filename = \
+            os.path.join(cfg.data_dir,
+                         cfg.get_probe_data_filename(suffix='log', ext='txt'))
+        self.data_obj = open(self.data_filename, 'a')
+
+    def close_data_obj(self):
+        self.data_obj.close()
+
+
+class Monitor(Module):
+    def __init__(self, label="Monitor", seed=None, add_to_container=None):
+        super(Monitor, self).__init__(label, seed, add_to_container)
+        self.monitor_data = MonitorData()
+        self.init_module()
+
+    @with_self
+    def init_module(self):
+        if cfg.use_mpi:
+            raise RuntimeError('Not Implemented')
+        else:
+            self.output = nengo.Node(output=monitor_func,
+                                     label='Stim Module Out')
+
+        # Define vocabulary inputs and outputs
+        self.outputs = dict(default=(self.output, vis_vocab))
+
+    def close(self):
+        self.monitor_data.close_data_obj()

@@ -9,6 +9,8 @@ from nengo.utils.distributions import Uniform
 from .._networks.workingmemory_2_0 import InputGatedMemory as WM
 
 
+# TODO: Fix gateX and gateN (remove 1 connection delay)
+
 class MemoryBlock(Module):
     def __init__(self, n_neurons, dimensions,
                  radius=None, gate_mode=1, reset_mode=3, **mem_args):
