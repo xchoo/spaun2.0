@@ -129,15 +129,15 @@ def setup_probes_generic(model):
 
             pps4 = nengo.Probe(model.ps.ps_task_mb.mem1.output)
             pps5 = nengo.Probe(model.ps.ps_task_mb.mem2.output)
-            pps6 = nengo.Probe(model.ps.ps_task_mb.mem1.input)
+            pps6 = nengo.Probe(model.ps.ps_task_mb.mem1.input, synapse=None)
 
             pps7 = nengo.Probe(model.ps.ps_state_mb.mem1.output)
             pps8 = nengo.Probe(model.ps.ps_state_mb.mem2.output)
-            pps9 = nengo.Probe(model.ps.ps_state_mb.mem1.input)
+            pps9 = nengo.Probe(model.ps.ps_state_mb.mem1.input, synapse=None)
 
             pps10 = nengo.Probe(model.ps.ps_dec_mb.mem1.output)
             pps11 = nengo.Probe(model.ps.ps_dec_mb.mem2.output)
-            pps12 = nengo.Probe(model.ps.ps_dec_mb.mem1.input)
+            pps12 = nengo.Probe(model.ps.ps_dec_mb.mem1.input, synapse=None)
 
             pps13 = nengo.Probe(model.ps.ps_task_mb.gate)
             pps14 = nengo.Probe(model.ps.ps_state_mb.gate)

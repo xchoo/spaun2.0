@@ -28,17 +28,6 @@ def get_vocab(label=None):
     return (vis_vocab[str(label)].v, 0)
 
 
-def insert_mtr_wait_sym(num_mtr_responses):
-    # Add 0.5 second motor response minimum
-    num_mtr_responses += 0.5
-    est_mtr_response_time = num_mtr_responses * cfg.mtr_est_digit_response_time
-    extra_spaces = int(est_mtr_response_time / (cfg.present_interval * 2 **
-                                                cfg.present_blanks))
-
-    cfg.raw_seq.extend([None] * extra_spaces)
-    cfg.stim_seq.extend([None] * extra_spaces)
-
-
 def parse_raw_seq():
     raw_seq = list(cfg.raw_seq_str)
     hw_num = False  # Flag to indicate to use a hand written number
@@ -47,7 +36,7 @@ def parse_raw_seq():
     cfg.raw_seq = []
     cfg.stim_seq = []
 
-    num_mtr_responses = 0.0
+    num_mtr_responses = 0.5
 
     for c in raw_seq:
         if c in sym_map:
@@ -60,9 +49,6 @@ def parse_raw_seq():
         if c == 'X':
             num_mtr_responses += 1
             continue
-        elif num_mtr_responses > 0:
-            insert_mtr_wait_sym(num_mtr_responses)
-            num_mtr_responses = 0
 
         cfg.raw_seq.append(c)
 
@@ -79,8 +65,12 @@ def parse_raw_seq():
 
         prev_c = c
 
-    # Insert trailing motor response wait symbols
-    insert_mtr_wait_sym(num_mtr_responses)
+    est_mtr_response_time = num_mtr_responses * cfg.mtr_est_digit_response_time
+    extra_spaces = int(est_mtr_response_time / (cfg.present_interval * 2 **
+                                                cfg.present_blanks))
+
+    cfg.raw_seq.extend([None] * extra_spaces)
+    cfg.stim_seq.extend([None] * extra_spaces)
 
 
 def stim_func(t, stim_seq=None, get_func=None):
