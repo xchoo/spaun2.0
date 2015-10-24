@@ -26,6 +26,7 @@ class WorkingMemory(Module):
 
         sp_add_matrix = (vocab['ADD'].get_convolution_matrix() *
                          (0.25 + 0.25 / cfg.mb_decaybuf_input_scale))
+        # sp_add_matrix = (vocab['ADD'].get_convolution_matrix() * 0.5)
 
         self.num0_bias_node = nengo.Node(vocab.parse('POS1*ZER').v)
 
@@ -266,9 +267,9 @@ class WorkingMemory(Module):
 
         # Set up connections from production system module
         if hasattr(p_net, 'ps'):
-            ps_state_mb_utils = p_net.ps.ps_state_mb.mem2.mem.utilities
-            ps_task_mb_utils = p_net.ps.ps_task_mb.mem2.mem.utilities
-            ps_dec_mb_utils = p_net.ps.ps_dec_mb.mem2.mem.utilities
+            ps_state_mb_utils = p_net.ps.ps_state_utilities
+            ps_task_mb_utils = p_net.ps.ps_task_utilities
+            ps_dec_mb_utils = p_net.ps.ps_dec_utilities
 
             # ###### MB1 ########
             mb1_no_gate_strs = ['QAP', 'QAK', 'TRANS1', 'TRANS2', 'CNT0']

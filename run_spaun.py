@@ -17,15 +17,18 @@ def_seq = 'A'
 # def_seq = 'A3[1234]?XXXX'
 # def_seq = 'A3[123]?XXXX'
 # def_seq = 'A3[222]?XXXX'
-# def_seq = 'A3[2567589]?XXXX'
+# def_seq = 'A3[2567589]?XXXXXXXXX'
 # def_seq = 'A4[5][3]?XXXXXX'
+# def_seq = 'A4[321][3]?XXXXXXX'
+# def_seq = 'A4[0][9]?XXXXXXXXXXX'
+def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
 # def_seq = 'A5[123]K[3]?X'
 # def_seq = 'A5[123]P[1]?X'
 # def_seq = 'A6[12][2][82][2][42]?XXXXX'
 # def_seq = 'A6[8812][12][8842][42][8862][62][8832]?XXXXX'
 # def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
 # def_seq = 'A7[1][2][3][2]?XX'
-def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
+# def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
 
 def_mpi_p = 128
 
@@ -75,6 +78,12 @@ parser.add_argument(
     '--ocl_platform', type=int, default=0,
     help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
           ' backend can be listed using "pyopencl.get_platforms()"'))
+parser.add_argument(
+    '--ocl_device', type=int, default=-1,
+    help=('OCL Only: List index of the device on the OpenCL platform to use.' +
+          ' OpenCL devices can be listed using ' +
+          '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
+          'of the plaform to use.'))
 
 parser.add_argument(
     '--mpi', action='store_true',
@@ -154,6 +163,9 @@ from _spaun.modules import get_est_runtime
 # ----- Spaun proper -----
 model = Spaun()
 
+# ----- Display stimulus seq -----
+print "STIMULUS SEQ: %s" % (str(cfg.stim_seq))
+
 # ----- Set up probes -----
 if make_probes:
     print "PROBE FILENAME: %s" % cfg.probe_data_filename
@@ -196,9 +208,19 @@ if cfg.use_opencl:
     import pyopencl as cl
     import nengo_ocl
 
+    print "------ OCL ------"
+    print "AVAILABLE PLATFORMS: %s" % (str(cl.get_platforms()))
+
     pltf = cl.get_platforms()[args.ocl_platform]
-    ctx = cl.Context(pltf.get_devices())
-    print "USING OPENCL - devices: %s" % (str(pltf.get_devices()))
+
+    print "AVAILABLE DEVICES: %s" % (str(pltf.get_devices()))
+    if args.ocl_device >= 0:
+        ctx = cl.Context([pltf.get_devices()[args.ocl_device]])
+        print "USING OPENCL - device: %s" % \
+            (str(pltf.get_devices()[args.ocl_device]))
+    else:
+        ctx = cl.Context(pltf.get_devices())
+        print "USING OPENCL - devices: %s" % (str(pltf.get_devices()))
     sim = nengo_ocl.sim_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx)
 elif cfg.use_mpi:
     import nengo_mpi
@@ -235,7 +257,6 @@ print "BUILD FINISHED - build time: %fs" % t_build
 runtime = args.t if args.t > 0 else get_est_runtime()
 
 if cfg.use_opencl or cfg.use_ref:
-    print "STIMULUS SEQ: %s" % (str(cfg.stim_seq))
     print "START SIM - est_runtime: %f" % runtime
 
     if cfg.use_ref:

@@ -28,6 +28,7 @@ class InfoEncoding(Module):
                                          reset_key='POS1')
 
         # POS x INC
+        # TODO: Fix no resetting for REV recall
         nengo.Connection(self.pos_mb.output, self.pos_mb.input,
                          transform=vocab['INC'].get_convolution_matrix())
 
@@ -67,8 +68,8 @@ class InfoEncoding(Module):
             # TODO: Fix no resetting for REV recall
 
             # Encode item in encoding (POSxITEM + ITEM)
-            nengo.Connection(parent_net.vis.output, self.enc_output,
-                             synapse=None)
+            # nengo.Connection(parent_net.vis.output, self.enc_output,
+            #                  synapse=None)
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 

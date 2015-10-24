@@ -19,23 +19,58 @@ class ProductionSystem(Module):
     @with_self
     def init_module(self):
         # Memory block to hold task information
-        self.ps_task_mb = \
-            cfg.make_mem_block(vocab=ps_task_vocab,
-                               input_transform=cfg.ps_mb_gain_scale,
-                               cleanup_mode=1, fdbk_transform=1.02,
-                               wta_output=True, reset_key='X')
+        if cfg.ps_use_am_mb:
+            self.ps_task_mb = \
+                cfg.make_mem_block(vocab=ps_task_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   wta_output=True, reset_key='X')
 
-        self.ps_state_mb = \
-            cfg.make_mem_block(vocab=ps_state_vocab,
-                               input_transform=cfg.ps_mb_gain_scale,
-                               cleanup_mode=1, fdbk_transform=1.02,
-                               wta_output=True, reset_key='TRANS0')
+            self.ps_state_mb = \
+                cfg.make_mem_block(vocab=ps_state_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   wta_output=True, reset_key='TRANS0')
 
-        self.ps_dec_mb = \
-            cfg.make_mem_block(vocab=ps_dec_vocab,
-                               input_transform=cfg.ps_mb_gain_scale,
-                               cleanup_mode=1, fdbk_transform=1.02,
-                               wta_output=True, reset_key='FWD')
+            self.ps_dec_mb = \
+                cfg.make_mem_block(vocab=ps_dec_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   wta_output=True, reset_key='FWD')
+
+            self.ps_task_utilities = self.ps_task_mb.mem2.mem.utilities
+            self.ps_state_utilities = self.ps_state_mb.mem2.mem.utilities
+            self.ps_dec_utilities = self.ps_dec_mb.mem2.mem.utilities
+        else:
+            self.ps_task_mb = \
+                cfg.make_mem_block(vocab=ps_task_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   fdbk_transform=1.005, reset_key='X')
+
+            self.ps_state_mb = \
+                cfg.make_mem_block(vocab=ps_state_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   fdbk_transform=1.005, reset_key='TRANS0')
+
+            self.ps_dec_mb = \
+                cfg.make_mem_block(vocab=ps_dec_vocab,
+                                   input_transform=cfg.ps_mb_gain_scale,
+                                   fdbk_transform=1.005, reset_key='FWD')
+
+            self.ps_task_utilities = \
+                nengo.Node(size_in=len(ps_task_vocab.keys))
+            nengo.Connection(self.ps_task_mb.output, self.ps_task_utilities,
+                             transform=ps_task_vocab.vectors)
+
+            self.ps_state_utilities = \
+                nengo.Node(size_in=len(ps_state_vocab.keys))
+            nengo.Connection(self.ps_state_mb.output, self.ps_state_utilities,
+                             transform=ps_state_vocab.vectors)
+
+            self.ps_dec_utilities = \
+                nengo.Node(size_in=len(ps_dec_vocab.keys))
+            nengo.Connection(self.ps_dec_mb.output, self.ps_dec_utilities,
+                             transform=ps_dec_vocab.vectors)
 
         # Define inputs and outputs
         self.task = self.ps_task_mb.output

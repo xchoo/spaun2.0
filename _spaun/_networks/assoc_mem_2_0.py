@@ -10,6 +10,9 @@ from nengo.utils.stdlib import nested
 
 from ..dists import ClippedExpDist
 
+# TODO: Remove bias node for threshold
+# TODO: Redo complement for thresholded output
+
 
 def filtered_step(t, shift=0.5, scale=50, step_val=1):
     return np.maximum(-1 / np.exp((t - shift) * scale) + 1, 0) * step_val
