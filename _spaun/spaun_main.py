@@ -67,7 +67,7 @@ def Spaun():
                  '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_task = F, ps_state = TRANS2',  # noqa
                  '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_task = F, ps_state = TRANS0']  # noqa
             decode_action = \
-                ['dot(vis, QM) - dot(ps_task, W + C + V + F) --> ps_task = DEC, ps_state = ps_state, ps_dec = ps_dec',  # noqa
+                ['dot(vis, QM) - 0.75 * dot(ps_task, W + C + V + F) --> ps_task = DEC, ps_state = ps_state, ps_dec = ps_dec',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, W)) --> ps_task = DEC, ps_state = ps_state, ps_dec = DECW',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, C)) --> ps_task = DEC, ps_state = ps_state, ps_dec = CNT',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, V + F)) --> ps_task = DEC, ps_state = ps_state, ps_dec = DECI',  # noqa

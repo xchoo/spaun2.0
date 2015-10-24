@@ -132,8 +132,8 @@ class TransformationSystem(Module):
 
         # Set up connections from vision module
         if hasattr(p_net, 'ps'):
-            ps_state_mb_utils = p_net.ps.ps_state_utilities
-            ps_dec_mb_utils = p_net.ps.ps_dec_utilities
+            ps_state_mb_utils = p_net.ps.ps_state_mb.mem2.mem.utilities
+            ps_dec_mb_utils = p_net.ps.ps_dec_mb.mem2.mem.utilities
 
             # Select CC1 A
             # - sel0 (MB1): State = QAP + QAK + TRANS1

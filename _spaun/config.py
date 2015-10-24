@@ -41,6 +41,7 @@ class SpaunConfig(object):
         self.sim_dt = 0.001
 
         self.ps_mb_gain_scale = 2.0
+        self.ps_use_am_mb = True
 
         self.mb_decaybuf_input_scale = 1.75
         self.mb_decay_val = 0.985  # 0.975
@@ -116,7 +117,8 @@ class SpaunConfig(object):
             dim = self.sp_dim
         return 3.5 / np.sqrt(dim)
 
-    def get_probe_data_filename(self, label='probe_data', suffix=''):
+    def get_probe_data_filename(self, label='probe_data', suffix='',
+                                ext='npz'):
         suffix = str(suffix).replace('?', '@')
 
         raw_seq = cfg.raw_seq_str.replace('?', '@')
@@ -128,7 +130,7 @@ class SpaunConfig(object):
                                    str(self.sp_dim)]),
                          raw_seq,
                          str(self.seed)]) + \
-               ("" if suffix is '' else '(' + suffix + ')') + ".npz"
+               ("" if suffix is '' else '(' + suffix + ')') + "." + ext
 
     def gen_probe_data_filename(self, label='probe_data', suffix=''):
         self.probe_data_filename = self.get_probe_data_filename(label, suffix)
