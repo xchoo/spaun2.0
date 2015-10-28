@@ -130,7 +130,7 @@ class ProductionSystem(Module):
         else:
             warn("ProductionSystem Module - Cannot connect from 'vis'")
 
-        # Set up connections from motor module
+        # Set up connections from dec module
         if hasattr(parent_net, 'dec'):
             # ###### State MB ########
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,

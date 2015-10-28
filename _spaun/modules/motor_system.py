@@ -37,6 +37,7 @@ class MotorSystem(Module):
                                                        thresh_func=lambda x: x)
         ramp_75 = cfg.make_thresh_ens_net(0.75)
         self.ramp_50_75 = cfg.make_thresh_ens_net(0.5)
+        self.ramp = ramp_integrator
 
         nengo.Connection(self.motor_go, ramp_integrator,
                          transform=cfg.mtr_ramp_synapse * cfg.mtr_ramp_scale,
@@ -61,9 +62,6 @@ class MotorSystem(Module):
                          transform=[[-3]] * cfg.n_neurons_cconv)
         nengo.Connection(self.ramp_reset_hold.output, ramp_integrator.neurons,
                          transform=[[-3]] * cfg.n_neurons_cconv)
-
-        # DEBUG
-        self.ramp = ramp_integrator
 
     def setup_connections(self, parent_net):
         # Set up connections from production system module
