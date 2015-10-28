@@ -21,7 +21,7 @@ def_seq = 'A'
 # def_seq = 'A4[5][3]?XXXXXX'
 # def_seq = 'A4[321][3]?XXXXXXX'
 # def_seq = 'A4[0][9]?XXXXXXXXXXX'
-def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
+# def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
 # def_seq = 'A5[123]K[3]?X'
 # def_seq = 'A5[123]P[1]?X'
 # def_seq = 'A6[12][2][82][2][42]?XXXXX'
@@ -29,6 +29,8 @@ def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
 # def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
 # def_seq = 'A7[1][2][3][2]?XX'
 # def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
+# def_seq = 'A1[1]?XXA1[22]?XX'
+def_seq = '{A1[R]?X:5}'
 
 def_mpi_p = 128
 
@@ -84,6 +86,9 @@ parser.add_argument(
           ' OpenCL devices can be listed using ' +
           '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
           'of the plaform to use.'))
+parser.add_argument(
+    '--ocl_profile', action='store_true',
+    help='Supply to use NengoOCL profiler.')
 
 parser.add_argument(
     '--mpi', action='store_true',
@@ -153,6 +158,11 @@ else:
 
 make_probes = not args.noprobes
 
+# ----- Check if data folder exists -----
+if not(os.path.isdir(cfg.data_dir) and os.path.exists(cfg.data_dir)):
+    raise RuntimeError('Data directory "%s" does not exist.' % (cfg.data_dir) +
+                       ' Please ensure the correct path has been specified.')
+
 # ----- Spaun imports -----
 from _spaun.utils import run_nengo_sim
 from _spaun.utils import get_total_n_neurons
@@ -221,7 +231,8 @@ if cfg.use_opencl:
     else:
         ctx = cl.Context(pltf.get_devices())
         print "USING OPENCL - devices: %s" % (str(pltf.get_devices()))
-    sim = nengo_ocl.sim_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx)
+    sim = nengo_ocl.sim_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx,
+                                      profiling=args.ocl_profile)
 elif cfg.use_mpi:
     import nengo_mpi
 
@@ -264,6 +275,13 @@ if cfg.use_opencl or cfg.use_ref:
                       nengo_sim_run_opts=cfg.use_ref)
     else:
         sim.run(runtime)
+
+    # Close output logging file
+    model.monitor.close()
+
+    if args.ocl_profile:
+        sim.print_plans()
+        sim.print_profiling()
 
     t_simrun = time.time() - timestamp
     print "MODEL N_NEURONS: %i" % (get_total_n_neurons(model))

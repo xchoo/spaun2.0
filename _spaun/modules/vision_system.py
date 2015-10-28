@@ -11,7 +11,7 @@ from .._spa import MemoryBlock as MB
 from ..config import cfg
 from ..vocabs import vocab, vis_vocab
 from ..vocabs import item_mb_gate_sp_inds
-from .stimulus import stim_func_vocab
+from .experimenter import stim_func_vocab
 from ..vision.lif_vision import LIFVision as LIFVisionNet
 from ..vision.lif_vision import vis_sps_scale as lif_vis_sps_scale
 from ..vision.lif_vision import am_vis_sps, am_threshold, amp
