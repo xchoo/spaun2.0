@@ -1,0 +1,6 @@
+*.class
+*.pyc
+*.pkc
+.DS_Store
+
+reference_code/
