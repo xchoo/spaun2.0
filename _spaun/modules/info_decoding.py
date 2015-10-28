@@ -258,6 +258,14 @@ class InfoDecoding(Module):
         nengo.Connection(bias_unk_vec, self.dec_output,
                          transform=np.matrix(mtr_unk_vocab['UNK'].v).T)
 
+        self.dec_ind_output = nengo.Node(size_in=len(mtr_vocab.keys) + 1)
+        nengo.Connection(self.dec_am.thresholded_utilities,
+                         self.dec_ind_output[:len(mtr_vocab.keys)],
+                         synapse=None)
+        nengo.Connection(bias_unk_vec,
+                         self.dec_ind_output[len(mtr_vocab.keys)],
+                         synapse=None)
+
     def setup_connections(self, parent_net):
         p_net = parent_net
 

@@ -1,18 +1,28 @@
 import os
 import numpy as np
+from warnings import warn
 
 import nengo
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from ..config import cfg
-from ..vocabs import vis_vocab
+from ..vocabs import vis_vocab, mtr_vocab
 from ..vision import get_image as vis_get_image
 
 
 num_map = {'0': 'ZER', '1': 'ONE', '2': 'TWO', '3': 'THR', '4': 'FOR',
            '5': 'FIV', '6': 'SIX', '7': 'SEV', '8': 'EIG', '9': 'NIN'}
 sym_map = {'[': 'OPEN', ']': 'CLOSE', '?': 'QM'}
+
+num_rev_map = {}
+for key in num_map.keys():
+    num_rev_map[num_map[key]] = key
+sym_rev_map = {}
+for key in sym_map.keys():
+    sym_rev_map[sym_map[key]] = key
+
+num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-']
 
 
 # Wrapper function for vision get_image function to pass config rng.
@@ -40,8 +50,27 @@ def insert_mtr_wait_sym(num_mtr_responses):
     cfg.stim_seq.extend([None] * extra_spaces)
 
 
+def parse_mult_seq(seq_str):
+    mult_open_ind = seq_str.find('{')
+    mult_close_ind = seq_str.find('}')
+    mult_value_ind = seq_str.find(':')
+
+    if mult_open_ind >= 0 and mult_close_ind >= 0 and mult_value_ind >= 0:
+        return parse_mult_seq(seq_str[:mult_open_ind] +
+                              parse_mult_seq(seq_str[mult_open_ind + 1:]))
+    elif (mult_close_ind >= 0 and mult_value_ind >= 0 and
+          mult_value_ind < mult_close_ind):
+        return (seq_str[:mult_value_ind] *
+                int(seq_str[mult_value_ind + 1:mult_close_ind]) +
+                seq_str[mult_close_ind + 1:])
+    elif mult_open_ind == mult_close_ind == mult_value_ind == -1:
+        return seq_str
+    else:
+        raise ValueError('Invalid multiplicative indicator format.')
+
+
 def parse_raw_seq():
-    raw_seq = list(cfg.raw_seq_str)
+    raw_seq = parse_mult_seq(cfg.raw_seq_str)
     hw_num = False  # Flag to indicate to use a hand written number
     prev_c = ''
 
@@ -51,6 +80,9 @@ def parse_raw_seq():
     num_mtr_responses = 0.0
 
     for c in raw_seq:
+        if c == 'R':
+            c = str(int(np.random.random() * len(num_map)))
+
         if c in sym_map:
             c = sym_map[c]
         if not hw_num and c in num_map:
@@ -69,7 +101,7 @@ def parse_raw_seq():
 
         # If previous character is identical to current character, insert a
         # space between them.
-        if prev_c == c:
+        if prev_c == c and not cfg.present_blanks:
             cfg.stim_seq.append('.')
 
         if c.isdigit():
@@ -145,23 +177,69 @@ class StimulusDummy(Module):
         self.outputs = dict(default=(self.output, vis_vocab))
 
 
-def monitor_func(t, monitor_data_obj, stim_seq=None):
+def monitor_func(t, x, monitor, stim_seq=None):
     ind = t / cfg.present_interval / (2 ** cfg.present_blanks)
+    eff_ind = int(ind)
 
-    if (cfg.present_blanks and int(ind) != int(round(ind))) or \
-       int(ind) >= len(stim_seq) or stim_seq[int(ind)] == '.':
-        pass
+    if (eff_ind != monitor.prev_ind and eff_ind < len(stim_seq)):
+        stim_char = stim_seq[eff_ind]
+        if (stim_char == '.'):
+            monitor.data_obj.write('_')
+            # print '_', eff_ind, monitor.prev_ind
+        elif stim_char == 'A' and monitor.prev_ind >= 0:
+            monitor.data_obj.write('\nA')
+            # print '\nA', eff_ind, monitor.prev_ind
+        elif isinstance(stim_char, int):
+            monitor.data_obj.write('<%s>' % stim_char)
+            # print "<", stim_char, ">", eff_ind, monitor.prev_ind
+        elif stim_char in num_rev_map:
+            monitor.data_obj.write('%s' % num_rev_map[stim_char])
+            # print num_rev_map[stim_char], eff_ind, monitor.prev_ind
+        elif stim_char in sym_rev_map:
+            monitor.data_obj.write('%s' % sym_rev_map[stim_char])
+            # print sym_rev_map[stim_char], eff_ind, monitor.prev_ind
+        elif stim_char is not None:
+            monitor.data_obj.write('%s' % stim_char)
+            # print stim_char, eff_ind, monitor.prev_ind
+
+        if cfg.present_blanks and stim_char is not None:
+            monitor.data_obj.write('_')
+            # print ' ', eff_ind, monitor.prev_ind
+        monitor.prev_ind = eff_ind
+        monitor.data_obj.flush()
+
+    # Determine what has been written
+    write_inds = x[:-2]
+    write_out_ind = int(np.sum(np.where(write_inds > 0.5)))
+    if write_out_ind >= 0 and write_out_ind < len(num_out_list):
+        write_out = num_out_list[write_out_ind]
     else:
-        pass
+        write_out = monitor.null_output
+
+    mtr_ramp = x[-2]
+    mtr_disable = x[-1]
+
+    if mtr_disable < 0.5:
+        if mtr_ramp > monitor.mtr_write_min and not monitor.mtr_written:
+            monitor.data_obj.write(write_out)
+            monitor.mtr_written = True
+            monitor.data_obj.flush()
+        elif mtr_ramp < monitor.mtr_reset_max:
+            monitor.mtr_written = False
 
 
 class MonitorData(object):
     def __init__(self):
-        self.prev_ind = -1
         self.data_filename = \
             os.path.join(cfg.data_dir,
-                         cfg.get_probe_data_filename(suffix='log', ext='txt'))
+                         cfg.probe_data_filename[:-4] + '_log.txt')
         self.data_obj = open(self.data_filename, 'a')
+
+        self.prev_ind = -1
+        self.mtr_written = False
+        self.mtr_write_min = 0.7
+        self.mtr_reset_max = 0.1
+        self.null_output = "_"
 
     def close_data_obj(self):
         self.data_obj.close()
@@ -178,11 +256,32 @@ class Monitor(Module):
         if cfg.use_mpi:
             raise RuntimeError('Not Implemented')
         else:
-            self.output = nengo.Node(output=monitor_func,
-                                     label='Stim Module Out')
+            self.output = \
+                nengo.Node(output=self.monitor_node_func,
+                           size_in=len(mtr_vocab.keys) + 3,
+                           label='Experiment monitor')
 
         # Define vocabulary inputs and outputs
         self.outputs = dict(default=(self.output, vis_vocab))
+
+    def monitor_node_func(self, t, x):
+        return monitor_func(t, x, self.monitor_data, cfg.stim_seq)
+
+    def setup_connections(self, parent_net):
+        # Set up connections from dec module
+        if hasattr(parent_net, 'dec'):
+            nengo.Connection(parent_net.dec.dec_ind_output, self.output[:-2],
+                             synapse=0.05)
+        else:
+            warn("Monitor Module - Cannot connect from 'dec'")
+
+        # Set up connections from motor module
+        if hasattr(parent_net, 'mtr'):
+            nengo.Connection(parent_net.mtr.ramp, self.output[-2],
+                             synapse=0.05)
+            # TODO: Include connection that inhibits motor output
+        else:
+            warn("Monitor Module - Cannot connect from 'mtr'")
 
     def close(self):
         self.monitor_data.close_data_obj()

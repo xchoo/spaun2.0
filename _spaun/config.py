@@ -121,7 +121,7 @@ class SpaunConfig(object):
                                 ext='npz'):
         suffix = str(suffix).replace('?', '@')
 
-        raw_seq = cfg.raw_seq_str.replace('?', '@')
+        raw_seq = cfg.raw_seq_str.replace('?', '@').replace(':', ';')
         if self.present_blanks:
             raw_seq = '-'.join(raw_seq)
 

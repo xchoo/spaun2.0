@@ -2,12 +2,12 @@ import nengo
 from nengo import spa
 
 from .config import cfg
-from _spaun.modules.stimulus import parse_raw_seq
+from _spaun.modules.experimenter import parse_raw_seq
 from _spaun.modules import Stimulus, Vision, ProdSys, InfoEnc, InfoDec, Motor
-from _spaun.modules import TrfmSys, Memory
+from _spaun.modules import TrfmSys, Memory, Monitor
 
 # #### DEBUG DUMMY NETWORK IMPORTS ####
-# from _spaun.modules.stimulus import StimulusDummy as Stimulus  # noqa
+# from _spaun.modules.experimenter import StimulusDummy as Stimulus  # noqa
 # from _spaun.modules.vision_system import VisionSystemDummy as Vision  # noqa
 # from _spaun.modules.working_memory import WorkingMemoryDummy as Memory  # noqa
 # from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
@@ -32,6 +32,7 @@ def Spaun():
         model.trfm = TrfmSys()
         model.dec = InfoDec()
         model.mtr = Motor()
+        model.monitor = Monitor()
 
         if hasattr(model, 'vis') and hasattr(model, 'ps') and \
            hasattr(model, 'trfm'):
@@ -89,33 +90,25 @@ def Spaun():
             model.thal = spa.Thalamus(model.bg, mutual_inhibit=1)
 
         # ----- Set up connections (and save record of modules) -----
-        # model.modules = []
         if hasattr(model, 'vis'):
             model.vis.setup_connections(model)
-            # model.modules.append(model.vis)
         if hasattr(model, 'ps'):
             model.ps.setup_connections(model)
-            # model.modules.append(model.ps)
         if hasattr(model, 'enc'):
             model.enc.setup_connections(model)
-            # model.modules.append(model.enc)
         if hasattr(model, 'mem'):
             model.mem.setup_connections(model)
-            # model.modules.append(model.mem)
         if hasattr(model, 'trfm'):
             model.trfm.setup_connections(model)
-            # model.modules.append(model.trfm)
         if hasattr(model, 'dec'):
             model.dec.setup_connections(model)
-            # model.modules.append(model.dec)
         if hasattr(model, 'mtr'):
             model.mtr.setup_connections(model)
-            # model.modules.append(model.mtr)
         if hasattr(model, 'bg'):
             pass
-            # model.modules.append(model.bg)
         if hasattr(model, 'thal'):
             pass
-            # model.modules.append(model.bg)
+        if hasattr(model, 'monitor'):
+            model.monitor.setup_connections(model)
 
     return model
