@@ -96,7 +96,7 @@ parser.add_argument(
     '--mpi_compress_save', action='store_true',
     help='Supply to compress the saved net file with gzip.')
 parser.add_argument(
-    '--split_lifvis', action='store_true',
+    '--split_lifvis', type=int, default=0,
     help='Supply to split-up the lif_vision network.')
 parser.add_argument(
     '--split_mn', type=int, default=0,
@@ -225,11 +225,7 @@ elif cfg.use_mpi:
         splitter = nengo_mpi.partition.EnsembleArraySplitter()
         splitter.split(model, split_mn)
 
-    mpi_savefile = '+'.join([cfg.get_probe_data_filename(mpi_save)[:-4],
-                             ('%ip' % args.mpi_p_auto
-                                 if not args.mpi_p_auto else 'autop'),
-                             '%0.2fs' % get_est_runtime()])
-    mpi_savefile = os.path.join(cfg.data_dir, mpi_savefile)
+    mpi_savefile = os.path.join(cfg.data_dir, args.mpi_save)
 
     print "USING MPI - Saving to: %s" % (mpi_savefile)
 

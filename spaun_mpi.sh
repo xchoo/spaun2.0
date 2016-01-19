@@ -1,1 +1,1 @@
-python run_spaun.py -d 4 --mpi --mpi_p 1024 --split_mn 500 --mpi_compress_save
+python run_spaun.py -d 4 --mpi --mpi_p 1024 --split_mn 100 --mpi_save spaun_1024_justvis --mpi_compress_save --split_lifvis 30 --omit prod info_enc mem trfm info_dec motor

@@ -86,10 +86,9 @@ class VisionSystem(Module):
 
     @with_self
     def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale):
-
         # Make LIF vision network
-        if cfg.use_mpi and cfg.split_lifvis:
-            self.vis_net = vis_net(max_neurons=100)
+        if cfg.use_mpi:
+            self.vis_net = vis_net(max_neurons=cfg.split_lifvis)
         else:
             self.vis_net = vis_net()
 
