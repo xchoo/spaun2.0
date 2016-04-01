@@ -3,4 +3,5 @@
 *.pkc
 .DS_Store
 
+data/
 reference_code/
