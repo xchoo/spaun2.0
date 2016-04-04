@@ -3,7 +3,6 @@ import numpy as np
 import nengo
 from nengo.networks.ensemblearray import EnsembleArray
 from nengo.dists import Choice
-from nengo.utils.stdlib import nested
 
 
 def Product(n_neurons, dimensions, input_magnitude=1, config=None, net=None):
@@ -16,7 +15,7 @@ def Product(n_neurons, dimensions, input_magnitude=1, config=None, net=None):
         config[nengo.Ensemble].encoders = Choice(
             [[1, 1], [1, -1], [-1, 1], [-1, -1]])
 
-    with nested(net, config):
+    with net, config:
         net.A = nengo.Node(size_in=dimensions, label="A")
         net.B = nengo.Node(size_in=dimensions, label="B")
         net.output = nengo.Node(size_in=dimensions, label="output")
