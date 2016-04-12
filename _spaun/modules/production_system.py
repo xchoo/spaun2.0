@@ -39,9 +39,12 @@ class ProductionSystem(Module):
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    wta_output=True, reset_key='FWD')
 
-            self.ps_task_utilities = self.ps_task_mb.mem2.mem.utilities
-            self.ps_state_utilities = self.ps_state_mb.mem2.mem.utilities
-            self.ps_dec_utilities = self.ps_dec_mb.mem2.mem.utilities
+            self.ps_task_utilities = \
+                self.ps_task_mb.mem2.mem.output_utilities
+            self.ps_state_utilities = \
+                self.ps_state_mb.mem2.mem.output_utilities
+            self.ps_dec_utilities = \
+                self.ps_dec_mb.mem2.mem.output_utilities
         else:
             self.ps_task_mb = \
                 cfg.make_mem_block(vocab=ps_task_vocab,

@@ -167,7 +167,6 @@ class MotorSystem(Module):
             nengo.Ensemble(150, 2,
                            intercepts=Exponential(0.05, target_thresh,
                                                   target_thresh * 2),
-                           encoders=Choice([[1]]),
                            radius=target_thresh * 2)
 
         nengo.Connection(func_eval_net.func_output, target_diff_norm,
