@@ -1,11 +1,12 @@
+import warnings
+
 import numpy as np
-from copy import deepcopy as copy
 
 import nengo
 from nengo.networks import EnsembleArray
-from nengo.dists import Uniform
-from nengo.dists import Choice
-from nengo.utils.compat import is_iterable
+from nengo.dists import Choice, Exponential, Uniform
+from nengo.exceptions import ValidationError
+from nengo.utils.compat import is_iterable, range
 from nengo.utils.network import with_self
 
 
@@ -14,292 +15,582 @@ class AssociativeMemory(nengo.Network):
 
     Parameters
     ----------
-    input_vectors: list or numpy.array
-    output_vectors: list of numpy.array, optional
+    input_vectors: array_like
+        The list of vectors to be compared against.
+    output_vectors: array_like, optional
         The list of vectors to be produced for each match. If
         not given, the associative memory will act like an auto-associative
         memory (cleanup memory).
-    default_output_vector: numpy.array, optional
-        The vector to be produced if the input value matches none of vectors
-        in the input vector list.
 
-    n_neurons_per_ensemble: int
-        Number of neurons to use per ensemble in the associative memory
+    n_neurons: int, optional
+        The number of neurons for each of the ensemble (where each ensemble
+        represents each item in the input_vectors list)
 
-    threshold: float, list, optional
+    threshold: array_like, optional
         The association activation threshold.
-    input_scale: float, list, optional
-        Scaling factor to apply on the input vectors.
+    input_scales: array_list, optional
+        Scaling factor to apply on each of the input vectors. Note that it
+        is possible to scale each vector independently.
 
     inhibitable: boolean, optional
         Flag to indicate if the entire associative memory module is
-        inhibitable (entire thing can be shut off).
-    inhibit_scale: float, optional
-        Scaling factor on the gating connections (must have inhibitable =
-        True). Setting a larger value will ensure that the cleanup memory
-        output is inhibited at a faster rate, however, recovery of the
-        network when inhibition is released will be slower.
+        inhibitable (entire thing can be shut off). The input gain into
+        the inhibitory connection is 1.5.
 
-    wta_output: boolean, optional
-        Flag to indicate if output of the associative memory should contain
-        more than one vectors. Set to True if only one vectors output is
-        desired -- i.e. a winner-take-all (wta) output. Leave as default
-        (False) if (possible) combinations of vectors is desired.
-    wta_inhibit_scale: float, optional
-        Scaling factor on the winner-take-all (wta) inhibitory connections.
-    wta_synapse: float, optional
-        Synapse to use for the winner-take-all (wta) inhibitory connections.
+    label : str, optional
+        A name to assign this AssociativeMemory. Used for visualization and
+        debugging. Also used as a label prefix for each of the internal
+        ensembles in the AssociativeMemory network.
 
-    threshold_output: boolean, optional
-        Flag to indicate if the output vector should be thresholded
-
+    Additional network parameters are passed to the Network constructor through
+    **network_kwargs
     """
+
+    exp_scale = 0.15  # Scaling factor for exponential distribution
+    n_eval_points = 5000
+
+    cleanup_output_prefix = 'cleaned'
+    default_ens_suffix = 'default_ens'
+    utility_output_suffix = 'utilities'
+
     def __init__(self, input_vectors, output_vectors=None,  # noqa: C901
-                 default_output_vector=None, threshold=0.3, input_scale=1.0,
-                 inhibitable=False, inhibit_scale=1.5, wta_output=False,
-                 wta_inhibit_scale=3.0, wta_synapse=0.005,
-                 threshold_output=False, label=None, seed=None,
-                 add_to_container=None, **ens_args):
-        super(AssociativeMemory, self).__init__(label, seed, add_to_container)
+                 n_neurons=50, threshold=0.3, input_scales=1.0,
+                 inhibitable=False, label=None, **network_kwargs):
+        super(AssociativeMemory, self).__init__(label=label, **network_kwargs)
 
-        label_prefix = "" if label is None else label + "_"
-        n_neurons_per_ensemble = ens_args.get('n_neurons', 50)
-
-        # If output vocabulary is not specified, use input vocabulary
-        # (i.e autoassociative memory)
+        # --- Put arguments in canonical form
         if output_vectors is None:
+            # If output vocabulary is not specified, use input vector list
+            # (i.e autoassociative memory)
             output_vectors = input_vectors
-
-        # Handle different vocabulary types
         if is_iterable(input_vectors):
-            input_vectors = np.matrix(input_vectors)
-
+            input_vectors = np.array(input_vectors, ndmin=2)
         if is_iterable(output_vectors):
-            output_vectors = np.matrix(output_vectors)
+            output_vectors = np.array(output_vectors, ndmin=2)
 
-        # Fail if number of input items and number of output items don't
-        # match
-        if input_vectors.shape[0] != output_vectors.shape[0]:
-            raise ValueError(
-                'Number of input vectors does not match number of output '
-                'vectors. %d != %d'
-                % (input_vectors.shape[0], output_vectors.shape[0]))
+        if input_vectors.shape[0] == 0:
+            raise ValidationError("Number of input vectors cannot be 0.",
+                                  attr='input_vectors', obj=self)
+        elif input_vectors.shape[0] != output_vectors.shape[0]:
+            # Fail if number of input items and number of output items don't
+            # match
+            raise ValidationError(
+                "Number of input vectors does not match number of output "
+                "vectors. %d != %d"
+                % (input_vectors.shape[0], output_vectors.shape[0]),
+                attr='input_vectors', obj=self.__class__)
 
         # Handle possible different threshold / input_scale values for each
         # element in the associative memory
         if not is_iterable(threshold):
-            threshold = np.array([threshold] * input_vectors.shape[0])
+            threshold = threshold * np.ones(input_vectors.shape[0])
         else:
             threshold = np.array(threshold)
-        if threshold.shape[0] != input_vectors.shape[0]:
-            raise ValueError(
-                'Number of threshold values do not match number of input'
-                'vectors. Got: %d, expected %d.' %
-                (threshold.shape[0], input_vectors.shape[0]))
+        self.thresholds = threshold
 
-        if not is_iterable(input_scale):
-            input_scale = np.matrix([input_scale] * input_vectors.shape[0])
-        else:
-            input_scale = np.matrix(input_scale)
-        if input_scale.shape[1] != input_vectors.shape[0]:
-            raise ValueError(
-                'Number of input_scale values do not match number of input'
-                'vectors. Got: %d, expected %d.' %
-                (input_scale.shape[1], input_vectors.shape[0]))
+        # --- Check preconditions
+        self.n_items = input_vectors.shape[0]
+        if self.n_items != output_vectors.shape[0]:
+            raise ValidationError(
+                "Number of input vectors (%d) does not match number of output "
+                "vectors (%d)" % (self.n_items, output_vectors.shape[0]),
+                attr='input_vectors', obj=self)
+        if threshold.shape[0] != self.n_items:
+            raise ValidationError(
+                "Number of threshold values (%d) does not match number of "
+                "input vectors (%d)." % (threshold.shape[0], self.n_items),
+                attr='threshold', obj=self)
 
-        # Input and output nodes
-        N = input_vectors.shape[0]
-        self.num_items = N
+        # --- Set parameters
+        self.is_wta = False
+        self._inhib_scale = 1.5
+        self._output_vectors = {}
+        self._default_output_vectors = {}
 
-        with self:
-            bias_node = nengo.Node(output=1)
+        # -- Create the core network
+        with self, self.am_ens_config:
+            self.bias_node = nengo.Node(output=1)
+            self.elem_input = nengo.Node(
+                size_in=self.n_items, label="element input")
+            self.elem_utilities = nengo.Node(
+                size_in=self.n_items, label="element utilities")
 
-            self.input = nengo.Node(size_in=input_vectors.shape[1],
-                                    label="input")
-            self.output = nengo.Node(size_in=output_vectors.shape[1],
-                                     label="output")
-
-            self.elem_input = nengo.Node(size_in=N, label="element input")
-            self.elem_output = nengo.Node(size_in=N, label="element output")
-
-            self.threshold_output = threshold_output
-
-            nengo.Connection(self.input, self.elem_input, synapse=None,
-                             transform=np.multiply(input_vectors,
-                                                   input_scale.T))
-
-            # Evaluation points parameters
-            n_eval_points = 5000
-
-            # Make each ensemble
             self.am_ensembles = []
-            for i in range(N):
-                # Ensemble array parameters
-                ens_params = copy(ens_args)
-                ens_params['radius'] = ens_args.get('radius', 1.0)
-                ens_params['dimensions'] = 1
-                ens_params['n_neurons'] = n_neurons_per_ensemble
-                ens_params['intercepts'] = Uniform(threshold[i], 1)
-                ens_params['encoders'] = Choice([[1]])
-                ens_params['eval_points'] = Uniform(threshold[i], 1.2)
-                ens_params['n_eval_points'] = n_eval_points
-                ens_params['label'] = label_prefix + str(i)
+            label_prefix = "" if label is None else label + "_"
 
-                # Create ensemble
-                e = nengo.Ensemble(**ens_params)
+            for i in range(self.n_items):
+                e = nengo.Ensemble(n_neurons, 1, label=label_prefix + str(i))
                 self.am_ensembles.append(e)
 
                 # Connect input and output nodes
+                nengo.Connection(self.bias_node, e, transform=-threshold[i])
                 nengo.Connection(self.elem_input[i], e, synapse=None)
-                nengo.Connection(e, self.elem_output[i], synapse=None)
+                nengo.Connection(e, self.elem_utilities[i], synapse=None)
 
-            # Configure associative memory to be inhibitable
             if inhibitable:
                 # Input node for inhibitory gating signal (if enabled)
                 self.inhibit = nengo.Node(size_in=1, label="inhibit")
                 nengo.Connection(self.inhibit, self.elem_input,
-                                 transform=-np.ones((N, 1)) * inhibit_scale,
-                                 synapse=None)
-                # Note: We can use decoded connection here because all the
-                # encoding vectors are [1]
-
-            # Configure associative memory to have mutually inhibited output
-            if wta_output:
-                nengo.Connection(self.elem_output, self.elem_input,
-                                 synapse=wta_synapse,
-                                 transform=(np.eye(N) - 1) * wta_inhibit_scale)
-
-            # Configure utilities output
-            self.utilities = self.elem_output
-
-            # Configure default output vector
-            if default_output_vector is not None or threshold_output:
-                default_threshold = min(1 - np.min(threshold), 0.9)
-
-                ens_params = copy(ens_args)
-                ens_params['radius'] = ens_args.get('radius', 1.0)
-                ens_params['dimensions'] = 1
-                ens_params['n_neurons'] = n_neurons_per_ensemble
-                ens_params['intercepts'] = Uniform(default_threshold, 1)
-                ens_params['encoders'] = Choice([[1]])
-                ens_params['eval_points'] = Uniform(default_threshold, 1.1)
-                ens_params['n_eval_points'] = n_eval_points
-                ens_params['label'] = "default vector gate"
-
-                default_vector_gate = nengo.Ensemble(**ens_params)
-
-                nengo.Connection(bias_node, default_vector_gate, synapse=None)
-                nengo.Connection(self.elem_output, default_vector_gate,
-                                 transform=-2 * np.ones((1, N)), synapse=0.01)
-
-                self.default_output_utility = default_vector_gate
-                self.default_output_thresholded_utility = default_vector_gate
-
-                if default_output_vector is not None:
-                    nengo.Connection(
-                        default_vector_gate, self.output,
-                        transform=np.matrix(default_output_vector).T,
-                        synapse=None)
-
-                if inhibitable:
-                    nengo.Connection(self.inhibit, default_vector_gate,
-                                     transform=[[-1]], synapse=None)
-
-            # Set up thresholding ensembles
-            if threshold_output:
-                # Ensemble array parameters
-                ens_params = copy(ens_args)
-                ens_params['radius'] = ens_args.get('radius', 1.0)
-                ens_params['n_neurons'] = n_neurons_per_ensemble
-                ens_params['n_ensembles'] = N
-                ens_params['intercepts'] = Uniform(0.5, 1)
-                ens_params['encoders'] = Choice([[1]])
-                ens_params['eval_points'] = Uniform(0.5, 1.1)
-                ens_params['n_eval_points'] = n_eval_points
-
-                self.thresh_ens = EnsembleArray(**ens_params)
-                self.thresholded_utilities = self.thresh_ens.output
-
-                nengo.Connection(bias_node, self.thresh_ens.input,
-                                 transform=np.ones((N, 1)), synapse=None)
-                if wta_output:
-                    nengo.Connection(self.elem_output, self.thresh_ens.input,
-                                     transform=10 * (np.eye(N) - 1),
-                                     synapse=0.01)
-                else:
-                    ens_params['intercepts'] = Uniform(0.25, 1)
-                    self.thresh_ens_int = EnsembleArray(**ens_params)
-                    nengo.Connection(bias_node, self.thresh_ens_int.input,
-                                     transform=np.ones((N, 1)), synapse=None)
-                    nengo.Connection(self.elem_output,
-                                     self.thresh_ens_int.input,
-                                     transform=-10, synapse=0.005)
-                    nengo.Connection(self.thresh_ens_int.output,
-                                     self.thresh_ens.input,
-                                     transform=-10, synapse=0.005)
-
-                nengo.Connection(self.thresh_ens.output, self.output,
-                                 transform=output_vectors.T, synapse=None)
-
-                nengo.Connection(default_vector_gate, self.thresh_ens.input,
-                                 transform=-2 * np.ones((N, 1)), synapse=0.01)
-
-                if inhibitable:
-                    nengo.Connection(
-                        self.inhibit, self.thresh_ens.input,
-                        transform=-np.ones((N, 1)) * inhibit_scale,
-                        synapse=None)
+                                 transform=-np.ones((self.n_items, 1))
+                                 * self._inhib_scale, synapse=None)
+                # Note: We can use a decoded connection here because all the
+                # am_ensembles have [1] encoders
             else:
-                nengo.Connection(self.elem_output, self.output,
-                                 transform=output_vectors.T, synapse=None)
+                self.inhibit = None
+        self.add_input_mapping("input", input_vectors, input_scales)
+        self.add_output_mapping("output", output_vectors)
+
+    @staticmethod
+    def linear_func(x_shift=0.0, x_scale=1.0):
+        """Returns a linear mapping function.
+
+        Returns a linear mapping function for ease of use when creating output
+        mappings. The returned function takes in a non-optional 'x' parameter,
+        as well as optional parameters listed below.
+
+        Parameters
+        ----------
+        x_shift: float, optional
+            Amount to shift the linear map on the 'x'-axis.
+            E.g. If the value of x_shift = 0.3, then the output of the
+                 mapping function would be 0 at x == 0.3.
+        x_scale: float, optional
+            Scaling factor to be applied to the 'x' input. Affects the slope
+            of the linear mapping function.
+        """
+        return lambda x, x_shift=x_shift, x_scale=x_scale: \
+            (x_scale * (x - x_scale))
+
+    def threshold_shifted_linear_funcs(self, x_shift=0.0, x_scale=1.0):
+        """Returns a list of threshold-shifted linear mapping function.
+
+        Produces a list of linear mapping functions shifted by the current
+        threshold values (one threshold for each of the assoc mem items).
+        Useful for generating linear output mappings that are shifted
+        appropriately with the associative memory threshold values.
+        (see function usage in add_output_mapping)
+
+        Parameters
+        ----------
+        x_shift: float, optional
+            Amount to shift the linear map on the 'x'-axis.
+            E.g. If the value of x_shift = 0.3, then the output of the linear
+                 mapping function would be 0 at x == 0.3.
+        x_scale: float, optional
+            Scaling factor to be applied to the 'x' input. Affects the slope
+            of the linear mapping function.
+        """
+        return [self.linear_func(-threshold + x_shift, x_scale)
+                for threshold in self.thresholds]
+
+    @staticmethod
+    def filtered_step_func(x_shift=0.0, x_scale=15.0, step_val=1):
+        """Returns a filtered step mapping function.
+
+        Returns a filtered step mapping function for ease of use when creating
+        output mappings. The returned function takes in a non-optional 'x'
+        parameter, as well as optional parameters listed below.
+
+        Parameters
+        ----------
+        x_shift: float, optional
+            Amount to shift the linear map on the 'x'-axis.
+            E.g. If the value of x_shift = 0.3, then the output of the
+                 mapping function would be 0 at x == 0.3.
+        x_scale: float, optional
+            Scaling factor to be applied to the 'x' input. Affects the
+            sharpness of the filtered step edge. Larger values produce a
+            sharper edge. Set to a negative value to flip the mapping
+            function about the 'y' axis at x == x_shift.
+        step_val: float, optional
+            Maximal value of the filtered step function.
+        """
+        return (lambda x, x_shift=x_shift, x_scale=x_scale, step_val=step_val:
+                np.maximum(-1 / np.exp(x_scale * (x - x_shift)) + 1, 0) *
+                step_val)
+
+    @staticmethod
+    def step_func(x_shift=0.0, x_scale=1.0, step_val=1):
+        """Returns a step mapping function.
+
+        Returns a step mapping function for ease of use when creating
+        output mappings. The returned function takes in a non-optional 'x'
+        parameter, as well as optional parameters listed below.
+
+        Parameters
+        ----------
+        x_shift: float, optional
+            Amount to shift the linear map on the 'x'-axis.
+            E.g. If the value of x_shift = 0.3, then the output of the
+                 mapping function would be 0 at x == 0.3.
+        x_scale: float, optional
+            Scaling factor to be applied to the 'x' input. Set to a negative
+            value to flip the mapping function about the 'y' axis at
+            x == x_shift.
+        step_val: float, optional
+            Maximal value of the filtered step function.
+        """
+        return (lambda x, x_shift=x_shift, x_scale=x_scale, step_val=step_val:
+                np.maximum(np.minimum(np.ceil(x_scale * (x - x_shift)), 1.0),
+                           0.0))
+
+    @property
+    def am_ens_config(self):
+        cfg = nengo.Config(nengo.Ensemble, nengo.Connection)
+        cfg[nengo.Ensemble].update({
+            'radius': 1,
+            'intercepts': Exponential(self.exp_scale, 0.0, 1.0),
+            'encoders': Choice([[1]]),
+            'eval_points': Uniform(0.0, 1.0),
+            'n_eval_points': self.n_eval_points,
+        })
+        cfg[nengo.Connection].synapse = None
+        return cfg
+
+    @property
+    def default_ens_config(self):
+        cfg = nengo.Config(nengo.Ensemble)
+        cfg[nengo.Ensemble].update({
+            'radius': 1,
+            'intercepts': Uniform(0.25, 1.0),
+            'encoders': Choice([[1]]),
+            'eval_points': Uniform(0.75, 1.1),
+            'n_eval_points': self.n_eval_points,
+        })
+        return cfg
+
+    @property
+    def cleanup_ens_config(self):
+        cfg = nengo.Config(nengo.Ensemble)
+        cfg[nengo.Ensemble].update({
+            'radius': 1,
+            'intercepts': Uniform(0.25, 1.0),
+            'encoders': Choice([[1]]),
+            'eval_points': Uniform(0.75, 1.1),
+            'n_eval_points': self.n_eval_points,
+        })
+        return cfg
 
     @with_self
-    def add_input(self, name, input_vectors, input_scale=1.0):
-        # Handle different vocabulary types
+    def add_input_mapping(self, name, input_vectors, input_scales=1.0):
+        """Adds a set of input vectors to the associative memory network.
+
+        Creates a transform with the given input vectors between the
+        a named input node and associative memory element input to enable the
+        inputs to be mapped onto ensembles of the Associative Memory.
+
+        Parameters
+        ----------
+        name: string
+            Name to use for the input node. This name will be used as the name
+            of the attribute for the associative memory network.
+
+        input_vectors: array_like
+            The list of vectors to be compared against.
+        input_scales: array_list, optional
+            Scaling factor to apply on each of the input vectors. Note that it
+            is possible to scale each vector independently.
+        """
+        # --- Put arguments in canonical form
+        n_vectors, d_vectors = input_vectors.shape
         if is_iterable(input_vectors):
-            input_vectors = np.matrix(input_vectors)
-
-        # Handle possible different input_scale values for each
-        # element in the associative memory
-        if not is_iterable(input_scale):
-            input_scale = np.matrix([input_scale] * input_vectors.shape[0])
+            input_vectors = np.array(input_vectors, ndmin=2)
+        if not is_iterable(input_scales):
+            input_scales = input_scales * np.ones((1, n_vectors))
         else:
-            input_scale = np.matrix(input_scale)
-        if input_scale.shape[1] != input_vectors.shape[0]:
-            raise ValueError(
-                'Number of input_scale values do not match number of input '
-                'vectors. Got: %d, expected %d.' %
-                (input_scale.shape[1], input_vectors.shape[0]))
+            input_scales = np.array(input_scales, ndmin=2)
 
-        input = nengo.Node(size_in=input_vectors.shape[1], label=name)
-
+        # --- Check some preconditions
+        if input_scales.shape[1] != n_vectors:
+            raise ValidationError("Number of input_scale values (%d) does not "
+                                  "match number of input vectors (%d)."
+                                  % (input_scales.shape[1], n_vectors),
+                                  attr='input_scales')
         if hasattr(self, name):
-            raise NameError('Name "%s" already exists as a node in the'
-                            'associative memory.')
-        else:
-            setattr(self, name, input)
+            raise ValidationError("Name '%s' already exists as a node in the "
+                                  "associative memory." % name, attr='name')
 
-        nengo.Connection(input, self.elem_input,
+        # --- Finally, make the input node and connect it
+        in_node = nengo.Node(size_in=d_vectors, label=name)
+        setattr(self, name, in_node)
+        nengo.Connection(in_node, self.elem_input,
                          synapse=None,
-                         transform=np.multiply(input_vectors, input_scale.T))
+                         transform=input_vectors * input_scales.T)
 
     @with_self
-    def add_output(self, name, output_vectors):
-        # Handle different vocabulary types
+    def add_output_mapping(self, name, output_vectors, utility_map_func=None):
+        """Adds another output to the associative memory network.
+
+        Creates a transform with the given output vectors between the
+        associative memory element output and a named output node to enable the
+        selection of output vectors by the associative memory. A function can
+        be provided to customize the mapping between the associative memory
+        element utilities and the output vector utilities.
+
+        Note: This function creates 2 nodes:
+            - The specified output node with the name '<NAME>' given above.
+            - A node named '<NAME>_utilities' to output the mapped output
+              utilities.
+
+        Parameters
+        ----------
+        name: string
+            Name to use for the output node. This name will be used as
+            the name of the attribute for the associative memory network.
+
+        output_vectors: array_like
+            The list of vectors to be produced for each match.
+
+        utility_map_func: function or list of functions, optional
+            The function used to map the utilities of the input vectors to the
+            utility of the output vector. If not provided, will default to
+            'self.filtered_step_func'.
+            If a list of functions is provided, each function will be used
+            for its respective neural ensemble.
+            Note: The mapping function is threshold independent, and is aligned
+                  such that the input ('x') to the mapping function is 0 when
+                  the input utility is at the threshold value.
+                  I.e. output_utility = map_func(input_utility - threshold)
+        """
+        # --- Put arguments in canonical form
         if is_iterable(output_vectors):
-            output_vectors = np.matrix(output_vectors)
+            output_vectors = np.array(output_vectors, ndmin=2)
+        self._output_vectors[name] = output_vectors
 
-        output = nengo.Node(size_in=output_vectors.shape[1], label=name)
-
+        # --- Check preconditions
         if hasattr(self, name):
-            raise NameError('Name "%s" already exists as a node in the'
-                            'associative memory.')
+            raise ValidationError("Name '%s' already exists as a node in the "
+                                  "associative memory." % name, attr='name')
+        if utility_map_func is None:
+            utility_map_func = self.filtered_step_func()
+        if not is_iterable(utility_map_func):
+            utility_map_funcs = [utility_map_func] * self.n_items
         else:
-            setattr(self, name, output)
+            utility_map_funcs = utility_map_func
 
-        if self.threshold_output:
-            nengo.Connection(self.thresh_ens.output, output, synapse=None,
-                             transform=output_vectors.T)
+        # --- Make the output node, and output utilities node and connect them
+        #     Note: The output utilities make it easy to probe the raw output
+        #           utilities and make it handy to do the appropriate
+        #           connections in add_default_output_vector
+        output = nengo.Node(size_in=output_vectors.shape[1], label=name)
+        setattr(self, name, output)
+
+        utility_node_name = '_'.join([name, self.utility_output_suffix])
+        utility = nengo.Node(size_in=self.n_items, label=utility_node_name)
+        setattr(self, utility_node_name, utility)
+
+        for i, am_ens in enumerate(self.am_ensembles):
+            nengo.Connection(am_ens, output, synapse=None,
+                             transform=output_vectors[i, :, None],
+                             function=utility_map_funcs[i])
+            nengo.Connection(am_ens, utility[i], synapse=None,
+                             function=utility_map_funcs[i])
+
+    @with_self
+    def add_default_output_vector(self, output_vector, output_name='output',
+                                  n_neurons=50, min_activation_value=0.5,
+                                  inhibit_scale=3.5):
+        """Adds a default output vector to the associative memory network.
+
+        The default output vector is chosen if the input matches none of
+        the given input vectors.
+
+        Parameters
+        ----------
+        output_vector: array_like
+            The vector to be produced if the input value matches none of
+            the vectors in the input vector list.
+        output_name: string, optional
+            The name of the input to which the default output vector
+            should be applied.
+
+        n_neurons: int, optional
+            Number of neurons to use for the default output vector ensemble.
+        min_activation_value: float, optional
+            Minimum activation value (i.e. threshold) to use to disable
+            the default output vector.
+
+        inhibit_scale: float, optional
+            Scaling factor applied to the inhibitory connection used to disable
+            the default output vector. It is recommended that this value be at
+            least 1.0 / minimum(assoc memory activation thresholds), and that
+            the minimum assoc memory activation threshold be at most 0.1.
+        """
+        default_ens_name = '_'.join([output_name, self.default_ens_suffix])
+        self._default_output_vectors[output_name] = np.array(output_vector,
+                                                             ndmin=2)
+
+        # --- Check if default output vector has already been created for
+        #     the desired output node
+        if hasattr(self, default_ens_name):
+            raise ValidationError("Default output vector already exists for "
+                                  "output: '%s'." % output_name,
+                                  attr='output_name')
+
+        with self.default_ens_config:
+            # --- Make the default vector ensemble, connect it to a bias node
+            default_vector_ens = nengo.Ensemble(
+                n_neurons, 1, label="Default %s vector" % output_name)
+            setattr(self, default_ens_name, default_vector_ens)
+
+            nengo.Connection(self.bias_node, default_vector_ens, synapse=None)
+
+            # --- Get the output utilities and connect to the default vector
+            #     ens
+            tr = -(inhibit_scale) * np.ones((1, self.n_items))
+            utility = getattr(self, '_'.join([output_name,
+                                              self.utility_output_suffix]))
+            nengo.Connection(utility, default_vector_ens, transform=tr)
+
+            # Get the output class attribute and connect to it
+            output_node = getattr(self, output_name)
+            nengo.Connection(default_vector_ens, output_node,
+                             transform=np.array(output_vector, ndmin=2).T,
+                             synapse=None)
+
+            # --- Create inhibitory connection if needed
+            if self.inhibit is not None:
+                nengo.Connection(self.inhibit, default_vector_ens,
+                                 transform=-self._inhib_scale, synapse=None)
+
+            # --- Connect default output vector to cleaned outputs
+            #     (if available)
+            cleanup_output_node = getattr(self,
+                                          '_'.join([self.cleanup_output_prefix,
+                                                    output_name]),
+                                          None)
+            if cleanup_output_node and (output_node != cleanup_output_node):
+                nengo.Connection(default_vector_ens, cleanup_output_node,
+                                 transform=np.array(output_vector, ndmin=2).T,
+                                 synapse=None)
+
+    @with_self
+    def add_wta_network(self, inhibit_scale=1.5, inhibit_synapse=0.005):
+        """Add a winner-take-all (WTA) network to associative memory output.
+
+        Parameters
+        ----------
+        inhibit_scale: float, optional
+            Mutual inhibition scaling factor.
+        inhibit_synapse: float, optional
+            Mutual inhibition synapse time constant.
+        """
+        if not self.is_wta:
+            nengo.Connection(self.elem_utilities, self.elem_input,
+                             synapse=inhibit_synapse,
+                             transform=((np.eye(self.n_items) - 1) *
+                                        inhibit_scale))
+            self.is_wta = True
         else:
-            nengo.Connection(self.elem_output, output, synapse=None,
-                             transform=output_vectors.T)
+            warnings.warn("AssociativeMemory network is already configured "
+                          "with a WTA network. Additional `add_wta_network` "
+                          "calls are ignored.")
+
+    @with_self
+    def add_cleanup_output(self, output_name='output', n_neurons=50,
+                           inhibit_scale=3.5, replace_output=False):
+        """Adds a cleaned outputs to the associative memory network.
+
+        Creates a doubled-inhibited ensemble structure to the desired assoc
+        memory output to perform a cleanup operation on it. Note that using the
+        'filtered_step_func' utility mapping performs a similar cleanup
+        operation, but does not do a very good cleanup approximation for
+        utility values near (+/- 0.2) the threshold value. This function
+        adds the infrastructure needed to perform the cleanup operation across
+        the entire range of output values, at the cost of two synaptic delays
+        and adding (n_neurons * 2 * n_items) additional neurons to the network.
+
+        Note: This function creates 2 nodes:
+            - A node named 'cleaned_<OUTPUT_NAME>' that outputs the cleaned
+              version of the output vectors.
+            - A node named 'cleaned_<OUTPUT_NAME>_utilities' that outputs the
+              utilities of the cleaned output vectors.
+
+        Parameters
+        ----------
+        output_name: string, optional
+            The name of the input to which the default output vector
+            should be applied.
+
+        n_neurons: int, optional
+            Number of neurons to use for the ensembles used in the double-
+            inhibited cleanup network.
+        inhibit_scale: float, optional
+            Scaling factor applied to the inhibitory connections between
+            the ensembles. It is recommended that this value be at
+            least 1.0 / minimum(assoc memory activation thresholds), and that
+            the minimum assoc memory activation threshold be at most 0.1.
+
+        replace_output: boolean, optional
+            Flag to indicate whether or not to replace the output object
+            (e.g. am.output) with the cleaned output node.
+        """
+        cleanup_output_name = '_'.join([self.cleanup_output_prefix,
+                                        output_name])
+        cleanup_utilities_name = '_'.join([self.cleanup_output_prefix,
+                                           output_name,
+                                           self.utility_output_suffix])
+        output_utilities_name = '_'.join([output_name,
+                                          self.utility_output_suffix])
+
+        # --- Check if cleanup network has already been created for
+        #     the desired output node
+        if hasattr(self, cleanup_output_name):
+            raise ValidationError("Cleanup output already exists for "
+                                  "output: '%s'." % output_name,
+                                  attr='output_name')
+
+        with self.cleanup_ens_config:
+            # --- Set up the double inhibited ensembles, and make the
+            #     appropriate connections.
+            self.bias_ens1 = EnsembleArray(
+                n_neurons, self.n_items, label=output_name + '_bias_ens1')
+            self.bias_ens2 = EnsembleArray(
+                n_neurons, self.n_items, label=output_name + '_bias_ens2')
+
+            utility = getattr(self, output_utilities_name)
+
+            nengo.Connection(self.bias_node, self.bias_ens1.input,
+                             transform=np.ones((self.n_items, 1)),
+                             synapse=None)
+            nengo.Connection(self.bias_node, self.bias_ens2.input,
+                             transform=np.ones((self.n_items, 1)),
+                             synapse=None)
+            nengo.Connection(utility, self.bias_ens1.input,
+                             transform=-inhibit_scale)
+            nengo.Connection(self.bias_ens1.output, self.bias_ens2.input,
+                             transform=-1.0)
+
+            # --- Make the output node and connect it
+            output_vectors = self._output_vectors[output_name]
+            cleanup_output_node = nengo.Node(size_in=output_vectors.shape[1],
+                                             label=cleanup_output_name)
+            nengo.Connection(self.bias_ens2.output, cleanup_output_node,
+                             transform=output_vectors.T, synapse=None)
+
+            setattr(self, cleanup_output_name, cleanup_output_node)
+            setattr(self, cleanup_utilities_name, self.bias_ens2.output)
+
+            # --- Replace the original output node (pointer) if required
+            if replace_output:
+                setattr(self, output_name, cleanup_output_node)
+
+            # --- Make inhibitory connection if inhibit option is set
+            if self.inhibit is not None:
+                for e in self.bias_ens2.ensembles:
+                    nengo.Connection(
+                        self.inhibit, e, transform=-self._inhib_scale,
+                        synapse=None)
+
+            # --- Connect default output vector to cleaned outputs
+            #     (if available)
+            default_vector_ens = getattr(self,
+                                         '_'.join([output_name,
+                                                   self.default_ens_suffix]),
+                                         None)
+            if default_vector_ens:
+                default_output_vectors = \
+                    self._default_output_vectors[output_name]
+                nengo.Connection(default_vector_ens, cleanup_output_node,
+                                 transform=default_output_vectors.T,
+                                 synapse=None)

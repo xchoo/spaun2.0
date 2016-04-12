@@ -36,15 +36,11 @@ class NengoAnim(MatplotlibAnim):
                 line.set_marker('.')
                 line.set_markersize(spike_dot_size)
 
-        # self.subplot_data[key][plot_type]['time'] = 0
         return ax
 
     def _rasterplot_common_update(self, key, t_data, data, plot_type,
                                   draw_artists):
         subplot_data = self.subplot_data[key][plot_type]
-
-        # print time.time() - subplot_data['time']
-        # subplot_data['time'] = time.time()
 
         n_neurons = subplot_data['n_neurons']
         style = subplot_data['style']

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from datetime import datetime
 from warnings import warn
 
 import nengo
@@ -8,7 +9,7 @@ from nengo.utils.network import with_self
 
 from ..config import cfg
 from ..vocabs import vis_vocab, mtr_vocab
-from ..vision import get_image as vis_get_image
+from .vision import get_image as vis_get_image
 
 
 num_map = {'0': 'ZER', '1': 'ONE', '2': 'TWO', '3': 'THR', '4': 'FOR',
@@ -47,7 +48,6 @@ def insert_mtr_wait_sym(num_mtr_responses):
                                                 cfg.present_blanks))
 
     cfg.raw_seq.extend([None] * extra_spaces)
-    cfg.stim_seq.extend([None] * extra_spaces)
 
 
 def parse_mult_seq(seq_str):
@@ -69,10 +69,52 @@ def parse_mult_seq(seq_str):
         raise ValueError('Invalid multiplicative indicator format.')
 
 
+def parse_custom_tasks(seq_str):
+    task_open_ind = seq_str.find('(')
+    task_close_ind = -1
+    rslt_str = ""
+
+    while task_open_ind >= 0:
+        rslt_str += seq_str[task_close_ind + 1: task_open_ind]
+
+        task_opts_ind = seq_str.find(';', task_open_ind)
+        task_close_ind = seq_str.find(')', task_open_ind)
+
+        if (task_opts_ind < 0 or task_close_ind < 0) or \
+           (task_close_ind < task_opts_ind):
+            raise ValueError('Malformed custom task string.')
+
+        task_str = seq_str[task_open_ind + 1:task_opts_ind]
+        task_opts_str = seq_str[task_opts_ind + 1:task_close_ind]
+
+        if task_str == "COUNT":
+            # Format: (COUNT; NUMCOUNT)
+            count_val = int(task_opts_str)
+            start_val = int(np.random.random() * (len(num_map) - count_val))
+            new_task_str = 'A4[%d][%d]' % (start_val, count_val)
+        elif task_str == "LEARN":
+            # Format: (LEARN; PROB1, NUMTRIALS1; PROB2, NUMTRAILS2; ...)
+            learn_opts = task_opts_str.split(';')
+            num_trials = len(learn_opts)
+            new_task_str = 'A2?' + 'X?' * num_trials + 'X'
+        else:
+            raise ValueError('Custom task string "%s" ' % task_str +
+                             'not supported.')
+
+        rslt_str += new_task_str
+        task_open_ind = seq_str.find('(', task_open_ind + 1)
+
+    return rslt_str + seq_str[task_close_ind + 1:]
+
+
 def parse_raw_seq():
-    raw_seq = parse_mult_seq(cfg.raw_seq_str)
+    raw_seq = parse_custom_tasks(parse_mult_seq(cfg.raw_seq_str))
     hw_num = False  # Flag to indicate to use a hand written number
     prev_c = ''
+    value_maps = {}
+
+    num_n = 0
+    num_r = 0
 
     cfg.raw_seq = []
     cfg.stim_seq = []
@@ -80,16 +122,34 @@ def parse_raw_seq():
     num_mtr_responses = 0.0
 
     for c in raw_seq:
-        if c == 'R':
-            c = str(int(np.random.random() * len(num_map)))
-
-        if c in sym_map:
-            c = sym_map[c]
-        if not hw_num and c in num_map:
-            c = num_map[c]
-        if c == '#':
-            hw_num = True
+        if c == 'N':
+            num_n += 1
             continue
+        else:
+            cs = np.random.choice(num_map.keys(), num_n, replace=False)
+            for n in cs:
+                cfg.raw_seq.append(n)
+            num_n = 0
+
+        if c == 'R':
+            num_r += 1
+            continue
+        else:
+            cs = np.random.choice(num_map.keys(), num_r, replace=True)
+            for r in cs:
+                cfg.raw_seq.append(r)
+            num_r = 0
+
+        if c == 'A':    # Clear the value maps for each task
+            value_maps = {}
+            num_n = 0
+            num_r = 0
+        if c.islower():
+            if c not in value_maps:
+                value_maps[c] = np.random.choice(num_map.keys(), 1,
+                                                 replace=True)[0]
+            c = value_maps[c]
+
         if c == 'X':
             num_mtr_responses += 1
             continue
@@ -99,21 +159,31 @@ def parse_raw_seq():
 
         cfg.raw_seq.append(c)
 
+    # Insert trailing motor response wait symbols
+    insert_mtr_wait_sym(num_mtr_responses)
+
+    for c in cfg.raw_seq:
+        if c == '#':
+            hw_num = True
+            continue
+
+        if c in sym_map:
+            c = sym_map[c]
+        if not hw_num and c in num_map:
+            c = num_map[c]
+
         # If previous character is identical to current character, insert a
         # space between them.
-        if prev_c == c and not cfg.present_blanks:
+        if c is not None and prev_c == c and not cfg.present_blanks:
             cfg.stim_seq.append('.')
 
-        if c.isdigit():
+        if c is not None and c.isdigit() and hw_num:
             cfg.stim_seq.append((get_image(c)[1], c))
             hw_num = False
         else:
             cfg.stim_seq.append(c)
 
         prev_c = c
-
-    # Insert trailing motor response wait symbols
-    insert_mtr_wait_sym(num_mtr_responses)
 
 
 def stim_func(t, stim_seq=None, get_func=None):
@@ -184,26 +254,26 @@ def monitor_func(t, x, monitor, stim_seq=None):
     if (eff_ind != monitor.prev_ind and eff_ind < len(stim_seq)):
         stim_char = stim_seq[eff_ind]
         if (stim_char == '.'):
-            monitor.data_obj.write('_')
+            monitor.write_to_file('_')
             # print '_', eff_ind, monitor.prev_ind
         elif stim_char == 'A' and monitor.prev_ind >= 0:
-            monitor.data_obj.write('\nA')
+            monitor.write_to_file('\nA')
             # print '\nA', eff_ind, monitor.prev_ind
         elif isinstance(stim_char, int):
-            monitor.data_obj.write('<%s>' % stim_char)
+            monitor.write_to_file('<%s>' % stim_char)
             # print "<", stim_char, ">", eff_ind, monitor.prev_ind
         elif stim_char in num_rev_map:
-            monitor.data_obj.write('%s' % num_rev_map[stim_char])
+            monitor.write_to_file('%s' % num_rev_map[stim_char])
             # print num_rev_map[stim_char], eff_ind, monitor.prev_ind
         elif stim_char in sym_rev_map:
-            monitor.data_obj.write('%s' % sym_rev_map[stim_char])
+            monitor.write_to_file('%s' % sym_rev_map[stim_char])
             # print sym_rev_map[stim_char], eff_ind, monitor.prev_ind
         elif stim_char is not None:
-            monitor.data_obj.write('%s' % stim_char)
+            monitor.write_to_file('%s' % str(stim_char))
             # print stim_char, eff_ind, monitor.prev_ind
 
         if cfg.present_blanks and stim_char is not None:
-            monitor.data_obj.write('_')
+            monitor.write_to_file('_')
             # print ' ', eff_ind, monitor.prev_ind
         monitor.prev_ind = eff_ind
         monitor.data_obj.flush()
@@ -221,7 +291,7 @@ def monitor_func(t, x, monitor, stim_seq=None):
 
     if mtr_disable < 0.5:
         if mtr_ramp > monitor.mtr_write_min and not monitor.mtr_written:
-            monitor.data_obj.write(write_out)
+            monitor.write_to_file(write_out)
             monitor.mtr_written = True
             monitor.data_obj.flush()
         elif mtr_ramp < monitor.mtr_reset_max:
@@ -237,9 +307,32 @@ class MonitorData(object):
 
         self.prev_ind = -1
         self.mtr_written = False
-        self.mtr_write_min = 0.7
-        self.mtr_reset_max = 0.1
+        self.mtr_write_min = 0.75
+        self.mtr_reset_max = 0.25
         self.null_output = "_"
+
+        self.write_header()
+
+    def write_header(self):
+        self.data_obj.write('# Spaun Simulation Properties:\n')
+        self.data_obj.write('# - Run datetime: %s\n' % datetime.now())
+        self.data_obj.write('# Spaun Configuration Options:\n')
+        self.data_obj.write('# ----------------------------\n')
+        for param_name in sorted(cfg.__dict__.keys()):
+            if not callable(getattr(cfg, param_name)):
+                self.data_obj.write('# - %s = %s\n' %
+                                    (param_name, getattr(cfg, param_name)))
+        self.data_obj.write('# ----------------------------\n')
+
+    def write_to_file(self, str):
+        orig_closed_state = self.data_obj.closed
+        if orig_closed_state:
+            self.data_obj = open(self.data_filename, 'a')
+
+        self.data_obj.write(str)
+
+        if orig_closed_state:
+            self.data_obj.close()
 
     def close_data_obj(self):
         self.data_obj.close()

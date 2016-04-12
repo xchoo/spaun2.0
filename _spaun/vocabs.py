@@ -1,5 +1,9 @@
+import os
+import numpy as np
+
 from nengo.spa import Vocabulary
 # from ._spa import Vocabulary
+from ._networks import convert_func_2_diff_func
 
 from .config import cfg
 from .utils import strs_to_inds
@@ -85,15 +89,34 @@ vocab.parse('+'.join(ps_state_sp_strs))
 vocab.parse('+'.join(ps_dec_sp_strs))
 vocab.parse('+'.join(misc_ps_sp_strs))
 
-# ## --- Motor vocabularies (for debug purposes) ---
+# ####################### Motor vocabularies ##################################
+mtr_filepath = os.path.join('_spaun', 'modules', 'motor')
+mtr_canon_paths = np.load(os.path.join(mtr_filepath, 'canon_paths.npz'))
+mtr_canon_paths_x = mtr_canon_paths['canon_paths_x']
+mtr_canon_paths_y = mtr_canon_paths['canon_paths_y']
+
+cfg.mtr_dim = mtr_canon_paths_x.shape[1] + mtr_canon_paths_y.shape[1]
+
+
+def make_mtr_sp(path_x, path_y):
+    path_x = convert_func_2_diff_func(path_x)
+    path_y = convert_func_2_diff_func(path_y)
+    return np.concatenate((path_x, path_y))
+
 mtr_vocab = Vocabulary(cfg.mtr_dim, rng=cfg.rng)
-mtr_vocab.parse('+'.join(num_sp_strs))
+for i, sp_str in enumerate(num_sp_strs):
+    mtr_sp_vec = make_mtr_sp(mtr_canon_paths_x[i, :], mtr_canon_paths_y[i, :])
+    mtr_vocab.add(sp_str, mtr_sp_vec)
 
 mtr_unk_vocab = Vocabulary(cfg.mtr_dim, rng=cfg.rng)
-mtr_unk_vocab.parse(mtr_sp_strs[0])
+mtr_unk_vocab.add(mtr_sp_strs[0], make_mtr_sp(mtr_canon_paths_x[-1, :],
+                                              mtr_canon_paths_y[-1, :]))
 
 mtr_disp_vocab = mtr_vocab.create_subset(num_sp_strs)
+mtr_disp_vocab.readonly = False  # Disable read-only flag for display vocab
 mtr_disp_vocab.add(mtr_sp_strs[0], mtr_unk_vocab[mtr_sp_strs[0]].v)
+
+mtr_sp_scale_factor = float(mtr_canon_paths['size_scaling_factor'])
 
 # ##################### Sub-vocabulary definitions ############################
 vis_vocab = vocab.create_subset(vis_sp_strs)
@@ -138,10 +161,20 @@ pos_mb_gate_sp_strs = list(num_sp_strs)
 pos_mb_gate_sp_inds = strs_to_inds(pos_mb_gate_sp_strs, vis_sp_strs)
 pos_mb_rst_sp_strs = ['A', 'OPEN', 'QM']
 pos_mb_rst_sp_inds = strs_to_inds(pos_mb_rst_sp_strs, vis_sp_strs)
+pos_mb_acc_rst_sp_strs = ['OPEN']
+pos_mb_acc_rst_sp_inds = strs_to_inds(pos_mb_acc_rst_sp_strs, vis_sp_strs)
 
-ps_task_mb_gate_sp_strs = list(num_sp_strs)
-ps_task_mb_gate_sp_strs.extend(['QM'])
+# ps_task_mb_gate_sp_strs = list(num_sp_strs)
+# ps_task_mb_gate_sp_strs.extend(['QM'])
+ps_task_mb_gate_sp_strs = ['QM']
 ps_task_mb_gate_sp_inds = strs_to_inds(ps_task_mb_gate_sp_strs, vis_sp_strs)
+
+ps_task_init_vis_sp_strs = list(num_sp_strs)
+ps_task_init_vis_sp_inds = strs_to_inds(ps_task_init_vis_sp_strs, vis_sp_strs)
+
+ps_task_init_task_sp_strs = ['X']
+ps_task_init_task_sp_inds = strs_to_inds(ps_task_init_task_sp_strs,
+                                         ps_task_sp_strs)
 
 ps_task_mb_rst_sp_strs = ['A']
 ps_task_mb_rst_sp_inds = strs_to_inds(ps_task_mb_rst_sp_strs, vis_sp_strs)
@@ -164,4 +197,5 @@ dec_out_sel_sp_vecs = vocab.parse('DECW').v
 dec_pos_gate_dec_sp_vecs = vocab.parse('DECW + DECI + FWD + REV').v
 dec_pos_gate_task_sp_vecs = vocab.parse('DEC').v
 
-dec_mtr_init_sp_vecs = vocab.parse('DEC').v
+mtr_init_task_sp_vecs = vocab.parse('DEC').v
+mtr_bypass_task_sp_vecs = vocab.parse('CNT').v

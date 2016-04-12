@@ -13,6 +13,14 @@ from _spaun.modules import TrfmSys, Memory, Monitor
 # from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
 
 
+# TODO
+# - Rewire monitor connection (from dec to mtr)
+# - Reorganize modules into subnetworks
+# - Put in learning --> make sure experimenter can dish out proper rewards
+# - Rejig WM decay values
+# - Write display code to automatically capture written digits
+# - Add a way for the command parser to set arbitrary configurations?
+
 def Spaun():
     # Process the raw stimulus provided to spaun
     parse_raw_seq()
@@ -38,35 +46,35 @@ def Spaun():
            hasattr(model, 'trfm'):
             copy_draw_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, ZER)) --> ps_task = W',  # noqa
-                 'dot(ps_task, W-DEC) - dot(vis, QM) --> ps_task = W, ps_state = ps_state']  # noqa
+                 'dot(ps_task, W-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
             recog_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, ONE)) --> ps_task = R',  # noqa
-                 'dot(ps_task, R-DEC) - dot(vis, QM) --> ps_task = R, ps_state = ps_state']  # noqa
+                 'dot(ps_task, R-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
             mem_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, THR)) --> ps_task = M',  # noqa
-                 'dot(ps_task, M-DEC) - dot(vis, F + R + QM) --> ps_task = M, ps_state = ps_state',  # noqa
-                 '0.5 * (dot(ps_task, M-DEC) + dot(vis, F)) - dot(vis, QM) --> ps_task = M, ps_dec = FWD',  # noqa
-                 '0.5 * (dot(ps_task, M-DEC) + dot(vis, R)) - dot(vis, QM) --> ps_task = M, ps_dec = REV']  # noqa
+                 'dot(ps_task, M-DEC) - dot(vis, F + R + QM) --> ps_state = ps_state',  # noqa
+                 '0.5 * (dot(ps_task, M-DEC) + dot(vis, F)) - dot(vis, QM) --> ps_dec = FWD',  # noqa
+                 '0.5 * (dot(ps_task, M-DEC) + dot(vis, R)) - dot(vis, QM) --> ps_dec = REV']  # noqa
             count_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, FOR)) --> ps_task = C',  # noqa
-                 '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_task = C, ps_state = CNT0',  # noqa
-                 '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, CNT0)) - dot(vis, QM) --> ps_task = C, ps_state = CNT1',  # noqa
+                 '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = CNT0',  # noqa
+                 '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, CNT0)) - dot(vis, QM) --> ps_state = CNT1',  # noqa
                  '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = CNT, ps_state = CNT1',  # noqa
                  '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = FWD, ps_state = TRANS0']  # noqa
             qa_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, FIV)) --> ps_task = A',  # noqa
-                 'dot(ps_task, A-DEC) - dot(vis, K + P + QM) --> ps_task = A, ps_state = ps_state',  # noqa
-                 '0.5 * (dot(ps_task, A-DEC) + dot(vis, K)) - dot(vis, QM) --> ps_task = M, ps_state = QAK',  # noqa
-                 '0.5 * (dot(ps_task, A-DEC) + dot(vis, P)) - dot(vis, QM) --> ps_task = M, ps_state = QAP']  # noqa
+                 'dot(ps_task, A-DEC) - dot(vis, K + P + QM) --> ps_state = ps_state',  # noqa
+                 '0.5 * (dot(ps_task, A-DEC) + dot(vis, K)) - dot(vis, QM) --> ps_state = QAK',  # noqa
+                 '0.5 * (dot(ps_task, A-DEC) + dot(vis, P)) - dot(vis, QM) --> ps_state = QAP']  # noqa
             rvc_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, SIX)) --> ps_task = V',  # noqa
-                 '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_task = V, ps_state = TRANS1',  # noqa
-                 '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_task = V, ps_state = TRANS0']  # noqa
+                 '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
+                 '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
             fi_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, SEV)) --> ps_task = F',  # noqa
-                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_task = F, ps_state = TRANS1',  # noqa
-                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_task = F, ps_state = TRANS2',  # noqa
-                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_task = F, ps_state = TRANS0']  # noqa
+                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
+                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS2',  # noqa
+                 '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
             decode_action = \
                 ['dot(vis, QM) - 0.75 * dot(ps_task, W + C + V + F) --> ps_task = DEC, ps_state = ps_state, ps_dec = ps_dec',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, W)) --> ps_task = DEC, ps_state = ps_state, ps_dec = DECW',  # noqa

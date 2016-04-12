@@ -1,7 +1,7 @@
 import numpy as np
 
 import nengo
-from product_2_0 import Product
+from nengo.networks import Product
 from nengo.utils.magic import memoize
 
 

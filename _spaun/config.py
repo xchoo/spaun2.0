@@ -1,22 +1,20 @@
 import numpy as np
-import time
 
 import nengo
 from nengo.networks import EnsembleArray
 from nengo.synapses import Lowpass
-from nengo.dists import Uniform
-from nengo.dists import Choice
+from nengo.dists import Uniform, Choice, Exponential
 from nengo.networks import CircularConvolution as CConv
 
-from dists import ClippedExpDist
 from _spa import MemoryBlock as MB
 from _networks import AssociativeMemory as AM
 from _networks import Selector, Router, VectorNormalize
+# from arms import Arm3Link
 
 
 class SpaunConfig(object):
     def __init__(self):
-        self.seed = int(time.time())
+        self.seed = -1
         self.set_seed(self.seed)
 
         self.raw_seq_str = ''
@@ -25,15 +23,17 @@ class SpaunConfig(object):
 
         self.sp_dim = 512
         self.vis_dim = 200
-        self.mtr_dim = 50   # DEBUG
+        self.mtr_dim = 50
         self.max_enum_list_pos = 8
+
+        self.num_learn_actions = -1
 
         self.pstc = Lowpass(0.005)
         self.n_neurons_ens = 50
         self.n_neurons_cconv = 200
         self.n_neurons_mb = 50
         self.n_neurons_am = 100
-        self.max_rates = Uniform(100, 200)
+        self.max_rates = Uniform(200, 400)  # Uniform(100, 200)
         self.neuron_type = nengo.LIF()
 
         self.present_interval = 0.15
@@ -43,8 +43,11 @@ class SpaunConfig(object):
         self.ps_mb_gain_scale = 2.0
         self.ps_use_am_mb = True
 
-        self.mb_decaybuf_input_scale = 1.75
-        self.mb_decay_val = 0.985  # 0.975
+        self.enc_mb_acc_fdbk_scale = 1.1
+
+        self.mb_rehearsalbuf_input_scale = 1.0  # 1.75
+        self.mb_decaybuf_input_scale = 1.5  # 1.75
+        self.mb_decay_val = 0.975  # 0.985
         self.mb_fdbk_val = 1.3
         self.mb_config = {'mem_synapse': Lowpass(0.08), 'difference_gain': 6,
                           'gate_gain': 5}
@@ -53,18 +56,27 @@ class SpaunConfig(object):
         self.trans_cconv_radius = 2
         self.trans_ave_scale = 0.3
 
-        self.mtr_ramp_synapse = 0.05
-        self.mtr_ramp_reset_hold_transform = 0.945
-        self.mtr_ramp_scale = 2
-        self.mtr_est_digit_response_time = 1.5 / self.mtr_ramp_scale
-
         self.dcconv_radius = 2
         self.dcconv_item_in_scale = 0.5
 
-        self.dec_am_min_thresh = 0.40  # 0.20
+        self.dec_am_min_thresh = 0.30  # 0.20
         self.dec_am_min_diff = 0.1
-        self.dec_fr_min_thresh = 0.60  # 0.3
-        self.dec_fr_item_in_scale = 0.65
+        self.dec_fr_min_thresh = 0.30  # 0.3
+        self.dec_fr_item_in_scale = 1.0
+        self.dec_fr_to_am_scale = 0.1
+
+        self.mtr_ramp_synapse = 0.05
+        self.mtr_ramp_reset_hold_transform = 0.1  # 0.945
+        self.mtr_ramp_scale = 2
+        self.mtr_est_digit_response_time = 1.0 / self.mtr_ramp_scale + 0.5
+
+        self.mtr_kp = 65
+        self.mtr_kv1 = np.sqrt(8)
+        self.mtr_kv2 = np.sqrt(18) - self.mtr_kv1
+        self.mtr_arm_type = 'three_link'
+        self.mtr_arm_rest_x_bias = -0.3
+        self.mtr_arm_rest_y_bias = 2.5
+        self.mtr_tgt_threshold = 0.075
 
         self._backend = 'ref'
 
@@ -106,6 +118,12 @@ class SpaunConfig(object):
     def use_spinn(self):
         return self.backend == 'spinn'
 
+    @property
+    def mtr_arm_class(self):
+        arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
+                                globals(), locals(), 'Arm')
+        return arm_module.Arm
+
     def set_seed(self, seed):
         if seed > 0:
             self.seed = seed
@@ -136,7 +154,7 @@ class SpaunConfig(object):
         self.probe_data_filename = self.get_probe_data_filename(label, suffix)
 
     def make_assoc_mem(self, input_vectors, output_vectors=None,
-                       wta_inhibit_scale=3.5, threshold_output=True,
+                       wta_inhibit_scale=3.5, cleanup_output=True,
                        default_output_vector=None, **args):
         am_args = dict(args)
         am_args['threshold'] = args.get('threshold', 0.5)
@@ -150,8 +168,8 @@ class SpaunConfig(object):
         if wta_inhibit_scale is not None:
             am_net.add_wta_network(wta_inhibit_scale)
 
-        if threshold_output:
-            am_net.add_threshold_to_outputs()
+        if cleanup_output:
+            am_net.add_cleanup_output(replace_output=True)
 
         return am_net
 
@@ -183,19 +201,22 @@ class SpaunConfig(object):
         return EnsembleArray(**ens_args)
 
     def make_thresh_ens_net(self, threshold=0.5, thresh_func=lambda x: 1,
-                            net=None, **args):
+                            exp_scale=None, net=None, **args):
         if net is None:
-            net = nengo.Network()
+            label_str = args.get('label', 'Threshold_Ens_Net')
+            net = nengo.Network(label=label_str)
+        if exp_scale is None:
+            exp_scale = (1 - threshold) / 10.0
 
         with net:
             ens_args = dict(args)
             ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
             ens_args['dimensions'] = args.get('dimensions', 1)
             ens_args['intercepts'] = \
-                ClippedExpDist(scale=(1 - threshold) / 5.0, shift=threshold,
-                               high=1)
+                Exponential(scale=exp_scale, shift=threshold,
+                            high=1)
             ens_args['encoders'] = Choice([[1]])
-            ens_args['eval_points'] = Uniform(threshold, 1.1)
+            ens_args['eval_points'] = Uniform(min(threshold + 0.1, 1.0), 1.1)
             ens_args['n_eval_points'] = 5000
 
             thresh_ens = nengo.Ensemble(**ens_args)
@@ -206,27 +227,31 @@ class SpaunConfig(object):
                              synapse=None)
         return net
 
-    def make_selector(self, num_items, gate_gain=5, **args):
-        ens_args = dict(args)
-        ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
-        ens_args['n_ensembles'] = args.get('n_ensembles', self.sp_dim)
-        ens_args['radius'] = \
-            args.get('radius',
-                     self.get_optimal_sp_radius(ens_args['n_ensembles']))
+    def make_selector(self, num_items, gate_gain=5, threshold_sel_in=False,
+                      **args):
         dimensions = args.pop('dimensions', self.sp_dim)
-        return Selector(EnsembleArray, num_items, dimensions, gate_gain,
-                        **ens_args)
 
-    def make_router(self, num_items, gate_gain=5, **args):
-        ens_args = dict(args)
-        ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
-        ens_args['n_ensembles'] = args.get('n_ensembles', self.sp_dim)
-        ens_args['radius'] = \
+        sel_args = dict(args)
+        sel_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
+        sel_args['n_ensembles'] = args.get('n_ensembles', dimensions)
+        sel_args['radius'] = \
             args.get('radius',
-                     self.get_optimal_sp_radius(ens_args['n_ensembles']))
+                     self.get_optimal_sp_radius(sel_args['n_ensembles']))
+        return Selector(EnsembleArray, num_items, dimensions, gate_gain,
+                        threshold_sel_in=threshold_sel_in, **sel_args)
+
+    def make_router(self, num_items, gate_gain=5, threshold_sel_in=False,
+                    **args):
         dimensions = args.pop('dimensions', self.sp_dim)
+
+        rtr_args = dict(args)
+        rtr_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
+        rtr_args['n_ensembles'] = args.get('n_ensembles', dimensions)
+        rtr_args['radius'] = \
+            args.get('radius',
+                     self.get_optimal_sp_radius(rtr_args['n_ensembles']))
         return Router(EnsembleArray, num_items, dimensions, gate_gain,
-                      **ens_args)
+                      threshold_sel_in=threshold_sel_in, **rtr_args)
 
     def make_ens_array_gate(self, threshold_gate=True, **args):
         net = nengo.Network(label='gate')
@@ -270,5 +295,18 @@ class SpaunConfig(object):
                 nengo.Connection(norm_net.disable, ensemble.neurons,
                                  transform=[[-3]] * ensemble.n_neurons)
         return norm_net
+
+    def make_inhibitable(self, net, inhib_scale=3):
+        if hasattr(net, 'inhib'):
+            pass
+        elif hasattr(net, 'make_inhibitable'):
+            net.make_inhibitable(inhib_scale=inhib_scale)
+        else:
+            with net:
+                net.inhib = nengo.Node(size_in=1)
+                for e in net.all_ensembles:
+                    nengo.Connection(net.inhib, e.neurons,
+                                     transform=[[-inhib_scale]] * e.n_neurons,
+                                     synapse=None)
 
 cfg = SpaunConfig()

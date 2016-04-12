@@ -7,6 +7,7 @@ from nengo.utils.network import with_self
 from ..config import cfg
 from ..vocabs import ps_task_vocab, ps_state_vocab, ps_dec_vocab
 from ..vocabs import ps_task_mb_gate_sp_inds, ps_task_mb_rst_sp_inds
+from ..vocabs import ps_task_init_vis_sp_inds, ps_task_init_task_sp_inds
 from ..vocabs import ps_state_mb_gate_sp_inds, ps_state_mb_rst_sp_inds
 from ..vocabs import ps_dec_mb_gate_sp_inds, ps_dec_mb_rst_sp_inds
 
@@ -23,19 +24,19 @@ class ProductionSystem(Module):
             self.ps_task_mb = \
                 cfg.make_mem_block(vocab=ps_task_vocab,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   cleanup_mode=1, fdbk_transform=1.05,
                                    wta_output=True, reset_key='X')
 
             self.ps_state_mb = \
                 cfg.make_mem_block(vocab=ps_state_vocab,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   cleanup_mode=1, fdbk_transform=1.05,
                                    wta_output=True, reset_key='TRANS0')
 
             self.ps_dec_mb = \
                 cfg.make_mem_block(vocab=ps_dec_vocab,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   cleanup_mode=1, fdbk_transform=1.02,
+                                   cleanup_mode=1, fdbk_transform=1.05,
                                    wta_output=True, reset_key='FWD')
 
             self.ps_task_utilities = self.ps_task_mb.mem2.mem.utilities
@@ -77,6 +78,15 @@ class ProductionSystem(Module):
         self.state = self.ps_state_mb.output
         self.dec = self.ps_dec_mb.output
 
+        # Create threshold ensemble to handle initialization of tasks
+        self.bias_node = nengo.Node(1)
+        self.task_init = cfg.make_thresh_ens_net(0.6)
+
+        nengo.Connection(self.bias_node, self.task_init.input, transform=-0.75)
+        nengo.Connection(self.task_init.output, self.ps_task_mb.gate)
+        nengo.Connection(self.ps_task_utilities[ps_task_init_task_sp_inds],
+                         self.task_init.input, transform=0.75)
+
         # Define module input and outputs
         self.inputs = dict(task=(self.ps_task_mb.input, ps_task_vocab),
                            state=(self.ps_state_mb.input, ps_state_vocab),
@@ -100,6 +110,11 @@ class ProductionSystem(Module):
                 parent_net.vis.am_utilities[ps_task_mb_rst_sp_inds],
                 self.ps_task_mb.reset,
                 transform=[[cfg.mb_gate_scale] * len(ps_task_mb_rst_sp_inds)])
+
+            nengo.Connection(
+                parent_net.vis.am_utilities[ps_task_init_vis_sp_inds],
+                self.task_init.input,
+                transform=[[1] * len(ps_task_init_vis_sp_inds)])
 
             # ###### State MB ########
             nengo.Connection(

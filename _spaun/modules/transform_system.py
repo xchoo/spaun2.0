@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from warnings import warn
 
@@ -5,11 +6,15 @@ import nengo
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
+from .._spa import Compare
+from .._networks import convert_func_2_diff_func
 from ..config import cfg
 from ..utils import strs_to_inds
-from ..vocabs import vocab, item_vocab, pos_vocab, pos1_vocab
+from ..vocabs import vocab, item_vocab, pos_vocab, pos1_vocab, mtr_vocab
 from ..vocabs import ps_state_sp_strs, ps_dec_sp_strs
-from .._spa import Compare
+from ..vocabs import mtr_filepath, mtr_sp_scale_factor
+from .vision.lif_vision import am_threshold, am_vis_sps
+from .vision.lif_vision import max_rate as lif_vis_max_rate
 
 
 def invol_matrix(dim):
@@ -102,35 +107,22 @@ class TransformationSystem(Module):
         nengo.Connection(self.norm_b.output, self.compare.inputB,
                          transform=1.5)
 
-        # ----- Visual transformation (for Copy Draw task) -----
-        from ..vision.lif_vision import am_threshold, am_vis_sps
-        from ..vocabs import mtr_vocab
-        self.vis_transform = \
-            cfg.make_assoc_mem(am_vis_sps[:len(mtr_vocab.keys), :],
-                               mtr_vocab.vectors, threshold=am_threshold,
-                               inhibitable=True, inhibit_scale=3)
-
         # ----- Output node -----
         self.output = nengo.Node(size_in=cfg.sp_dim)
-
         nengo.Connection(self.select_out.output, self.output, synapse=None)
 
         # ----- Set up module vocab inputs and outputs -----
         self.outputs = dict(compare=(self.compare.output, vocab))
 
+        # ----- For debugging purposes -----
+        # self.vis_trfm_utils = vis_transform.utilities
+        # self.vis_trfm_in = vis_transform.input
+
+    @with_self
     def setup_connections(self, parent_net):
         p_net = parent_net
 
-        # Set up connections from vision module
-        # Set up connections from vision module
-        if hasattr(p_net, 'vis'):
-            # Only create this connection if we are using the LIF vision system
-            if p_net.vis.mb_output.size_out == cfg.vis_dim:
-                nengo.Connection(p_net.vis.mb_output, self.vis_transform.input)
-        else:
-            warn("TransformationSystem Module - Cannot connect from 'vis'")
-
-        # Set up connections from vision module
+        # Set up connections from ps module
         if hasattr(p_net, 'ps'):
             ps_state_mb_utils = p_net.ps.ps_state_utilities
             ps_dec_mb_utils = p_net.ps.ps_dec_utilities
@@ -277,14 +269,6 @@ class TransformationSystemDummy(TransformationSystem):
         self.frm_mb2 = nengo.Node(size_in=cfg.sp_dim)
         self.frm_mb3 = nengo.Node(size_in=cfg.sp_dim)
         self.frm_mbave = nengo.Node(size_in=cfg.sp_dim)
-
-        # ----- Visual transformation (for Copy Draw task) -----
-        from ..vision.lif_vision import am_threshold, am_vis_sps
-        from ..vocabs import mtr_vocab
-        self.vis_transform = \
-            cfg.make_assoc_mem(am_vis_sps[:len(mtr_vocab.keys), :],
-                               mtr_vocab.vectors, threshold=am_threshold,
-                               inhibitable=True, inhibit_scale=3)
 
         # ----- Compare network (for counting task) -----
         def cmp_func(x, cmp_vocab):
