@@ -114,10 +114,6 @@ class TransformationSystem(Module):
         # ----- Set up module vocab inputs and outputs -----
         self.outputs = dict(compare=(self.compare.output, vocab))
 
-        # ----- For debugging purposes -----
-        # self.vis_trfm_utils = vis_transform.utilities
-        # self.vis_trfm_in = vis_transform.input
-
     @with_self
     def setup_connections(self, parent_net):
         p_net = parent_net

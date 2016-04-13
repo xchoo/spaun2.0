@@ -192,7 +192,9 @@ ps_dec_mb_rst_sp_strs = ['A']
 ps_dec_mb_rst_sp_inds = strs_to_inds(ps_dec_mb_rst_sp_strs, vis_sp_strs)
 
 # Note: sum_vocab_vecs have to be fed through threshold before use.
-dec_out_sel_sp_vecs = vocab.parse('DECW').v
+dec_out_sr_sp_vecs = vocab.parse('FWD + REV + CNT + DECI').v
+dec_out_copy_draw_sp_vecs = vocab.parse('DECW').v
+dec_out_fr_sp_vecs = vocab.parse('0').v  # TODO: Implement
 
 dec_pos_gate_dec_sp_vecs = vocab.parse('DECW + DECI + FWD + REV').v
 dec_pos_gate_task_sp_vecs = vocab.parse('DEC').v

@@ -228,6 +228,7 @@ def setup_probes_generic(model):
             # pen6 = nengo.Probe(model.enc.pos_mb.am.output)
             pen6 = nengo.Probe(model.enc.pos_inc.reset)
             pen7 = nengo.Probe(model.enc.pos_mb_acc.output)
+            pen8 = nengo.Probe(model.enc.pos_output)
 
             # probes = gen_graph_list(['enc', p0, pen4, pen7, pen6, 0,
             #                          'enc gate', pen1, pen2, pen3],
@@ -237,11 +238,12 @@ def setup_probes_generic(model):
             # vocab_dict[idstr(pen7)] = pos_vocab
 
             add_to_graph_list(graph_list,
-                              ['enc', p0, pen4, pen7, pen6, 0,
+                              ['enc', p0, pen4, pen7, pen6, pen8, 0,
                                'enc gate', pen1],
-                              [pen4, pen7])
+                              [pen4, pen7, pen8])
             add_to_vocab_dict(vocab_dict, {pen4: pos_vocab,
-                                           pen7: pos_vocab})
+                                           pen7: pos_vocab,
+                                           pen8: pos_vocab})
 
         if hasattr(model, 'mem') and True:
             pmm1 = nengo.Probe(model.mem.mb1)
@@ -441,13 +443,15 @@ def setup_probes_generic(model):
             pde18 = nengo.Probe(model.dec.output_stop)
             # pde19 = nengo.Probe(model.dec.am_th_utils)
             # pde20 = nengo.Probe(model.dec.fr_th_utils)
-            pde21 = nengo.Probe(model.dec.dec_output)
+            pde21 = nengo.Probe(model.dec.output)
             # pde22 = nengo.Probe(model.dec.dec_am_fr.input)
             # pde23 = nengo.Probe(model.dec.am_def_th_utils)
             # pde24 = nengo.Probe(model.dec.fr_def_th_utils)
             pde25 = nengo.Probe(model.dec.fr_utils)
             pde26 = nengo.Probe(model.dec.pos_mb_gate_bias.output)
             pde27 = nengo.Probe(model.dec.pos_acc_input)
+            pde28 = nengo.Probe(model.dec.item_dcconv_a)
+            pde29 = nengo.Probe(model.dec.item_dcconv_b)
 
             # probes = gen_graph_list(['dec decconv', pde1, pde4, pde21, 0,
             #                          'dec kn unk st', pde15, pde16, pde18, 0,
@@ -468,7 +472,7 @@ def setup_probes_generic(model):
             # # vocab_dict[idstr(pde14d)] = pos_vocab
 
             add_to_graph_list(graph_list,
-                              ['dec decconv', pde1, pde4, pde21, 0,
+                              ['dec decconv', pde28, pde29, pde1, pde4, pde21, 0,
                                'dec kn unk st', pde15, pde16, pde18, 0,
                                'dec am utils', pde8, pde9, pde25, 0,
                                'dec sigs', pde6, pde26, pde11, pde27],
@@ -477,7 +481,9 @@ def setup_probes_generic(model):
                                            pde4: mtr_vocab,
                                            pde21: mtr_vocab,
                                            pde11: pos_vocab,
-                                           pde27: pos_vocab})
+                                           pde27: pos_vocab,
+                                           pde28: sub_vocab2,
+                                           pde29: pos_vocab})
 
         if hasattr(model, 'mtr'):
             pmt1 = nengo.Probe(model.mtr.ramp)

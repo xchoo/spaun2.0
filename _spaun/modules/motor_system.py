@@ -266,11 +266,12 @@ class MotorSystem(Module):
 
         # Set up connections from decoding system module
         if hasattr(parent_net, 'dec'):
+            nengo.Connection(parent_net.dec.output,
+                             self.motor_sp_in)
+
             nengo.Connection(parent_net.dec.output_stop,
                              self.motor_stop_input.input, transform=2)
             nengo.Connection(parent_net.dec.output_stop,
                              self.ramp_reset_hold.input, transform=-2)
-            nengo.Connection(parent_net.dec.dec_output,
-                             self.motor_sp_in)
         else:
             warn("MotorSystem Module - Cannot connect from 'dec'")

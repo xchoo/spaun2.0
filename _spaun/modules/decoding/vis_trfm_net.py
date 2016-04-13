@@ -31,7 +31,7 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
                                threshold=am_threshold, label='DIGIT CLASSIFY')
         digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)))
         nengo.Connection(net.input, digit_classify.input,
-                         transform=lif_vis_max_rate)
+                         transform=lif_vis_max_rate, synapse=None)
 
         # --------------------- Motor SP Transformation -----------------------
         # Takes visual SP and transforms them to the 'copy-drawn' motor SP
@@ -70,5 +70,26 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
             nengo.Connection(digit_classify.output, trfm_ea.inhib,
                              transform=inhib_trfm)
             nengo.Connection(trfm_ea.output, net.output, synapse=None)
+
+    return net
+
+
+def Dummy_Visual_Transform_Network(net=None, vectors_in=None, vectors_out=None,
+                                   net_label='DUMMY VIS TRFM'):
+    if net is None:
+        net = nengo.Network(label=net_label)
+
+    with net:
+        # ------------------ Digit (Answer) Classification --------------------
+        # Takes digit semantic pointer from visual wm and identifies
+        # appropriate digit classification
+        # - Generates: Digit class (I - 1) used for inhibition.
+        # -            Default output vectors inhibits all.
+        digit_classify = \
+            cfg.make_assoc_mem(vectors_in, vectors_out, label='DIGIT CLASSIFY')
+
+        # ----------------------- Inputs and Outputs --------------------------
+        net.input = digit_classify.input
+        net.output = digit_classify.output
 
     return net

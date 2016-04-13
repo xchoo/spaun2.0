@@ -6,9 +6,10 @@ from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from ..config import cfg
-from ..vocabs import vocab, item_vocab, mtr_vocab, mtr_unk_vocab
-from ..vocabs import dec_out_sel_sp_vecs, dec_pos_gate_dec_sp_vecs
-from ..vocabs import dec_pos_gate_task_sp_vecs
+from ..vocabs import item_vocab, mtr_vocab, mtr_unk_vocab
+from ..vocabs import dec_out_sr_sp_vecs, dec_out_copy_draw_sp_vecs
+from ..vocabs import dec_out_fr_sp_vecs
+from ..vocabs import dec_pos_gate_dec_sp_vecs, dec_pos_gate_task_sp_vecs
 from ..vocabs import pos_mb_rst_sp_inds
 from ..vocabs import mtr_sp_scale_factor
 
@@ -52,7 +53,7 @@ class InfoDecoding(Module):
         # -------------------- Serial decoding network ---------------------- #
         serial_decode = Serial_Recall_Network()
         nengo.Connection(self.items_input, serial_decode.items_input,
-                         synapse=None)
+                         transform=cfg.dcconv_item_in_scale, synapse=None)
         nengo.Connection(self.pos_input, serial_decode.pos_input,
                          synapse=None)
 
@@ -62,8 +63,10 @@ class InfoDecoding(Module):
 
         # ---------------- Free recall decoding network --------------------- #
         free_recall_decode = Free_Recall_Network()
-        nengo.Connection(self.items_input, free_recall_decode.items_input)
-        nengo.Connection(self.pos_input, free_recall_decode.pos_input)
+        nengo.Connection(self.items_input, free_recall_decode.items_input,
+                         transform=cfg.dec_fr_item_in_scale, synapse=None)
+        nengo.Connection(self.pos_input, free_recall_decode.pos_input,
+                         synapse=None)
 
         # Add output of free recall am as a small bias to dec_am
         nengo.Connection(free_recall_decode.output, serial_decode.items_input,
@@ -88,7 +91,13 @@ class InfoDecoding(Module):
         self.free_recall_decode = free_recall_decode
 
         # ------------- Visual transform decoding network ------------------- #
-        vis_trfm_decode = Visual_Transform_Network()
+        if cfg.vis_dim > 0:
+            vis_trfm_decode = Visual_Transform_Network()
+        else:
+            from .decoding.vis_trfm_net import Dummy_Visual_Transform_Network
+            vis_trfm_decode = \
+                Dummy_Visual_Transform_Network(vectors_in=item_vocab.vectors,
+                                               vectors_out=mtr_vocab.vectors)
 
         # -------- Output classification (know / unknown / stop) system ----- #
         output_classify = Output_Classification_Network()
@@ -391,24 +400,27 @@ class InfoDecoding(Module):
         self.output_know = output_classify.output_know
         self.output_unk = output_classify.output_unk
 
+        self.item_dcconv_a = serial_decode.item_dcconv.A
+        self.item_dcconv_b = serial_decode.item_dcconv.B
+
         # self.util_diff_neg = util_diff_neg.output
 
         # ########################## END DEBUG ################################
 
         # Define network inputs and outputs
-        self.dec_input = self.items_input
+        self.items_input = self.items_input
         self.pos_input = self.pos_input
         self.pos_acc_input = free_recall_decode.pos_acc_input
         self.vis_trfm_input = vis_trfm_decode.input
 
-        # self.dec_output = nengo.Node(size_in=cfg.mtr_dim)
-        # nengo.Connection(am_gated_ens.output, self.dec_output)
-        # nengo.Connection(self.vis_transform.output, self.dec_output) ##
-        # nengo.Connection(vis_tfrm_relay.output, self.dec_output)
-        # nengo.Connection(bias_unk_vec, self.dec_output,
+        # self.output = nengo.Node(size_in=cfg.mtr_dim)
+        # nengo.Connection(am_gated_ens.output, self.output)
+        # nengo.Connection(self.vis_transform.output, self.output) ##
+        # nengo.Connection(vis_tfrm_relay.output, self.output)
+        # nengo.Connection(bias_unk_vec, self.output,
         #                  transform=np.matrix(mtr_unk_vocab['UNK'].v).T)
 
-        self.dec_output = self.select_out.output
+        self.output = self.select_out.output
         self.output_stop = output_classify.output_stop
 
         self.dec_ind_output = nengo.Node(size_in=len(mtr_vocab.keys) + 1)
@@ -429,27 +441,32 @@ class InfoDecoding(Module):
                              self.free_recall_decode.reset,
                              transform=[[cfg.mb_gate_scale] *
                                         len(pos_mb_rst_sp_inds)])
-            # ##
+
+            nengo.Connection(p_net.vis.mb_output, self.vis_trfm_input)
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 
-        # Set up connections from vision module
-        # Set up connections from vision module
-        # if hasattr(p_net, 'vis'):
-        #     # Only create this connection if we are using the LIF vision system
-        #     if p_net.vis.mb_output.size_out == cfg.vis_dim:
-        #         nengo.Connection(p_net.vis.mb_output, self.vis_trfm_input)
-        # else:
-        #     warn("TransformationSystem Module - Cannot connect from 'vis'")
-
         # Set up connections from production system module
         if hasattr(p_net, 'ps'):
-            # nengo.Connection(p_net.ps.dec, self.select_out,
-            #                  transform=[dec_out_sel_sp_vecs * 1.0]) ##
+            # Connections for sel0 - SR
+            nengo.Connection(p_net.ps.dec, self.select_out.sel0,
+                             transform=[dec_out_sr_sp_vecs * 1.0])
+
+            # Connections for sel1 - Copy Drawing
+            nengo.Connection(p_net.ps.dec, self.select_out.sel1,
+                             transform=[dec_out_copy_draw_sp_vecs * 1.0])
+
+            # Connections for sel2 - FR
+            nengo.Connection(p_net.ps.dec, self.select_out.sel0,
+                             transform=[dec_out_fr_sp_vecs * 1.0])
+
+            # Connections for gate signals
             nengo.Connection(p_net.ps.dec, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_dec_sp_vecs * 1.0])
             nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_task_sp_vecs * 1.0])
+
+            # Connections for inhibitory signals
             nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
                              transform=[dec_pos_gate_task_sp_vecs * -1.0])
 
@@ -467,12 +484,10 @@ class InfoDecoding(Module):
             warn("InfoDecoding Module - Could not connect from 'enc'")
 
         # Set up connections from transform module
-        # if hasattr(p_net, 'trfm'):
-        #     nengo.Connection(p_net.trfm.output, self.dec_input,
-        #                      transform=cfg.dcconv_item_in_scale)
-        #     nengo.Connection(p_net.trfm.vis_trfm_output, self.vis_trfm_input)
-        # else:
-        #     warn("InfoDecoding Module - Could not connect from 'trfm'")
+        if hasattr(p_net, 'trfm'):
+            nengo.Connection(p_net.trfm.output, self.items_input)
+        else:
+            warn("InfoDecoding Module - Could not connect from 'trfm'")
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):

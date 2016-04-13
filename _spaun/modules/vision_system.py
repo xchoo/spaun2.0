@@ -20,7 +20,7 @@ from .vision.lif_vision import images_data_dimensions
 
 class VisionSystem(Module):
     def __init__(self, label="Vision Sys", seed=None, add_to_container=None,
-                 vis_net=LIFVisionNet, detect_net=DetectChange,
+                 vis_net=None, detect_net=None,
                  vis_sps=am_vis_sps, vis_sps_scale=lif_vis_sps_scale,
                  vis_net_neuron_type=None):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
@@ -31,11 +31,15 @@ class VisionSystem(Module):
     def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale,
                     vis_net_neuron_type):
         # Make LIF vision network
-        self.vis_net = vis_net(net_neuron_type=vis_net_neuron_type)
+        if vis_net is None:
+            vis_net = LIFVisionNet(net_neuron_type=vis_net_neuron_type)
+        self.vis_net = vis_net
 
         # Make network to detect changes in visual input stream
-        self.detect_change_net = detect_net(dimensions=images_data_dimensions,
-                                            n_neurons=cfg.n_neurons_ens)
+        if detect_net is None:
+            detect_net = DetectChange(dimensions=images_data_dimensions,
+                                      n_neurons=cfg.n_neurons_ens)
+        self.detect_change_net = detect_net
         nengo.Connection(self.vis_net.raw_output, self.detect_change_net.input,
                          synapse=None)
 
@@ -93,21 +97,18 @@ class VisionSystemDummy(VisionSystem):
                  vis_sps=None, vis_sps_scale=None,
                  vis_net_neuron_type=None, **args):
         super(VisionSystemDummy, self).__init__(label, seed, add_to_container,
-                                                self.dummy_lif_vis_net,
-                                                self.dummy_detect_net,
+                                                self.dummy_lif_vis_net(),
+                                                self.dummy_detect_net(),
                                                 vis_vocab.vectors,
                                                 cfg.get_optimal_sp_radius(),
                                                 **args)
 
         # Indicate to the transform system that we are using a dummy vision
         # system
-        cfg.vis_dim = -1
+        cfg.vis_dim = -cfg.sp_dim
 
-    def dummy_lif_vis_net(self, net=None):
-        if net is None:
-            net = nengo.Network(label="Dummy LIF Vision")
-
-        with net:
+    def dummy_lif_vis_net(self):
+        with nengo.Network(label="Dummy LIF Vision") as net:
             net.input = nengo.Node(size_in=images_data_dimensions,
                                    label='Input')
             net.output = nengo.Node(output=stim_func_vocab,
@@ -116,5 +117,5 @@ class VisionSystemDummy(VisionSystem):
         return net
 
     def dummy_detect_net(self):
-        return DetectChange(None, cfg.sp_dim,
+        return DetectChange(None, dimensions=cfg.sp_dim,
                             item_magnitude=(cfg.get_optimal_sp_radius() / 2.0))
