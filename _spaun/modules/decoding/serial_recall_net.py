@@ -2,7 +2,7 @@ import numpy as np
 import nengo
 
 from ...config import cfg
-from ...vocabs import item_vocab, mtr_vocab
+from ...vocabs import item_vocab, mtr_vocab, n_num_sp
 
 
 def Serial_Recall_Network(net=None, net_label='SER RECALL'):
@@ -22,6 +22,10 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
                                inhibitable=True,
                                threshold=cfg.dec_am_min_thresh,
                                default_output_vector=np.zeros(cfg.mtr_dim))
+        net.dec_am1.add_output_mapping(
+            'linear_output', np.eye(n_num_sp),
+            net.dec_am1.threshold_shifted_linear_funcs())
+
         nengo.Connection(net.item_dcconv.output, net.dec_am1.input,
                          synapse=0.01)
 
@@ -30,6 +34,10 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
                                          item_vocab.vectors,
                                          inhibitable=True,
                                          threshold=0.0)
+        net.dec_am2.add_output_mapping(
+            'linear_output', np.eye(n_num_sp),
+            net.dec_am2.threshold_shifted_linear_funcs())
+
         nengo.Connection(net.item_dcconv.output, net.dec_am2.input,
                          synapse=0.01)
 
@@ -43,9 +51,9 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
         # Util diff calculation: High if difference between am1 utils and
         # am2 utils is greater than cfg.dec_am_min_diff
         util_diff = cfg.make_thresh_ens_net(cfg.dec_am_min_diff)
-        nengo.Connection(net.dec_am1.output_utilities, util_diff.input,
+        nengo.Connection(net.dec_am1.linear_output, util_diff.input,
                          transform=[[1] * len(item_vocab.keys)], synapse=0.01)
-        nengo.Connection(net.dec_am2.output_utilities, util_diff.input,
+        nengo.Connection(net.dec_am2.linear_output, util_diff.input,
                          transform=[[-1] * len(item_vocab.keys)], synapse=0.01)
 
         util_diff_neg = cfg.make_thresh_ens_net(1 - cfg.dec_am_min_diff)

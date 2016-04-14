@@ -67,10 +67,13 @@ def get_image(label=None, rng=None):
         label = label[0]
 
     if isinstance(label, int):
+        # Case when 'label' given is really just the image index number
         return (vision_net.images_data[label], label)
     elif label is None:
+        # Case where you need just a blank image
         return (np.zeros(vision_net.images_data_dimensions), -1)
     else:
+        # All other cases (usually label is a str)
         label_ind = np.where(vision_net.images_labels_unique == label)
         if label_ind[0].shape[0] > 0:
             image_ind = rng.choice(
@@ -80,8 +83,8 @@ def get_image(label=None, rng=None):
         return (vision_net.images_data[image_ind], image_ind)
 
 
-def get_label(label):
-    for ind, lbls in enumerate(vision_net.images_labels_inds):
-        if label in lbls:
-            return ind
+def get_image_label(index):
+    for label, indicies in enumerate(vision_net.images_labels_inds):
+        if index in indicies:
+            return label
     return -1

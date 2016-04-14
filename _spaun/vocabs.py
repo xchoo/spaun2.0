@@ -13,6 +13,7 @@ from .utils import strs_to_inds
 # --- Numerical semantic pointers ---
 num_sp_strs = ['ZER', 'ONE', 'TWO', 'THR', 'FOR',
                'FIV', 'SIX', 'SEV', 'EIG', 'NIN']
+n_num_sp = len(num_sp_strs)
 
 # --- Task semantic pointer list ---
 # W - Drawing (Copying visual input)

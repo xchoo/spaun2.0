@@ -3,7 +3,7 @@ from warnings import warn
 import numpy as np
 
 import nengo
-from nengo.dists import Choice, Exponential
+from nengo.dists import Exponential
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 

@@ -10,6 +10,7 @@ from nengo.utils.network import with_self
 from ..config import cfg
 from ..vocabs import vis_vocab, mtr_vocab
 from .vision import get_image as vis_get_image
+from .vision import get_image_label
 
 
 num_map = {'0': 'ZER', '1': 'ONE', '2': 'TWO', '3': 'THR', '4': 'FOR',
@@ -110,7 +111,10 @@ def parse_custom_tasks(seq_str):
 def parse_raw_seq():
     raw_seq = parse_custom_tasks(parse_mult_seq(cfg.raw_seq_str))
     hw_num = False  # Flag to indicate to use a hand written number
+    fixed_num = False
+
     prev_c = ''
+    fixed_c = ''
     value_maps = {}
 
     num_n = 0
@@ -167,6 +171,19 @@ def parse_raw_seq():
             hw_num = True
             continue
 
+        if fixed_num:
+            if (not c.isdigit() and c not in ['>']) or \
+               (c == '>' and len(fixed_c) <= 0):
+                raise ValueError('Malformed fixed index number string.')
+            elif c.isdigit():
+                fixed_c += c
+                continue
+
+        if c == '<':
+            fixed_num = True
+            fixed_c = ''
+            continue
+
         if c in sym_map:
             c = sym_map[c]
         if not hw_num and c in num_map:
@@ -178,8 +195,14 @@ def parse_raw_seq():
             cfg.stim_seq.append('.')
 
         if c is not None and c.isdigit() and hw_num:
-            cfg.stim_seq.append((get_image(c)[1], c))
+            img_ind = get_image(c)[1]
+            cfg.stim_seq.append((img_ind, c))
+            c = img_ind
             hw_num = False
+        elif c is not None and c == '>' and fixed_num:
+            cfg.stim_seq.append((int(fixed_c),
+                                 str(get_image_label(int(fixed_c)))))
+            fixed_num = False
         else:
             cfg.stim_seq.append(c)
 

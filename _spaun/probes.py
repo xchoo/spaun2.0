@@ -2,6 +2,7 @@ import os
 import numpy as np
 
 import nengo
+from nengo.spa import Vocabulary
 from nengo.synapses import Lowpass
 
 from .config import cfg
@@ -453,6 +454,17 @@ def setup_probes_generic(model):
             pde28 = nengo.Probe(model.dec.item_dcconv_a)
             pde29 = nengo.Probe(model.dec.item_dcconv_b)
 
+            pde30 = nengo.Probe(model.dec.sel_signals)
+            pde31 = nengo.Probe(model.dec.select_out.input0)
+            pde32 = nengo.Probe(model.dec.select_out.input1)
+            pde33 = nengo.Probe(model.dec.select_out.input3)
+
+            sel_out_vocab = Vocabulary(5)
+            for n in range(5):
+                vec = np.zeros(5)
+                vec[n] = 1
+                sel_out_vocab.add('SEL%d' % n, vec)
+
             # probes = gen_graph_list(['dec decconv', pde1, pde4, pde21, 0,
             #                          'dec kn unk st', pde15, pde16, pde18, 0,
             #                          'dec am utils', pde8, pde9, pde25, 0,
@@ -475,15 +487,20 @@ def setup_probes_generic(model):
                               ['dec decconv', pde28, pde29, pde1, pde4, pde21, 0,
                                'dec kn unk st', pde15, pde16, pde18, 0,
                                'dec am utils', pde8, pde9, pde25, 0,
-                               'dec sigs', pde6, pde26, pde11, pde27],
-                              [pde21])
+                               'dec sigs', pde6, pde26, pde11, pde27, 0,
+                               'dec sel', pde30, pde31, pde32, pde33],
+                              [pde21, pde30])
             add_to_vocab_dict(vocab_dict, {pde1: item_vocab,
                                            pde4: mtr_vocab,
                                            pde21: mtr_vocab,
                                            pde11: pos_vocab,
                                            pde27: pos_vocab,
                                            pde28: sub_vocab2,
-                                           pde29: pos_vocab})
+                                           pde29: pos_vocab,
+                                           pde30: sel_out_vocab,
+                                           pde31: mtr_disp_vocab,
+                                           pde32: mtr_disp_vocab,
+                                           pde33: mtr_disp_vocab})
 
         if hasattr(model, 'mtr'):
             pmt1 = nengo.Probe(model.mtr.ramp)
