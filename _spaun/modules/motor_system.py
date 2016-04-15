@@ -11,7 +11,7 @@ from .._networks import DifferenceFunctionEvaluator as DiffFuncEvaltr
 from ..config import cfg
 from ..vocabs import mtr_init_task_sp_vecs, mtr_bypass_task_sp_vecs
 from ..vocabs import mtr_sp_scale_factor
-from .motor import OSController
+from .motor import OSController, Ramp_Signal_Network
 
 
 class MotorSystem(Module):
@@ -23,10 +23,17 @@ class MotorSystem(Module):
     def init_module(self):
         bias_node = nengo.Node(output=1)
 
-        # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
+        # ---------------------- Inputs and outputs ------------------------- #
+        # Motor SP input node
+        self.motor_sp_in = nengo.Node(size_in=cfg.mtr_dim)
+
+        # Motor bypass signal (runs the ramp, but doesn't output to the arm)
+        self.motor_bypass = cfg.make_thresh_ens_net()
+
         # Motor init signal
         self.motor_init = cfg.make_thresh_ens_net(0.75)
 
+        # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
         # Motor go signal
         self.motor_go = nengo.Ensemble(cfg.n_neurons_ens, 1)
         nengo.Connection(bias_node, self.motor_go)
@@ -37,77 +44,29 @@ class MotorSystem(Module):
         nengo.Connection(self.motor_stop_input.output, self.motor_go.neurons,
                          transform=[[-3]] * cfg.n_neurons_ens)
 
-        # Motor bypass signal (runs the ramp, but doesn't output to the arm)
-        self.motor_bypass = cfg.make_thresh_ens_net()
-
-        # Motor SP input node
-        self.motor_sp_in = nengo.Node(size_in=cfg.mtr_dim)
-
         # --------------- MOTOR SIGNALLING SYSTEM (RAMP SIG) --------------
-        # Ramp reset hold
-        self.ramp_reset_hold = \
-            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x)
-        nengo.Connection(self.motor_init.output, self.ramp_reset_hold.input,
-                         transform=1.75, synapse=0.015)
-        nengo.Connection(self.ramp_reset_hold.output,
-                         self.ramp_reset_hold.input)
-        nengo.Connection(bias_node, self.ramp_reset_hold.input,
-                         transform=-cfg.mtr_ramp_reset_hold_transform)
+        self.ramp_sig = Ramp_Signal_Network()
 
-        # Ramp integrator go signal (stops ramp integrator when <= 0.5)
-        ramp_int_go = cfg.make_thresh_ens_net()
-        nengo.Connection(bias_node, ramp_int_go.input)
-        nengo.Connection(self.ramp_reset_hold.output, ramp_int_go.input,
-                         transform=-2)
-        nengo.Connection(self.motor_stop_input.output, ramp_int_go.input,
-                         transform=-1)
-
-        # Ramp integrator stop signal (inverse of ramp integrator go signal)
-        ramp_int_stop = cfg.make_thresh_ens_net()
-        nengo.Connection(bias_node, ramp_int_stop.input)
-        nengo.Connection(ramp_int_go.output, ramp_int_stop.input, transform=-2)
-
-        # Ramp integrator
-        ramp_integrator = nengo.Ensemble(cfg.n_neurons_cconv, 1, radius=1.1)
-        nengo.Connection(self.motor_go, ramp_integrator,
+        # Signal used to drive the ramp (the constant input signal)
+        nengo.Connection(self.motor_go, self.ramp_sig.ramp,
                          transform=cfg.mtr_ramp_synapse * cfg.mtr_ramp_scale,
                          synapse=cfg.mtr_ramp_synapse)
-        # -- Note: We could use the ramp_int_go signal here, but it is noisier
-        #    than the motor_go signal
-        nengo.Connection(ramp_integrator, ramp_integrator,
-                         synapse=cfg.mtr_ramp_synapse)
 
-        # Ramp integrator reset circuitry -- Works like the difference gate in
-        # the gated integrator
-        ramp_int_reset = nengo.Ensemble(cfg.n_neurons_ens, 1)
-        nengo.Connection(ramp_integrator, ramp_int_reset)
-        nengo.Connection(ramp_int_reset, ramp_integrator,
-                         transform=-10, synapse=cfg.mtr_ramp_synapse)
-        nengo.Connection(ramp_int_go.output, ramp_int_reset.neurons,
-                         transform=[[-3]] * cfg.n_neurons_ens)
+        # Signal to hold the ramp reset as long as the motor system is still
+        # initializing (e.g. arm is still going to INIT target)
+        nengo.Connection(self.motor_init.output, self.ramp_sig.reset,
+                         transform=1.75, synapse=0.015)
 
-        # Ramp end reset signal generator -- Signals when the ramp integrator
-        # reaches the top of the ramp slope.
-        ramp_reset_thresh = cfg.make_thresh_ens_net(0.91, radius=1.1)
-        nengo.Connection(ramp_reset_thresh.output, self.ramp_reset_hold.input,
-                         transform=2.5, synapse=0.015)
-
-        # Misc ramp threshold outputs
-        ramp_75 = cfg.make_thresh_ens_net(0.75)
-        self.ramp_50_75 = cfg.make_thresh_ens_net(0.5)
-        self.ramp = ramp_integrator
-
-        nengo.Connection(ramp_integrator, ramp_reset_thresh.input)
-        nengo.Connection(ramp_integrator, ramp_75.input)
-        nengo.Connection(ramp_integrator, self.ramp_50_75.input)
-        nengo.Connection(ramp_75.output, self.ramp_50_75.input, transform=-3)
+        # Stop the ramp from starting if the stop command has been given
+        nengo.Connection(self.motor_stop_input.output, self.ramp_sig.go,
+                         transform=-1)
 
         # --------------- FUNCTION REPLICATOR SYSTEM --------------
         mtr_func_dim = cfg.mtr_dim // 2
         func_eval_net = DiffFuncEvaltr(mtr_func_dim, mtr_sp_scale_factor, 2)
         func_eval_net.make_inhibitable(-5)
 
-        nengo.Connection(ramp_integrator, func_eval_net.func_input)
+        nengo.Connection(self.ramp_sig.ramp, func_eval_net.func_input)
         nengo.Connection(self.motor_bypass.output, func_eval_net.inhibit)
 
         # Motor path x information
@@ -178,11 +137,11 @@ class MotorSystem(Module):
             nengo.Connection(func_eval_net.func_output, target_diff_norm,
                              synapse=0.01)
 
-        nengo.Connection(target_diff_norm, ramp_int_go.input, transform=-5,
+        nengo.Connection(target_diff_norm, self.ramp_sig.go, transform=-5,
                          function=lambda x:
                          (np.sqrt(x[0] ** 2 + x[1] ** 2)) > 0,
                          synapse=0.01)
-        nengo.Connection(target_diff_norm, ramp_reset_thresh.input,
+        nengo.Connection(target_diff_norm, self.ramp_sig.end,
                          transform=-5,
                          function=lambda x:
                          (np.sqrt(x[0] ** 2 + x[1] ** 2)) > 0,
@@ -195,9 +154,9 @@ class MotorSystem(Module):
         nengo.Connection(bias_node, pen_down.input)
 
         # Cases when the pen should NOT be down
-        nengo.Connection(self.ramp_reset_hold.output, pen_down.input,
+        nengo.Connection(self.ramp_sig.reset_hold, pen_down.input,
                          transform=-1)
-        nengo.Connection(ramp_int_stop.output, pen_down.input,
+        nengo.Connection(self.ramp_sig.stop, pen_down.input,
                          transform=-1)
         nengo.Connection(self.motor_stop_input.output, pen_down.input,
                          transform=-1, synapse=0.05)
@@ -205,13 +164,13 @@ class MotorSystem(Module):
                          transform=-1)
 
         # Pen down signal feedback to rest of motor system (tells the ramp to
-        # not stop going, and the osc_net to use only kv1)
-        nengo.Connection(pen_down.output, ramp_int_go.input, transform=8)
+        # keep going, and the osc_net to use only kv1)
+        nengo.Connection(pen_down.output, self.ramp_sig.go, transform=8)
         if arm_obj is not None:
             nengo.Connection(pen_down.output, osc_net.CB2_inhibit)
 
         # --------------- For external probes ---------------
-        self.ramp_int_stop = ramp_int_stop
+        self.ramp_int_stop = self.ramp_sig.stop
 
         # Motor target output
         self.mtr_path_func_out = nengo.Node(size_in=2)
@@ -240,6 +199,11 @@ class MotorSystem(Module):
 
         # Pen down status
         self.pen_down = pen_down.output
+
+        # Ramp signal outputs
+        self.ramp = self.ramp_sig.ramp
+        self.ramp_reset_hold = self.ramp_sig.reset_hold
+        self.ramp_50_75 = self.ramp_sig.ramp_50_75
 
     def setup_connections(self, parent_net):
         # Set up connections from production system module
@@ -272,6 +236,6 @@ class MotorSystem(Module):
             nengo.Connection(parent_net.dec.output_stop,
                              self.motor_stop_input.input, transform=2)
             nengo.Connection(parent_net.dec.output_stop,
-                             self.ramp_reset_hold.input, transform=-2)
+                             self.ramp_sig.reset, transform=-2)
         else:
             warn("MotorSystem Module - Cannot connect from 'dec'")

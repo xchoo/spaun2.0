@@ -23,12 +23,15 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
         # appropriate digit classification
         # - Generates: Digit class (I - 1) used for inhibition.
         # -            Default output vectors inhibits all.
+        # Note: threshold is halved to compenstate (sort of) for drift in the
+        #       visual WM system
         digit_classify = \
             cfg.make_assoc_mem(am_vis_sps[:len(mtr_vocab.keys), :],
                                np.ones((len(mtr_vocab.keys),
                                         len(mtr_vocab.keys))) -
                                np.eye(len(mtr_vocab.keys)),
-                               threshold=am_threshold, label='DIGIT CLASSIFY')
+                               threshold=am_threshold * 0.5,
+                               label='DIGIT CLASSIFY')
         digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)))
         nengo.Connection(net.input, digit_classify.input,
                          transform=lif_vis_max_rate, synapse=None)

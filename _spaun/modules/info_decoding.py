@@ -181,12 +181,16 @@ class InfoDecoding(Module):
         self.am_utils = serial_decode.dec_am1.linear_output
         self.am2_utils = serial_decode.dec_am2.linear_output
         self.fr_utils = free_recall_decode.fr_am.output_utilities
-        # self.util_diff = util_diff
+        self.util_diff = serial_decode.am_utils_diff
 
         self.am_th_utils = serial_decode.dec_am1.cleaned_output_utilities
         self.fr_th_utils = free_recall_decode.fr_am.cleaned_output_utilities
         self.am_def_th_utils = serial_decode.dec_am1.output_default_ens
         self.fr_def_th_utils = free_recall_decode.fr_am.output_default_ens # noqa
+
+        self.out_class_sr_y = output_classify.sr_utils_y
+        self.out_class_sr_diff = output_classify.sr_utils_diff
+        self.out_class_sr_n = output_classify.sr_utils_n
 
         self.debug_task = nengo.Node(size_in=1)
 
@@ -282,17 +286,17 @@ class InfoDecoding(Module):
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):
-            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+            nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.pos_mb_gate_sig.input,
                              synapse=0.005, transform=5)
-            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+            nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.pos_mb_gate_sig.input,
                              synapse=0.08, transform=-10)
 
-            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+            nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.dec_am_inhibit.input,
                              synapse=0.005, transform=5)
-            nengo.Connection(p_net.mtr.ramp_reset_hold.output,
+            nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.dec_am_inhibit.input,
                              synapse=0.01, transform=-10)
         else:

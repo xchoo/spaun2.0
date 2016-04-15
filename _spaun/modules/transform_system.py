@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from warnings import warn
 
@@ -7,19 +6,10 @@ from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from .._spa import Compare
-from .._networks import convert_func_2_diff_func
 from ..config import cfg
-from ..utils import strs_to_inds
-from ..vocabs import vocab, item_vocab, pos_vocab, pos1_vocab, mtr_vocab
-from ..vocabs import ps_state_sp_strs, ps_dec_sp_strs
-from ..vocabs import mtr_filepath, mtr_sp_scale_factor
-from .vision.lif_vision import am_threshold, am_vis_sps
-from .vision.lif_vision import max_rate as lif_vis_max_rate
-
-
-def invol_matrix(dim):
-    result = np.eye(dim)
-    return result[-np.arange(dim), :]
+from ..utils import strs_to_inds, invol_matrix
+from ..vocabs import vocab, ps_state_sp_strs, ps_dec_sp_strs
+from .transform import Assoc_Mem_Transforms_Network
 
 
 class TransformationSystem(Module):
@@ -33,24 +23,6 @@ class TransformationSystem(Module):
         self.select_in_a = cfg.make_selector(3)
         self.select_in_b = cfg.make_selector(6)
         self.select_out = cfg.make_selector(5)
-
-        # ----- Normalization networks for inputs to CConv and Compare ----- #
-        self.norm_a = cfg.make_norm_net()
-        self.norm_b = cfg.make_norm_net()
-
-        nengo.Connection(self.select_in_a.output, self.norm_a.input)
-        nengo.Connection(self.select_in_b.output, self.norm_b.input)
-
-        # ----- Cir conv 1 ----- #
-        self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius)
-
-        nengo.Connection(self.norm_a.output, self.cconv1.A,
-                         transform=1.25)
-        nengo.Connection(self.norm_b.output, self.cconv1.B,
-                         transform=1.25)
-        nengo.Connection(self.cconv1.output, self.select_out.input3,
-                         transform=invol_matrix(cfg.sp_dim))
-        nengo.Connection(self.cconv1.output, self.select_out.input4)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=cfg.sp_dim)
@@ -71,32 +43,41 @@ class TransformationSystem(Module):
 
         nengo.Connection(self.frm_mb1, self.select_out.input2)
 
+        # ----- Normalization networks for inputs to CConv and Compare ----- #
+        self.norm_a = cfg.make_norm_net()
+        self.norm_b = cfg.make_norm_net()
+
+        nengo.Connection(self.select_in_a.output, self.norm_a.input)
+        nengo.Connection(self.select_in_b.output, self.norm_b.input)
+
+        # ----- Cir conv 1 ----- #
+        self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius)
+
+        nengo.Connection(self.norm_a.output, self.cconv1.A,
+                         transform=1.25)
+        nengo.Connection(self.norm_b.output, self.cconv1.B,
+                         transform=1.25)
+        nengo.Connection(self.cconv1.output, self.select_out.input3,
+                         transform=invol_matrix(cfg.sp_dim))
+        nengo.Connection(self.cconv1.output, self.select_out.input4)
+
         # ----- Assoc memory transforms (for QA task) -----
-        # TODO: Make routing to these non-hardcoded to MB2?
-        self.am_p1 = cfg.make_assoc_mem(
-            pos1_vocab.vectors[1:cfg.max_enum_list_pos + 1, :],
-            pos_vocab.vectors)
-        self.am_n1 = cfg.make_assoc_mem(pos1_vocab.vectors, item_vocab.vectors)
+        self.am_trfms = Assoc_Mem_Transforms_Network()
 
-        self.am_p2 = cfg.make_assoc_mem(
-            pos_vocab.vectors,
-            pos1_vocab.vectors[1:cfg.max_enum_list_pos + 1, :])
-        self.am_n2 = cfg.make_assoc_mem(item_vocab.vectors, pos1_vocab.vectors)
+        nengo.Connection(self.frm_mb1, self.am_trfms.frm_mb1, synapse=None)
+        nengo.Connection(self.frm_mb2, self.am_trfms.frm_mb2, synapse=None)
+        nengo.Connection(self.frm_mb3, self.am_trfms.frm_mb3, synapse=None)
 
-        nengo.Connection(self.frm_mb2, self.am_p1.input, synapse=None)
-        nengo.Connection(self.frm_mb2, self.am_n1.input, synapse=None)
-        nengo.Connection(self.cconv1.output, self.am_p2.input)
-        nengo.Connection(self.cconv1.output, self.am_n2.input)
+        nengo.Connection(self.cconv1.output, self.am_trfms.frm_cconv)
 
-        nengo.Connection(self.am_p1.output, self.select_in_b.input0,
+        nengo.Connection(self.am_trfms.pos1_to_pos, self.select_in_b.input0,
                          transform=invol_matrix(cfg.sp_dim))
-        nengo.Connection(self.am_n1.output, self.select_in_b.input1,
+        nengo.Connection(self.am_trfms.pos1_to_num, self.select_in_b.input1,
                          transform=invol_matrix(cfg.sp_dim))
-        nengo.Connection(self.am_n2.output, self.select_out.input0)
-        nengo.Connection(self.am_p2.output, self.select_out.input1)
+        nengo.Connection(self.am_trfms.num_to_pos1, self.select_out.input0)
+        nengo.Connection(self.am_trfms.pos_to_pos1, self.select_out.input1)
 
         # ----- Compare transformation (for counting task) -----
-        # TODO: Make routing to compare non-hardcoded to MB2 and MB3?
         self.compare = \
             Compare(vocab, output_no_match=True, threshold_outputs=0.5,
                     dot_product_input_magnitude=cfg.get_optimal_sp_radius(),

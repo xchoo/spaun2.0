@@ -1,5 +1,3 @@
-import sys
-import time
 import numpy as np
 
 
@@ -36,4 +34,9 @@ def strs_to_inds(str_list, ref_str_list):
 
 def str_to_bool(string):
     return string.lower() in ['yes', 'true', 't', '1']
+
+
+def invol_matrix(dim):
+    result = np.eye(dim)
+    return result[-np.arange(dim), :]
 

@@ -379,10 +379,10 @@ def setup_probes_generic(model):
 
         if hasattr(model, 'trfm') and \
                 not isinstance(model.trfm, TransformationSystemDummy):
-            ptf5 = nengo.Probe(model.trfm.am_p1.output)
-            ptf6 = nengo.Probe(model.trfm.am_n1.output)
-            ptf7 = nengo.Probe(model.trfm.am_n2.output)
-            ptf8 = nengo.Probe(model.trfm.am_p2.output)
+            ptf5 = nengo.Probe(model.trfm.am_trfms.pos1_to_pos)
+            ptf6 = nengo.Probe(model.trfm.am_trfms.pos1_to_num)
+            ptf7 = nengo.Probe(model.trfm.am_trfms.num_to_pos1)
+            ptf8 = nengo.Probe(model.trfm.am_trfms.pos_to_pos1)
             # ptf9 = nengo.Probe(model.trfm.vis_trfm_utils)
             # ptf10 = nengo.Probe(model.trfm.vis_trfm_in)
 
@@ -425,7 +425,7 @@ def setup_probes_generic(model):
             # pde7 = nengo.Probe(model.dec.util_diff_neg)
             pde8 = nengo.Probe(model.dec.am_utils)
             pde9 = nengo.Probe(model.dec.am2_utils)
-            # pde10 = nengo.Probe(model.dec.util_diff)
+            pde10 = nengo.Probe(model.dec.util_diff)
             pde11 = nengo.Probe(model.dec.pos_recall_mb)
             # pde12 = nengo.Probe(model.dec.recall_mb.gateX)
             # pde13 = nengo.Probe(model.dec.recall_mb.gateN)
@@ -459,6 +459,10 @@ def setup_probes_generic(model):
             pde32 = nengo.Probe(model.dec.select_out.input1)
             pde33 = nengo.Probe(model.dec.select_out.input3)
 
+            pde34 = nengo.Probe(model.dec.out_class_sr_y)
+            pde35 = nengo.Probe(model.dec.out_class_sr_diff)
+            pde36 = nengo.Probe(model.dec.out_class_sr_n)
+
             sel_out_vocab = Vocabulary(5)
             for n in range(5):
                 vec = np.zeros(5)
@@ -486,9 +490,10 @@ def setup_probes_generic(model):
             add_to_graph_list(graph_list,
                               ['dec decconv', pde28, pde29, pde1, pde4, pde21, 0,
                                'dec kn unk st', pde15, pde16, pde18, 0,
-                               'dec am utils', pde8, pde9, pde25, 0,
+                               'dec am utils', pde8, pde9, pde10, pde25, 0,
                                'dec sigs', pde6, pde26, pde11, pde27, 0,
-                               'dec sel', pde30, pde31, pde32, pde33],
+                               'dec sel', pde30, pde31, pde32, pde33, 0,
+                               'dec out class', pde34, pde35, pde36],
                               [pde21, pde30])
             add_to_vocab_dict(vocab_dict, {pde1: item_vocab,
                                            pde4: mtr_vocab,
@@ -504,11 +509,11 @@ def setup_probes_generic(model):
 
         if hasattr(model, 'mtr'):
             pmt1 = nengo.Probe(model.mtr.ramp)
-            pmt2 = nengo.Probe(model.mtr.ramp_reset_hold.output)
+            pmt2 = nengo.Probe(model.mtr.ramp_reset_hold)
             pmt3 = nengo.Probe(model.mtr.motor_stop_input.output)
             pmt4 = nengo.Probe(model.mtr.motor_init.output)
             pmt5 = nengo.Probe(model.mtr.motor_go)
-            pmt6 = nengo.Probe(model.mtr.ramp_int_stop.output)
+            pmt6 = nengo.Probe(model.mtr.ramp_sig.stop)
             # pmt6 = nengo.Probe(model.mtr.ramp_int_stop)
             pmt7a = nengo.Probe(model.mtr.arm_px_node)
             pmt7b = nengo.Probe(model.mtr.arm_py_node)

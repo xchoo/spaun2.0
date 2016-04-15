@@ -287,7 +287,7 @@ class WorkingMemory(Module):
 
         # Set up connections from motor module (for counting task)
         if hasattr(parent_net, 'mtr'):
-            nengo.Connection(parent_net.mtr.ramp_50_75.output,
+            nengo.Connection(parent_net.mtr.ramp_50_75,
                              self.cnt_gate_sig.input, transform=2,
                              synapse=0.01)
         else:

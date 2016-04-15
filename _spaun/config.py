@@ -54,14 +54,14 @@ class SpaunConfig(object):
         self.mb_gate_scale = 1.5  # 1.2
 
         self.trans_cconv_radius = 2
-        self.trans_ave_scale = 0.3
+        self.trans_ave_scale = 0.35  # 0.3
 
         self.dcconv_radius = 2
         self.dcconv_item_in_scale = 0.5
 
-        self.dec_am_min_thresh = 0.30  # 0.20
+        self.dec_am_min_thresh = 0.5  # 0.20
         self.dec_am_min_diff = 0.1
-        self.dec_fr_min_thresh = 0.30  # 0.3
+        self.dec_fr_min_thresh = 0.5  # 0.3
         self.dec_fr_item_in_scale = 1.0
         self.dec_fr_to_am_scale = 0.1
 
@@ -140,6 +140,8 @@ class SpaunConfig(object):
         suffix = str(suffix).replace('?', '@')
 
         raw_seq = cfg.raw_seq_str.replace('?', '@').replace(':', ';')
+        raw_seq = raw_seq.replace('>', ')').replace('<', '(')
+
         if self.present_blanks:
             raw_seq = '-'.join(raw_seq)
 

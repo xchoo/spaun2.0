@@ -61,7 +61,7 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
         nengo.Connection(util_diff.output, util_diff_neg.input, transform=-2,
                          synapse=0.01)
         nengo.Connection(net.dec_am1.inhibit, util_diff_neg.input,
-                         transform=-2)
+                         transform=-2)  # WHY IS THIS HERE?
 
         util_diff_thresh = cfg.make_thresh_ens_net()   # Clean util_diff signal
         nengo.Connection(bias_node, util_diff_thresh.input)

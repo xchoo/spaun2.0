@@ -86,6 +86,9 @@ parser.add_argument(
 parser.add_argument(
     '--tag', type=str, default="",
     help='Tag string to apply to probe data file name.')
+parser.add_argument(
+    '--enable_cache', action='store_true',
+    help='Supply to use nengo caching system when building the nengo model.')
 
 parser.add_argument(
     '--ocl', action='store_true',
@@ -147,6 +150,14 @@ parser.add_argument(
     help='Supply to output debug stuff.')
 
 args = parser.parse_args()
+
+# ----- Nengo RC Cache settings -----
+# Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
+# option is given
+if args.seed < 0 or args.enable_cache:
+    nengo.rc.set("decoder_cache", "enabled", "True")
+else:
+    nengo.rc.set("decoder_cache", "enabled", "False")
 
 # ----- Backend Configurations -----
 from _spaun.config import cfg

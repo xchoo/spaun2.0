@@ -148,6 +148,7 @@ def parse_raw_seq():
             value_maps = {}
             num_n = 0
             num_r = 0
+
         if c.islower():
             if c not in value_maps:
                 value_maps[c] = np.random.choice(num_map.keys(), 1,
