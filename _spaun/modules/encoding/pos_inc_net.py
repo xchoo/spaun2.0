@@ -14,7 +14,6 @@ def Pos_Inc_Network(net=None, net_label='POS INC', vocab=vocab,
     with net:
         # Memory block to store POS vector
         net.pos_mb = cfg.make_mem_block(label="POS MB", vocab=pos_vocab,
-                                        cleanup_keys=pos_cleanup_keys,
                                         reset_key=pos_reset_key)
 
         # POS x INC

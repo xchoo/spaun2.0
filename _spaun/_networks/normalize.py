@@ -30,15 +30,12 @@ def norm_subtract_func(x, in_trfm, in_bias, out_trfm, out_bias):
     return result * out_trfm + out_bias
 
 
-def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=None,
+def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
                     n_neurons_norm=50, n_neurons_norm_sub=50,
                     n_neurons_prod=150, norm_error_per_dimension=0.0003,
                     net=None):
     if net is None:
         net = nengo.Network(label="Vector Normalize")
-
-    if radius_scale is None:
-        radius_scale = 3.5 / np.sqrt(dimensions)
 
     max_radius_scale = max_mag * radius_scale
 

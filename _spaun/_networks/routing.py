@@ -1,4 +1,5 @@
 import nengo
+from nengo.networks import EnsembleArray
 from nengo.dists import Choice, Exponential
 
 
@@ -72,6 +73,8 @@ class Selector(nengo.Network):
         self.sel_nodes = []
 
         self.dimensions = dimensions
+        if ens_class != EnsembleArray:
+            ens_args['dimensions'] = dimensions
 
         make_route_connections_common(self, ens_class, num_items, gate_gain,
                                       default_sel=default_sel,
@@ -100,6 +103,8 @@ class Router(nengo.Network):
         self.sel_nodes = []
 
         self.dimensions = dimensions
+        if ens_class != EnsembleArray:
+            ens_args['dimensions'] = dimensions
 
         make_route_connections_common(self, ens_class, num_items, gate_gain,
                                       default_sel=default_sel,

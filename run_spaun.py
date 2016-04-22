@@ -154,9 +154,11 @@ args = parser.parse_args()
 # ----- Nengo RC Cache settings -----
 # Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
 # option is given
-if args.seed < 0 or args.enable_cache:
+if args.seed > 0 or args.enable_cache:
+    print "USING CACHE"
     nengo.rc.set("decoder_cache", "enabled", "True")
 else:
+    print "NOT USING CACHE"
     nengo.rc.set("decoder_cache", "enabled", "False")
 
 # ----- Backend Configurations -----

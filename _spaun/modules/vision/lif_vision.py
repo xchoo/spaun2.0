@@ -90,7 +90,7 @@ def LIFVision(net=None, net_neuron_type=None):
                                    neuron_type=net_neuron_type,
                                    max_rates=max_rate * np.ones(n),
                                    intercepts=intercept * np.ones(n))
-            bias = nengo.Node(output=b)
+            bias = nengo.Node(output=np.array(b))
             nengo.Connection(bias, layer.neurons, transform=np.eye(n),
                              synapse=None)
 

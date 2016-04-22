@@ -30,8 +30,8 @@ def WM_Generic_Network(net=None, net_label="MB", vocab=None, sp_add_matrix=None)
                          transform=cfg.mb_decaybuf_input_scale)
 
         # Feedback gating ensembles. NOTE: Needs thresholded input as gate
-        mba_fdbk_gate = cfg.make_ens_array_gate()
-        mbb_fdbk_gate = cfg.make_ens_array_gate()
+        mba_fdbk_gate = cfg.make_spa_ens_array_gate()
+        mbb_fdbk_gate = cfg.make_spa_ens_array_gate()
 
         mb_fdbk_gate = nengo.Node(size_in=1, label=net_label + ' Fdbk Gate')
         nengo.Connection(mb_fdbk_gate, mba_fdbk_gate.gate, synapse=None)
@@ -56,6 +56,9 @@ def WM_Generic_Network(net=None, net_label="MB", vocab=None, sp_add_matrix=None)
         net.sel0 = sel_in.sel0
         net.sel1 = sel_in.sel1
         net.sel2 = sel_in.sel2
+
+        net.mb_reh = mba.output
+        net.mb_dcy = mbb.output
 
         net.output = nengo.Node(size_in=cfg.sp_dim,
                                 label=net_label + ' Out Node')

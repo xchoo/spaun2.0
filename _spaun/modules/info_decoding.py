@@ -79,7 +79,7 @@ class InfoDecoding(Module):
                          transform=2, synapse=0.08)
         #  Why is there such a large synapse here?
         nengo.Connection(self.pos_mb_gate_sig.output, free_recall_decode.gate,
-                         transform=-2, synapse=0.01)
+                         transform=-4, synapse=0.01)
 
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
@@ -167,7 +167,10 @@ class InfoDecoding(Module):
         # ############################ DEBUG ##################################
         self.item_dcconv = serial_decode.item_dcconv.output
         self.pos_recall_mb = free_recall_decode.pos_recall_mb.output
+        self.pos_recall_mb_in = free_recall_decode.pos_recall_mb.input
+        self.pos_recall_mb_gate = free_recall_decode.pos_recall_mb.gate
         self.pos_acc_input = free_recall_decode.pos_acc_input
+        self.fr_recall_mb = free_recall_decode.pos_recall_mb
 
         self.select_am = self.select_out.sel0
         self.select_vis = self.select_out.sel1

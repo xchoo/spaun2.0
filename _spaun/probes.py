@@ -6,6 +6,7 @@ from nengo.spa import Vocabulary
 from nengo.synapses import Lowpass
 
 from .config import cfg
+from .vocabs import num_sp_strs
 from .vocabs import vis_vocab, pos_vocab, enum_vocab
 from .vocabs import ps_task_vocab, ps_state_vocab, ps_dec_vocab, ps_cmp_vocab
 from .vocabs import mtr_vocab, mtr_disp_vocab, item_vocab, pos1_vocab, vocab
@@ -119,12 +120,33 @@ def setup_probes_generic(model):
 
         sub_vocab3 = vocab.create_subset([])
         sub_vocab3.readonly = False
-        sub_vocab3.add('N_POS1*ONE', vocab.parse('~(POS1*ONE)'))
-        sub_vocab3.add('N_POS1*TWO', vocab.parse('~(POS1*TWO)'))
-        sub_vocab3.add('N_POS1*THR', vocab.parse('~(POS1*THR)'))
-        sub_vocab3.add('N_POS1*FOR', vocab.parse('~(POS1*FOR)'))
-        sub_vocab3.add('N_POS1*FIV', vocab.parse('~(POS1*FIV)'))
+        # sub_vocab3.add('N_POS1*ONE', vocab.parse('~(POS1*ONE)'))
+        # sub_vocab3.add('N_POS1*TWO', vocab.parse('~(POS1*TWO)'))
+        # sub_vocab3.add('N_POS1*THR', vocab.parse('~(POS1*THR)'))
+        # sub_vocab3.add('N_POS1*FOR', vocab.parse('~(POS1*FOR)'))
+        # sub_vocab3.add('N_POS1*FIV', vocab.parse('~(POS1*FIV)'))
         sub_vocab3.add('ADD', vocab.parse('ADD'))
+        sub_vocab3.add('INC', vocab.parse('INC'))
+
+        vocab_seq_list = vocab.create_subset([])
+        vocab_seq_list.readonly = False
+        for sp_str in ['POS1*ONE', 'POS2*TWO', 'POS3*THR', 'POS4*FOR',
+                       'POS5*FIV', 'POS6*SIX', 'POS7*SEV', 'POS8*EIG']:
+            vocab_seq_list.add(sp_str, vocab.parse(sp_str))
+
+        vocab_rpm = vocab.create_subset([])
+        vocab_rpm.readonly = False
+        for i in [1, 3, 8]:
+            sp_str = num_sp_strs[i]
+            vocab_rpm.add('A_(P1+P2+P3)*%s' % sp_str,
+                          vocab.parse('POS1*%s+POS2*%s+POS3*%s' %
+                                      (sp_str, sp_str, sp_str)))
+            vocab_rpm.add('N_(P1+P2+P3)*%s' % sp_str,
+                          vocab.parse('~(POS1*%s+POS2*%s+POS3*%s)' %
+                                      (sp_str, sp_str, sp_str)))
+
+        ####
+        vocab_seq_list = vocab_rpm
 
         if hasattr(model, 'stim'):
             p0 = nengo.Probe(model.stim.output, synapse=None)
@@ -229,6 +251,7 @@ def setup_probes_generic(model):
             # pen6 = nengo.Probe(model.enc.pos_mb.am.output)
             pen6 = nengo.Probe(model.enc.pos_inc.reset)
             pen7 = nengo.Probe(model.enc.pos_mb_acc.output)
+            pen7a = nengo.Probe(model.enc.pos_mb_acc.input)
             pen8 = nengo.Probe(model.enc.pos_output)
 
             # probes = gen_graph_list(['enc', p0, pen4, pen7, pen6, 0,
@@ -239,16 +262,17 @@ def setup_probes_generic(model):
             # vocab_dict[idstr(pen7)] = pos_vocab
 
             add_to_graph_list(graph_list,
-                              ['enc', p0, pen4, pen7, pen6, pen8, 0,
-                               'enc gate', pen1],
-                              [pen4, pen7, pen8])
+                              ['enc', p0, pen1, pen4, pen7, pen7a, pen6],
+                              [pen4])
             add_to_vocab_dict(vocab_dict, {pen4: pos_vocab,
                                            pen7: pos_vocab,
+                                           pen7a: pos_vocab,
                                            pen8: pos_vocab})
 
         if hasattr(model, 'mem') and True:
             pmm1 = nengo.Probe(model.mem.mb1)
-            pmm1a = nengo.Probe(model.mem.mb1)
+            pmm1a = nengo.Probe(model.mem.mb1_net.mb_reh)
+            pmm1b = nengo.Probe(model.mem.mb1_net.mb_dcy)
             pmm2 = nengo.Probe(model.mem.mb1_net.gate)
             pmm3 = nengo.Probe(model.mem.mb1_net.reset)
             pmm4 = nengo.Probe(model.mem.mb2)
@@ -273,12 +297,14 @@ def setup_probes_generic(model):
             #                    'mb3', p0, pmm7, pmm8, pmm9],
             #                   [pmm1, pmm4, pmm7])
             add_to_graph_list(graph_list,
-                              ['mb1', p0, pmm1, pmm1a, pmm2, pmm3, 0,
+                              ['mb1', p0, pmm1, pmm1a, pmm1b, pmm2, pmm3, 0,
                                'mb2', p0, pmm4, pmm5, pmm6, 0,
                                'mb3', p0, pmm7, pmm8, pmm9])
-            add_to_vocab_dict(vocab_dict, {pmm1: sub_vocab1,
-                                           pmm4: sub_vocab1,
-                                           pmm7: sub_vocab1})
+            add_to_vocab_dict(vocab_dict, {pmm1: vocab_seq_list,
+                                           pmm1a: vocab_seq_list,
+                                           pmm1b: vocab_seq_list,
+                                           pmm4: vocab_seq_list,
+                                           pmm7: vocab_seq_list})
 
         if hasattr(model, 'mem') and True:
             pmm10 = nengo.Probe(model.mem.mbave_net.input)
@@ -300,7 +326,7 @@ def setup_probes_generic(model):
                               ['mbave', p0, pmm10, pmm11, pmm12, pmm13],
                               [pmm10])
             add_to_vocab_dict(vocab_dict, {pmm10: sub_vocab2,
-                                           pmm13: sub_vocab2})
+                                           pmm13: sub_vocab3})
 
         # if (hasattr(model, 'mem') and not isinstance(model.mem,
         #                                              WorkingMemoryDummy)):
@@ -334,6 +360,8 @@ def setup_probes_generic(model):
             ptf8 = nengo.Probe(model.trfm.norm_a.input)
             ptf9 = nengo.Probe(model.trfm.norm_b.input)
             ptf10 = nengo.Probe(model.trfm.compare.dot_prod)
+            ptf11a = nengo.Probe(model.trfm.cconv1.A)
+            ptf11b = nengo.Probe(model.trfm.cconv1.B)
 
             # probes = gen_graph_list(['trfm io', p0, ptf1, ptf2, ptf4, ptf4b, 0,
             #                          'trfm cc', p0, ptf3, ptf3b, ptf3c, ptf3d, 0, # noqa
@@ -358,24 +386,34 @@ def setup_probes_generic(model):
             # vocab_dict[idstr(ptf9)] = sub_vocab1
 
             add_to_graph_list(graph_list,
-                              ['trfm io', p0, ptf1, ptf2, ptf4, ptf4b, 0,
-                               'trfm cc', p0, ptf3, ptf3b, ptf3c, ptf3d, 0, # noqa
+                              ['trfm io', p0, ptf1, ptf2, ptf4, 0,
+                               'trfm cc', p0, pmm11, ptf3, ptf11a, ptf11b, pmm13, 0, # noqa
                                'trfm cmp', ptf5, ptf8, ptf6, ptf9, ptf7, ptf10], # noqa
-                              [ptf1, ptf2, ptf3, ptf3b, ptf3c, ptf4, ptf4b,
-                               ptf6, ptf7])
-            add_to_vocab_dict(vocab_dict, {ptf1: sub_vocab1,
-                                           ptf2: sub_vocab3,
-                                           ptf3: item_vocab,
-                                           ptf3b: pos_vocab,
-                                           ptf3c: sub_vocab2,
-                                           ptf3d: sub_vocab1,
-                                           ptf4: sub_vocab2,
-                                           ptf4b: sub_vocab1,
+                              [ptf1, ptf4, ptf6, ptf7])
+            # add_to_vocab_dict(vocab_dict, {ptf1: sub_vocab1,
+            #                                ptf2: sub_vocab3,
+            #                                ptf3: item_vocab,
+            #                                ptf3b: pos_vocab,
+            #                                ptf3c: sub_vocab2,
+            #                                ptf3d: sub_vocab1,
+            #                                ptf4: sub_vocab2,
+            #                                ptf4b: sub_vocab1,
+            #                                ptf5: ps_cmp_vocab,
+            #                                ptf6: sub_vocab1,
+            #                                ptf7: sub_vocab1,
+            #                                ptf8: sub_vocab1,
+            #                                ptf9: sub_vocab1})
+            add_to_vocab_dict(vocab_dict, {ptf1: vocab_rpm,
+                                           ptf2: vocab_rpm,
+                                           ptf3: vocab_rpm,
+                                           ptf4: vocab_rpm,
                                            ptf5: ps_cmp_vocab,
                                            ptf6: sub_vocab1,
                                            ptf7: sub_vocab1,
                                            ptf8: sub_vocab1,
-                                           ptf9: sub_vocab1})
+                                           ptf9: sub_vocab1,
+                                           ptf11a: vocab_rpm,
+                                           ptf11b: vocab_rpm})
 
         if hasattr(model, 'trfm') and \
                 not isinstance(model.trfm, TransformationSystemDummy):
@@ -427,6 +465,12 @@ def setup_probes_generic(model):
             pde9 = nengo.Probe(model.dec.am2_utils)
             pde10 = nengo.Probe(model.dec.util_diff)
             pde11 = nengo.Probe(model.dec.pos_recall_mb)
+            pde11a = nengo.Probe(model.dec.pos_recall_mb_in)
+            pde11b = nengo.Probe(model.dec.fr_recall_mb.gate)
+            pde11c = nengo.Probe(model.dec.fr_recall_mb.reset)
+            pde11d = nengo.Probe(model.dec.fr_recall_mb.mem1.input)
+            pde11e = nengo.Probe(model.dec.fr_recall_mb.mem2.input)
+
             # pde12 = nengo.Probe(model.dec.recall_mb.gateX)
             # pde13 = nengo.Probe(model.dec.recall_mb.gateN)
             # pde14a = nengo.Probe(model.dec.recall_mb.mem1.input)
@@ -492,6 +536,7 @@ def setup_probes_generic(model):
                                'dec kn unk st', pde15, pde16, pde18, 0,
                                'dec am utils', pde8, pde9, pde10, pde25, 0,
                                'dec sigs', pde6, pde26, pde11, pde27, 0,
+                               'dec fr', pde11b, pde11c, pde11, pde11a, pde11d, pde11e, 0,
                                'dec sel', pde30, pde31, pde32, pde33, 0,
                                'dec out class', pde34, pde35, pde36],
                               [pde21, pde30])
@@ -499,6 +544,9 @@ def setup_probes_generic(model):
                                            pde4: mtr_vocab,
                                            pde21: mtr_vocab,
                                            pde11: pos_vocab,
+                                           pde11a: pos_vocab,
+                                           pde11d: pos_vocab,
+                                           pde11e: pos_vocab,
                                            pde27: pos_vocab,
                                            pde28: sub_vocab2,
                                            pde29: pos_vocab,
@@ -522,9 +570,10 @@ def setup_probes_generic(model):
                                synapse=0.01)
             pmt10 = nengo.Probe(model.mtr.zero_centered_tgt_ee_loc,
                                 synapse=0.03)
+            pmt11 = nengo.Probe(model.mtr.motor_bypass.output)
 
             add_to_graph_list(graph_list,
-                              ['mtr', p0, pmt1, pmt2, pmt6, pmt3, pmt4, pmt5, 0,  # noqa
+                              ['mtr', p0, pmt1, pmt2, pmt6, pmt3, pmt4, pmt5, pmt11, 0,  # noqa
                                'arm', pmt7a, pmt7b, pmt8])
 
             add_to_anim_config(anim_config, key='mtr',

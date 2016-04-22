@@ -21,8 +21,8 @@ class TransformationSystem(Module):
     def init_module(self):
         # ----- Input and output selectors ----- #
         self.select_in_a = cfg.make_selector(3)
-        self.select_in_b = cfg.make_selector(6)
-        self.select_out = cfg.make_selector(5)
+        self.select_in_b = cfg.make_selector(6, represent_identity=True)
+        self.select_out = cfg.make_selector(5, represent_identity=True)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=cfg.sp_dim)
@@ -50,13 +50,21 @@ class TransformationSystem(Module):
         nengo.Connection(self.select_in_a.output, self.norm_a.input)
         nengo.Connection(self.select_in_b.output, self.norm_b.input)
 
+        # ----- Cir conv 1 Inputs (bypassable normalization) ----- #
+        self.select_cconv1_a = cfg.make_selector(2)
+        self.select_cconv1_b = cfg.make_selector(2, represent_identity=True)
+
+        nengo.Connection(self.select_in_a.output, self.select_cconv1_a.input0)
+        nengo.Connection(self.norm_a.output, self.select_cconv1_a.input1)
+
+        nengo.Connection(self.select_in_b.output, self.select_cconv1_b.input0)
+        nengo.Connection(self.norm_b.output, self.select_cconv1_b.input1)
+
         # ----- Cir conv 1 ----- #
         self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius)
 
-        nengo.Connection(self.norm_a.output, self.cconv1.A,
-                         transform=1.25)
-        nengo.Connection(self.norm_b.output, self.cconv1.B,
-                         transform=1.25)
+        nengo.Connection(self.select_cconv1_a.output, self.cconv1.A)
+        nengo.Connection(self.select_cconv1_b.output, self.cconv1.B)
         nengo.Connection(self.cconv1.output, self.select_out.input3,
                          transform=invol_matrix(cfg.sp_dim))
         nengo.Connection(self.cconv1.output, self.select_out.input4)
@@ -101,10 +109,12 @@ class TransformationSystem(Module):
 
         # Set up connections from ps module
         if hasattr(p_net, 'ps'):
+            bias_node = nengo.Node(1)
+
             ps_state_mb_utils = p_net.ps.ps_state_utilities
             ps_dec_mb_utils = p_net.ps.ps_dec_utilities
 
-            # Select CC1 A
+            # Select IN A
             # - sel0 (MB1): State = QAP + QAK + TRANS1
             # - sel1 (MB2): State = TRANS2, CNT1
             # - sel2 (MB3): State = TRANS0
@@ -125,11 +135,11 @@ class TransformationSystem(Module):
             nengo.Connection(ps_state_mb_utils[in_a_sel2_inds],
                              self.select_in_a.sel2)
 
-            # Select CC1 B
+            # Select IN B
             # - sel0 (~AM_P1): State = QAP
             # - sel1 (~AM_N1): State = QAK
-            # - sel2 (~MB1): State = TRANS1; Dec = -DECI
-            # - sel3 (~MB2): State = TRANS2; Dec = -DECI
+            # - sel2 (~MB1): State = TRANS1 & Dec = -DECI
+            # - sel3 (~MB2): State = TRANS2 & Dec = -DECI
             # - sel4 (MBAve): Dec = DECI
             # - sel5 (MB3): State = CNT1
             in_b_sel0_inds = strs_to_inds(['QAP'], ps_state_sp_strs)
@@ -166,11 +176,39 @@ class TransformationSystem(Module):
             nengo.Connection(ps_state_mb_utils[in_b_sel5_inds],
                              self.select_in_b.sel5)
 
+            # Select CCONV1 A
+            # - sel0 (IN A): Dec = DECI
+            # - sel1 (norm(IN A)): Dec = 1 -DECI
+            cconv1_a_sel0_inds = strs_to_inds(['DECI'], ps_dec_sp_strs)
+            nengo.Connection(ps_dec_mb_utils[cconv1_a_sel0_inds],
+                             self.select_cconv1_a.sel0)
+
+            cconv1_a_sel1 = cfg.make_thresh_ens_net()
+            cconv1_a_sel1_inds = strs_to_inds(['DECI'], ps_dec_sp_strs)
+            nengo.Connection(bias_node, cconv1_a_sel1.input)
+            nengo.Connection(ps_dec_mb_utils[cconv1_a_sel1_inds],
+                             cconv1_a_sel1.input, transform=-1)
+            nengo.Connection(cconv1_a_sel1.output, self.select_cconv1_a.sel1)
+
+            # Select CCONV1 B
+            # - sel0 (IN B): Dec = DECI
+            # - sel1 (norm(IN B)): Dec = 1 -DECI
+            cconv1_b_sel0_inds = strs_to_inds(['DECI'], ps_dec_sp_strs)
+            nengo.Connection(ps_dec_mb_utils[cconv1_b_sel0_inds],
+                             self.select_cconv1_b.sel0)
+
+            cconv1_b_sel1 = cfg.make_thresh_ens_net()
+            cconv1_b_sel1_inds = strs_to_inds(['DECI'], ps_dec_sp_strs)
+            nengo.Connection(bias_node, cconv1_b_sel1.input)
+            nengo.Connection(ps_dec_mb_utils[cconv1_b_sel1_inds],
+                             cconv1_b_sel1.input, transform=-1)
+            nengo.Connection(cconv1_b_sel1.output, self.select_cconv1_b.sel1)
+
             # Select Output
             # - sel0 (AM_N2): State = QAP
             # - sel1 (AM_P2): State = QAK
-            # - sel2 (MB1): State = TRANS0 + CNT1, Dec = -DECI
-            # - sel3 (~CC1 Out): State = TRANS1 + TRANS2, Dec = -DecI
+            # - sel2 (MB1): State = TRANS0 + CNT1 & Dec = -DECI
+            # - sel3 (~CC1 Out): State = TRANS1 + TRANS2 & Dec = -DECI
             # - sel4 (CC1 Out): Dec = DECI
             out_sel0_inds = strs_to_inds(['QAP'], ps_state_sp_strs)
             nengo.Connection(ps_state_mb_utils[out_sel0_inds],

@@ -223,7 +223,7 @@ class MotorSystem(Module):
                              transform=[-mtr_init_task_sp_vecs])
 
             # Motor bypass signal
-            nengo.Connection(parent_net.ps.task, self.motor_bypass.input,
+            nengo.Connection(parent_net.ps.dec, self.motor_bypass.input,
                              transform=[mtr_bypass_task_sp_vecs])
         else:
             warn("MotorSystem Module - Cannot connect from 'ps'")

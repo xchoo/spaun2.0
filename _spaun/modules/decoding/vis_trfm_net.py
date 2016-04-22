@@ -2,6 +2,8 @@ import numpy as np
 import nengo
 import os
 
+from nengo.networks import EnsembleArray
+
 from ..._networks import convert_func_2_diff_func
 from ...config import cfg
 from ...vocabs import mtr_vocab, mtr_filepath, mtr_sp_scale_factor
@@ -57,8 +59,9 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
             trfm_x = convert_func_2_diff_func(copy_draw_trfms_x[n])
             trfm_y = convert_func_2_diff_func(copy_draw_trfms_y[n])
 
-            trfm_ea = cfg.make_ens_array(n_ensembles=cfg.mtr_dim,
-                                         radius=mtr_sp_scale_factor)
+            trfm_ea = EnsembleArray(n_neurons=cfg.n_neurons_ens,
+                                    n_ensembles=cfg.mtr_dim,
+                                    radius=mtr_sp_scale_factor)
             cfg.make_inhibitable(trfm_ea)
 
             nengo.Connection(net.input, trfm_ea.input[:mtr_path_dim],

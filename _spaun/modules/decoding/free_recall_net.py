@@ -11,9 +11,14 @@ def Free_Recall_Network(net=None, net_label='FREE RECALL'):
 
     with net:
         # ----------------------- Recalled POS MB -----------------------------
-        net.pos_recall_mb = cfg.make_mem_block(vocab=vocab, reset_key=0)
-        nengo.Connection(net.pos_recall_mb.output, net.pos_recall_mb.input,
-                         transform=cfg.enc_mb_acc_fdbk_scale)
+        # Increase the accumulator radius to account for increased magnitude
+        # of added position vectors
+        acc_radius = cfg.enc_mb_acc_radius_scale * cfg.get_optimal_sp_radius()
+
+        net.pos_recall_mb = cfg.make_mem_block(vocab=vocab, reset_key=0,
+                                               radius=acc_radius,
+                                               n_neurons=100)
+        nengo.Connection(net.pos_recall_mb.output, net.pos_recall_mb.input)
 
         # ------------------------- FR CConv Unit -----------------------------
         fr_dcconv = cfg.make_cir_conv(invert_b=True,

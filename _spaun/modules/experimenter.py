@@ -94,7 +94,8 @@ def parse_custom_tasks(seq_str):
             start_val = int(np.random.random() * (len(num_map) - count_val))
             new_task_str = 'A4[%d][%d]' % (start_val, count_val)
         elif task_str == "LEARN":
-            # Format: (LEARN; PROB1, NUMTRIALS1; PROB2, NUMTRAILS2; ...)
+            # Format: (LEARN; PROB1A:PROB1B: ... :PROB1N, NUMTRIALS1;
+            #                 PROB2A:PROB2B: ... :PROB2N, NUMTRAILS2; ...)
             learn_opts = task_opts_str.split(';')
             num_trials = len(learn_opts)
             new_task_str = 'A2?' + 'X?' * num_trials + 'X'
@@ -311,9 +312,9 @@ def monitor_func(t, x, monitor, stim_seq=None):
         write_out = monitor.null_output
 
     mtr_ramp = x[-2]
-    mtr_disable = x[-1]
+    mtr_pen_down = x[-1]
 
-    if mtr_disable < 0.5:
+    if mtr_pen_down > 0.5:
         if mtr_ramp > monitor.mtr_write_min and not monitor.mtr_written:
             monitor.write_to_file(write_out)
             monitor.mtr_written = True
@@ -396,7 +397,8 @@ class Monitor(Module):
         if hasattr(parent_net, 'mtr'):
             nengo.Connection(parent_net.mtr.ramp, self.output[-2],
                              synapse=0.05)
-            # TODO: Include connection that inhibits motor output
+            nengo.Connection(parent_net.mtr.pen_down, self.output[-1],
+                             synapse=0.03)
         else:
             warn("Monitor Module - Cannot connect from 'mtr'")
 

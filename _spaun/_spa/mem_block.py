@@ -1,4 +1,3 @@
-from copy import deepcopy as copy
 import numpy as np
 
 import nengo
@@ -68,7 +67,7 @@ class MemoryBlock(Module):
             # - 2: Cleanup memory vectors using provided vectors but also allow
             #      vectors that do not match any of the cleanup vectors to be
             #      stored as well.
-            wm_args = copy(mem_args)
+            wm_args = dict(mem_args)
             if cleanup_vecs is None or cleanup_mode == 0:
                 self.mem1 = WM(n_neurons, dimensions, radius=radius,
                                reset_value=reset_vec, **wm_args)

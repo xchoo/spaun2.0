@@ -1,4 +1,3 @@
-from copy import deepcopy as copy
 import numpy as np
 
 import nengo
@@ -39,7 +38,7 @@ class MemoryBlock(nengo.Network):
             nengo.Connection(self.gate, self.gateN, transform=-1)
             nengo.Connection(bias_node, self.gateN)
 
-            wm_args = copy(mem_args)
+            wm_args = dict(mem_args)
             wm_args['difference_gain'] = mem_args.get('difference_gain', 15)
 
             wm_config = nengo.Config(nengo.Ensemble, nengo.Connection)

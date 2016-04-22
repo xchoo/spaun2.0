@@ -1,5 +1,3 @@
-from .circularconvolution_2_0 import circconv
-from .circularconvolution_2_0 import CircularConvolution
 from .workingmemory import InputGatedMemory
 from .workingmemory import InputGatedCleanupMemory
 from .workingmemory import InputGatedCleanupPlusMemory

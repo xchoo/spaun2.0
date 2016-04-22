@@ -5,7 +5,7 @@ from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from ..config import cfg
-from ..vocabs import vocab, pos_vocab
+from ..vocabs import vocab, pos_vocab, pos_sp_strs
 from ..vocabs import pos_mb_gate_sp_inds
 from ..vocabs import pos_mb_rst_sp_inds, pos_mb_acc_rst_sp_inds
 
@@ -28,12 +28,20 @@ class InfoEncoding(Module):
         self.enc_output = nengo.Node(size_in=cfg.sp_dim)
         nengo.Connection(self.item_cconv.output, self.enc_output)
 
+        # Increase the accumulator radius to account for increased magnitude
+        # of added position vectors
+        acc_radius = cfg.enc_mb_acc_radius_scale * cfg.get_optimal_sp_radius()
+
         # Memory block to store accumulated POS vectors (POSi-1 + POSi)
         self.pos_mb_acc = cfg.make_mem_block(label="POS MB ACC",
-                                             vocab=pos_vocab, reset_key=0)
+                                             vocab=pos_vocab,
+                                             reset_key=0,
+                                             radius=acc_radius,
+                                             n_neurons=100)  # ,
+                                             # cleanup_keys=pos_sp_strs,
+                                             # cleanup_mode=2)
         nengo.Connection(self.pos_inc.output, self.pos_mb_acc.input)
-        nengo.Connection(self.pos_mb_acc.output, self.pos_mb_acc.input,
-                         transform=cfg.enc_mb_acc_fdbk_scale)
+        nengo.Connection(self.pos_mb_acc.output, self.pos_mb_acc.input)
 
         # Define network inputs and outputs
         self.pos_output = self.pos_inc.output

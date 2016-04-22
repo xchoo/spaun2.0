@@ -57,7 +57,7 @@ def DetectChange(net=None, dimensions=1, n_neurons=50, diff_scale=0.2,
         nengo.Connection(blank_detect, net.output, synapse=0.01,
                          transform=2)
 
-        # ### DEBUG ####
+        #######################################################################
         net.input_diff = input_diff.output
         net.item_detect = item_detect
         net.blank_detect = blank_detect

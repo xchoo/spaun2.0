@@ -8,13 +8,133 @@ from nengo.dists import Uniform
 from assoc_mem import AssociativeMemory as AM
 
 
+def make_mem_network(net, n_neurons, dimensions, mem_ens_class, mem_ens_args,
+                     diff_ens_class, diff_ens_args, mem_synapse=0.1,
+                     fdbk_transform=1.0, input_transform=1.0,
+                     difference_gain=1.0, gate_gain=3):
+    with net:
+        net.input = nengo.Node(size_in=dimensions)
+
+        # integrator to store value
+        if np.isscalar(fdbk_transform):
+            fdbk_matrix = np.eye(dimensions) * fdbk_transform
+        else:
+            fdbk_matrix = np.matrix(fdbk_transform)
+
+        net.mem = mem_ens_class(n_neurons=n_neurons, label="mem",
+                                **mem_ens_args)
+        if isinstance(net.mem, nengo.Network):
+            mem_output = net.mem.output
+            mem_input = net.mem.input
+        else:
+            mem_output = mem_input = net.mem
+
+        nengo.Connection(mem_output, mem_input,
+                         synapse=mem_synapse, transform=fdbk_matrix)
+
+        # calculate difference between stored value and input
+        net.diff = diff_ens_class(n_neurons=n_neurons, label="diff",
+                                  **diff_ens_args)
+
+        if isinstance(net.diff, nengo.Network):
+            net.diff_input = net.diff.input
+            diff_output = net.diff.output
+        else:
+            net.diff_input = diff_output = net.diff
+
+        nengo.Connection(net.input, net.diff_input, synapse=None,
+                         transform=net.input_transform)
+        nengo.Connection(mem_output, net.diff_input, transform=-1)
+
+        # feed difference into integrator
+        nengo.Connection(diff_output, mem_input,
+                         transform=difference_gain, synapse=mem_synapse)
+
+        # gate difference (if gate==0, update stored value,
+        # otherwise retain stored value)
+        net.gate = nengo.Ensemble(n_neurons, 1, encoders=Choice([[1]]),
+                                  intercepts=Uniform(0.5, 1))
+
+        if isinstance(net.diff, nengo.Network):
+            for e in net.diff.ensembles:
+                nengo.Connection(net.gate, e.neurons,
+                                 transform=[[-gate_gain]] * e.n_neurons)
+        else:
+            nengo.Connection(net.gate, net.diff.neurons,
+                             transform=[[-gate_gain]] * e.n_neurons)
+
+        # Make output
+        net.output = net.mem.output
+
+
+def make_resettable(net, n_neurons, dimensions, reset_value,
+                    reset_ens_class, reset_ens_args, gate_gain=3):
+    # Why have all this extra hardware to reset WM when inhibition will do
+    # it?
+    # - Makes the reset more reliable (storing a zero, rather than just
+    #   wiping it out), so that reset signal can be shorter.
+    if np.isscalar(reset_value):
+        reset_value = np.matrix(np.ones(dimensions) * reset_value)
+    else:
+        reset_value = np.matrix(reset_value)
+
+    with net:
+        bias = nengo.Node(output=1)
+        net.reset = nengo.Node(size_in=1)
+
+        # Create resetX and resetN signals. resetX is to disable the WM gate
+        # signal when reset is high. resetN is to disable the reset circuitry
+        # when reset is low.
+        resetX = nengo.Ensemble(n_neurons, 1, encoders=Choice([[1]]),
+                                intercepts=Uniform(0.5, 1))
+        resetN = nengo.Ensemble(n_neurons, 1, encoders=Choice([[1]]),
+                                intercepts=Uniform(0.5, 1))
+
+        nengo.Connection(net.reset, resetX, synapse=None)
+        nengo.Connection(net.reset, resetN, transform=-1, synapse=None)
+        nengo.Connection(bias, resetN, synapse=None)
+
+        # THe reset gate. Controls reset information going into the difference
+        # population
+        reset_gate = reset_ens_class(n_neurons, label="reset gate",
+                                     **reset_ens_args)
+
+        if isinstance(reset_gate, nengo.Network):
+            reset_gate_input = reset_gate.input
+            reset_gate_output = reset_gate.output
+        else:
+            reset_gate_input = reset_gate_output = reset_gate
+
+        # The desired reset value.
+        nengo.Connection(bias, reset_gate_input, transform=reset_value.T,
+                         synapse=None)
+        # Need to negate whatever is being fed to the input of the WM (since
+        # the WM difference population is going to be enabled).
+        nengo.Connection(net.input, reset_gate_input,
+                         transform=-net.input_transform, synapse=None)
+
+        nengo.Connection(reset_gate_output, net.diff_input)
+
+        # Enable the WM difference population
+        nengo.Connection(resetX, net.gate, transform=-1)
+
+        # Disable the reset gate when reset signal is not active.
+        if isinstance(reset_gate, nengo.Network):
+            for e in reset_gate.ensembles:
+                nengo.Connection(resetN, e.neurons,
+                                 transform=[[-gate_gain]] * e.n_neurons)
+        else:
+            nengo.Connection(resetN, reset_gate.neurons,
+                             transform=[[-gate_gain]] * e.n_neurons)
+
+
 class InputGatedMemory(nengo.Network):
     """Stores a given vector in memory, with input controlled by a gate."""
 
-    def __init__(self, n_neurons, dimensions, mem_synapse=0.1,
-                 fdbk_transform=1.0, input_transform=1.0, difference_gain=1.0,
-                 gate_gain=3, reset_value=None, label=None, seed=None,
-                 add_to_container=None, **mem_args):
+    def __init__(self, n_neurons, dimensions, ens_class=EnsembleArray,
+                 mem_synapse=0.1, fdbk_transform=1.0, input_transform=1.0,
+                 difference_gain=1.0, gate_gain=3, reset_value=None,
+                 label=None, seed=None, add_to_container=None, **mem_args):
 
         super(InputGatedMemory, self).__init__(label, seed, add_to_container)
 
@@ -23,55 +143,30 @@ class InputGatedMemory(nengo.Network):
         self.dimensions = dimensions
         self.gate_gain = gate_gain
         self.mem_synapse = mem_synapse
-        self.mem_args = dict(mem_args)
         self.input_transform = input_transform
 
-        with self:
-            self.input = nengo.Node(size_in=dimensions)
+        ens_args = dict(mem_args)
+        if ens_class is EnsembleArray:
+            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+        else:
+            ens_args['dimensions'] = dimensions
 
-            # integrator to store value
-            if np.isscalar(fdbk_transform):
-                fdbk_matrix = np.eye(dimensions) * fdbk_transform
-            else:
-                fdbk_matrix = np.matrix(fdbk_transform)
+        make_mem_network(self, self.n_neurons, self.dimensions,
+                         ens_class, ens_args, ens_class, ens_args,
+                         mem_synapse, fdbk_transform, input_transform,
+                         difference_gain, gate_gain)
 
-            self.mem = EnsembleArray(n_neurons, dimensions, label="mem",
-                                     **self.mem_args)
-            nengo.Connection(self.mem.output, self.mem.input,
-                             synapse=mem_synapse, transform=fdbk_matrix)
-            self.output = self.mem.output
-
-            # calculate difference between stored value and input
-            self.diff = EnsembleArray(n_neurons, dimensions, label="diff",
-                                      **self.mem_args)
-            self.diff_input = self.diff.input
-
-            nengo.Connection(self.input, self.diff.input, synapse=None,
-                             transform=self.input_transform)
-            nengo.Connection(self.mem.output, self.diff.input, transform=-1)
-
-            # feed difference into integrator
-            nengo.Connection(self.diff.output, self.mem.input,
-                             transform=difference_gain, synapse=mem_synapse)
-
-            # gate difference (if gate==0, update stored value,
-            # otherwise retain stored value)
-            self.gate = nengo.Ensemble(n_neurons, 1, encoders=Choice([[1]]),
-                                       intercepts=Uniform(0.5, 1))
-            for e in self.diff.ensembles:
-                nengo.Connection(self.gate, e.neurons,
-                                 transform=[[-gate_gain]] * e.n_neurons)
-
-        # No indenty! Not supposed to be within network context
         if reset_value is not None:
-            make_resettable(self, reset_value)
+            make_resettable(self, self.n_neurons, self.dimensions,
+                            reset_value, ens_class, ens_args,
+                            gate_gain)
 
 
 class InputGatedCleanupMemory(nengo.Network):
-    def __init__(self, n_neurons, dimensions, mem_synapse=0.1,
-                 fdbk_transform=1.0, input_transform=1.0, difference_gain=1.0,
-                 gate_gain=3, reset_value=None, cleanup_values=None,
-                 wta_output=False, wta_inhibit_scale=1,
+    def __init__(self, n_neurons, dimensions, ens_class=EnsembleArray,
+                 mem_synapse=0.1, fdbk_transform=1.0, input_transform=1.0,
+                 difference_gain=1.0, gate_gain=3, reset_value=None,
+                 cleanup_values=None, wta_output=False, wta_inhibit_scale=1,
                  label=None, seed=None, add_to_container=None, **mem_args):
 
         super(InputGatedCleanupMemory, self).__init__(label, seed,
@@ -91,51 +186,35 @@ class InputGatedCleanupMemory(nengo.Network):
         self.mem_args = dict(mem_args)
         self.input_transform = input_transform
 
-        with self:
-            self.input = nengo.Node(size_in=dimensions)
+        ens_args = dict(mem_args)
+        if ens_class is EnsembleArray:
+            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+        else:
+            ens_args['dimensions'] = dimensions
 
-            self.mem = AM(cleanup_values, n_neurons=n_neurons,
-                          threshold=0.5, label="mem")
-            nengo.Connection(self.mem.output, self.mem.input,
-                             synapse=mem_synapse)
+        mem_ens_args = dict()
+        mem_ens_args['input_vectors'] = cleanup_values
+        mem_ens_args['threshold'] = 0.5
 
-            if wta_output:
-                self.mem.add_wta_network(wta_inhibit_scale)
+        make_mem_network(self, self.n_neurons, self.dimensions,
+                         AM, mem_ens_args, ens_class, ens_args,
+                         mem_synapse, fdbk_transform, input_transform,
+                         difference_gain, gate_gain)
 
-            # calculate difference between stored value and input
-            self.diff = EnsembleArray(n_neurons, dimensions, label="diff",
-                                      **self.mem_args)
-            self.diff_input = self.diff.input
+        if wta_output:
+            self.mem.add_wta_network(wta_inhibit_scale)
 
-            nengo.Connection(self.input, self.diff.input, synapse=None,
-                             transform=input_transform)
-            nengo.Connection(self.mem.output, self.diff.input, transform=-1)
-
-            # feed difference into integrator
-            nengo.Connection(self.diff.output, self.mem.input,
-                             transform=difference_gain, synapse=mem_synapse)
-
-            # connect cleanup to output
-            self.output = self.mem.output
-
-            # gate difference (if gate==0, update stored value,
-            # otherwise retain stored value)
-            self.gate = nengo.Ensemble(n_neurons, 1, encoders=Choice([[1]]),
-                                       intercepts=Uniform(0.5, 1))
-            for e in self.diff.ensembles:
-                nengo.Connection(self.gate, e.neurons,
-                                 transform=[[-gate_gain]] * e.n_neurons)
-
-        # No indenty! Not supposed to be within network context
         if reset_value is not None:
-            make_resettable(self, reset_value)
+            make_resettable(self, self.n_neurons, self.dimensions,
+                            reset_value, ens_class, ens_args,
+                            gate_gain)
 
 
 class InputGatedCleanupPlusMemory(nengo.Network):
-    def __init__(self, n_neurons, dimensions, mem_synapse=0.1,
-                 fdbk_transform=1.0, input_transform=1.0, difference_gain=1.0,
-                 gate_gain=3, reset_value=None, cleanup_values=None,
-                 wta_output=False, wta_inhibit_scale=1,
+    def __init__(self, n_neurons, dimensions, ens_class=EnsembleArray,
+                 mem_synapse=0.1, fdbk_transform=1.0, input_transform=1.0,
+                 difference_gain=1.0, gate_gain=3, reset_value=None,
+                 cleanup_values=None, wta_output=False, wta_inhibit_scale=1,
                  label=None, seed=None, add_to_container=None, **mem_args):
 
         super(InputGatedCleanupPlusMemory, self).__init__(label, seed,
@@ -149,6 +228,11 @@ class InputGatedCleanupPlusMemory(nengo.Network):
         self.mem_synapse = mem_synapse
         self.mem_args = dict(mem_args)
 
+        ens_args = dict(mem_args)
+        if ens_class is None:
+            ens_class = EnsembleArray
+            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+
         with self:
             # Set up input and output nodes
             self.input = nengo.Node(size_in=dimensions)
@@ -159,14 +243,16 @@ class InputGatedCleanupPlusMemory(nengo.Network):
             self.mem = nengo.Network()
             with self.mem:
                 self.mem_cleanup = \
-                    InputGatedCleanupMemory(n_neurons, dimensions, mem_synapse,
+                    InputGatedCleanupMemory(n_neurons, dimensions, ens_class,
+                                            mem_synapse,
                                             fdbk_transform, input_transform,
                                             difference_gain, gate_gain,
                                             reset_value, cleanup_values,
                                             wta_output, wta_inhibit_scale,
                                             **mem_args)
                 self.mem_regular = \
-                    InputGatedMemory(n_neurons, dimensions, mem_synapse,
+                    InputGatedMemory(n_neurons, dimensions, ens_class,
+                                     mem_synapse,
                                      fdbk_transform, input_transform,
                                      difference_gain, gate_gain,
                                      reset_value, **mem_args)
@@ -187,50 +273,14 @@ class InputGatedCleanupPlusMemory(nengo.Network):
             nengo.Connection(self.gate, self.mem_regular.gate, synapse=None)
 
             for e in self.mem_regular.mem.ensembles:
-                nengo.Connection(self.mem_cleanup.mem.output, e.neurons,
-                                 transform=[[-gate_gain] *
-                                            cleanup_values.shape[0]] *
-                                 e.n_neurons)
+                nengo.Connection(self.mem_cleanup.mem.output_utilities,
+                                 e.neurons,
+                                 transform=([[-gate_gain] *
+                                             cleanup_values.shape[0]] *
+                                            e.n_neurons))
 
-        # No indenty! Not supposed to be within network context
+        # No indentity! Not supposed to be within network context
         if reset_value is not None:
-            make_resettable(self, reset_value)
-
-
-def make_resettable(mem_network, reset_value):
-    # Why have all this extra hardware to reset WM when inhibition can do it?
-    # - Makes the reset more reliable (storing a zero, rather than just
-    #   wiping it out), so that reset signal can be shorter.
-    if np.isscalar(reset_value):
-        reset_value = np.matrix(np.ones(mem_network.dimensions) *
-                                reset_value)
-    else:
-        reset_value = np.matrix(reset_value)
-
-    with mem_network as net:
-        bias = nengo.Node(output=1)
-        net.reset = nengo.Node(size_in=1)
-
-        resetX = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
-                                intercepts=Uniform(0.5, 1))
-        resetN = nengo.Ensemble(net.n_neurons, 1, encoders=Choice([[1]]),
-                                intercepts=Uniform(0.5, 1))
-        reset_gate = EnsembleArray(net.n_neurons, net.dimensions,
-                                   label="reset gate", **net.mem_args)
-
-        nengo.Connection(net.reset, resetX, synapse=None)
-        nengo.Connection(net.reset, resetN, transform=-1, synapse=None)
-        nengo.Connection(bias, resetN, synapse=None)
-
-        nengo.Connection(bias, reset_gate.input, transform=reset_value.T,
-                         synapse=None)
-        nengo.Connection(net.input, reset_gate.input, transform=-1,
-                         synapse=None)
-
-        nengo.Connection(reset_gate.output, net.diff_input,
-                         transform=net.input_transform)
-
-        nengo.Connection(resetX, net.gate, transform=-1)
-        for e in reset_gate.ensembles:
-            nengo.Connection(resetN, e.neurons,
-                             transform=[[-net.gate_gain]] * e.n_neurons)
+            make_resettable(self, self.n_neurons, self.dimensions,
+                            reset_value, ens_class, ens_args,
+                            gate_gain)
