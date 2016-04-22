@@ -147,7 +147,7 @@ class InputGatedMemory(nengo.Network):
 
         ens_args = dict(mem_args)
         if ens_class is EnsembleArray:
-            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+            ens_args['n_ensembles'] = mem_args.get('n_ensembles', dimensions)
         else:
             ens_args['dimensions'] = dimensions
 
@@ -188,7 +188,7 @@ class InputGatedCleanupMemory(nengo.Network):
 
         ens_args = dict(mem_args)
         if ens_class is EnsembleArray:
-            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+            ens_args['n_ensembles'] = mem_args.get('n_ensembles', dimensions)
         else:
             ens_args['dimensions'] = dimensions
 
@@ -229,9 +229,10 @@ class InputGatedCleanupPlusMemory(nengo.Network):
         self.mem_args = dict(mem_args)
 
         ens_args = dict(mem_args)
-        if ens_class is None:
-            ens_class = EnsembleArray
-            ens_args['n_ensembles'] = mem_args.pop('n_ensembles', dimensions)
+        if ens_class is EnsembleArray:
+            ens_args['n_ensembles'] = mem_args.get('n_ensembles', dimensions)
+        else:
+            ens_args['dimensions'] = dimensions
 
         with self:
             # Set up input and output nodes
