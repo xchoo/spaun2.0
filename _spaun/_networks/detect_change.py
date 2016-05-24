@@ -44,19 +44,19 @@ def DetectChange(net=None, dimensions=1, n_neurons=50, diff_scale=0.2,
                                       eval_points=Uniform(0.7, 1))
         nengo.Connection(item_detect, blank_detect, synapse=0.005,
                          function=lambda x: 1 - abs(x))
+        nengo.Connection(blank_detect, net.output, synapse=0.01,
+                         transform=2)
+
         #######################################################################
 
         # Delay ensemble needed to smooth out transition from blank to
         # change detection
-        blank_detect_delay = nengo.Ensemble(n_neurons, 1,
-                                            intercepts=Uniform(0.5, 1),
-                                            encoders=Choice([[1]]),
-                                            eval_points=Uniform(0.5, 1),
-                                            label='Blank Detect')
-        nengo.Connection(blank_detect, blank_detect_delay, synapse=0.03)
-        nengo.Connection(blank_detect, net.output, synapse=0.01,
-                         transform=2)
-
+        # blank_detect_delay = nengo.Ensemble(n_neurons, 1,
+        #                                     intercepts=Uniform(0.5, 1),
+        #                                     encoders=Choice([[1]]),
+        #                                     eval_points=Uniform(0.5, 1),
+        #                                     label='Blank Detect')
+        # nengo.Connection(blank_detect, blank_detect_delay, synapse=0.03)
         #######################################################################
         net.input_diff = input_diff.output
         net.item_detect = item_detect

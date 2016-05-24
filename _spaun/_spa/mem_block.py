@@ -3,7 +3,7 @@ import numpy as np
 import nengo
 from nengo.spa.module import Module
 from nengo.dists import Choice
-from nengo.dists import Uniform
+from nengo.dists import Exponential
 
 from .._networks import InputGatedMemory as WM
 from .._networks import InputGatedCleanupMemory as WMC
@@ -13,8 +13,8 @@ from .._networks import InputGatedCleanupPlusMemory as WMCP
 class MemoryBlock(Module):
     def __init__(self, n_neurons, dimensions, vocab,
                  radius=None, gate_mode=1, reset_mode=3, cleanup_mode=0,
-                 cleanup_keys=None, reset_key=None, label=None, seed=None,
-                 add_to_container=None, **mem_args):
+                 cleanup_keys=None, reset_key=None, threshold_gate_in=False,
+                 label=None, seed=None, add_to_container=None, **mem_args):
         super(MemoryBlock, self).__init__(label, seed, add_to_container)
 
         if radius is None:
@@ -41,25 +41,6 @@ class MemoryBlock(Module):
             reset_mode = 0
 
         with self:
-            # Note: Both gate & gateN are needed here to produce dead-zero
-            #       (no neural activity) when WM is non-gated. So a preceeding
-            #       ensemble needs to generate the full range values to be fed
-            #       into these two.
-            bias_node = nengo.Node(output=1)
-            self.gate = nengo.Node(size_in=1, label="gate")
-
-            self.gateX = nengo.Ensemble(n_neurons, 1, label="gateX",
-                                        intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]),
-                                        eval_points=Uniform(0.5, 1))
-            self.gateN = nengo.Ensemble(n_neurons, 1, label="gateN",
-                                        intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]),
-                                        eval_points=Uniform(0.5, 1))
-            nengo.Connection(self.gate, self.gateX)
-            nengo.Connection(self.gate, self.gateN, transform=-1)
-            nengo.Connection(bias_node, self.gateN)
-
             # cleanup_mode:
             # - 0 (or cleanup_vecs == None): No cleanup
             # - 1: Cleanup memory vectors using provided vectors. Only store
@@ -94,28 +75,52 @@ class MemoryBlock(Module):
                                  cleanup_values=cleanup_vecs,
                                  reset_value=reset_vec, **wm_args)
 
+            # Create gating threshold ensembles if needed. Note that the these
+            # are needed if the WM network does not have its own gating
+            # threshold population. The gating signal needs to be dead-zero
+            # (no neural activity) when WM is non-gated.
+            if threshold_gate_in:
+                gate1 = \
+                    nengo.Ensemble(n_neurons, 1, label="gate1",
+                                   intercepts=Exponential(0.15, 0.5, 1),
+                                   encoders=Choice([[1]]))
+                nengo.Connection(gate1, self.mem1.gate)
+
+                gate2 = \
+                    nengo.Ensemble(n_neurons, 1, label="gate2",
+                                   intercepts=Exponential(0.15, 0.5, 1),
+                                   encoders=Choice([[1]]))
+                nengo.Connection(gate2, self.mem2.gate)
+            else:
+                gate1 = self.mem1.gate
+                gate2 = self.mem2.gate
+
             # gate_modes:
             # - 1: Gate mem1 on gate high, gate mem2 on gate low (default)
             # - 2: Gate mem1 on gate low, gate mem2 on gate high
             if gate_mode == 1:
-                gateX = self.gateX
-                gateN = self.gateN
+                self.gateX = gate1
+                self.gateN = gate2
             else:
-                gateX = self.gateN
-                gateN = self.gateX
+                self.gateX = gate2
+                self.gateN = gate1
 
-            nengo.Connection(gateX, self.mem1.gate)
-            nengo.Connection(gateN, self.mem2.gate)
+            self.gate = nengo.Node(size_in=1, label="gate")
+            bias_node = nengo.Node(output=1)
+
+            nengo.Connection(self.gate, self.gateX)
+            nengo.Connection(self.gate, self.gateN, transform=-1)
+            nengo.Connection(bias_node, self.gateN)
 
             # reset_modes:
             # - 1: Reset only mem1
             # - 2: Reset only mem2
             # - 3: Reset both mem1 and mem2
             if reset_mode:
-                self.reset = nengo.Ensemble(n_neurons, 1, label="reset",
-                                            intercepts=Uniform(0.5, 1),
-                                            encoders=Choice([[1]]),
-                                            eval_points=Uniform(0.5, 1))
+                self.reset = \
+                    nengo.Ensemble(n_neurons, 1, label="reset",
+                                   intercepts=Exponential(0.15, 0.5, 1),
+                                   encoders=Choice([[1]]))
             if reset_mode & 1:
                 nengo.Connection(self.reset, self.mem1.reset, synapse=0.005)
             if reset_mode & 2:

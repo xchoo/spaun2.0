@@ -1,10 +1,10 @@
 import numpy as np
 import nengo
 
-from ...config import cfg
+from ...configurator import cfg
 
 
-def WM_Averaging_Network(net=None, net_label="MBAve", vocab=None):
+def WM_Averaging_Network(vocab, net=None, net_label="MBAve"):
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -26,11 +26,12 @@ def WM_Averaging_Network(net=None, net_label="MBAve", vocab=None):
         mb.mem2.mem.add_output('squared', lambda x: x * x)
         mb_norm = cfg.make_thresh_ens_net()
         nengo.Connection(mb.mem2.mem.squared, mb_norm.input,
-                         transform=np.ones((1, cfg.sp_dim)))
+                         transform=np.ones((1, vocab.dimensions)))
         nengo.Connection(mb_norm.output, mb_in_init.gate)
 
         # ---------- Network input and outputs ----------
-        net.input = nengo.Node(size_in=cfg.sp_dim, label=net_label + 'In Node')
+        net.input = nengo.Node(size_in=vocab.dimensions,
+                               label=net_label + 'In Node')
 
         nengo.Connection(net.input, mb.input, synapse=None,
                          transform=cfg.trans_ave_scale)  # mb = alpha * input

@@ -1,6 +1,6 @@
 import nengo
 
-from ...config import cfg
+from ...configurator import cfg
 
 
 def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
@@ -9,6 +9,14 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
     with net:
         bias_node = nengo.Node(output=1)
+
+        # Ramp init hold
+        ramp_init_hold = \
+            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x)
+        nengo.Connection(ramp_init_hold.output,
+                         ramp_init_hold.input)
+        nengo.Connection(bias_node, ramp_init_hold.input,
+                         transform=-cfg.mtr_ramp_reset_hold_transform)
 
         # Ramp reset hold
         ramp_reset_hold = \
@@ -21,6 +29,8 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
         # Ramp integrator go signal (stops ramp integrator when <= 0.5)
         ramp_int_go = cfg.make_thresh_ens_net()
         nengo.Connection(bias_node, ramp_int_go.input)
+        nengo.Connection(ramp_init_hold.output, ramp_int_go.input,
+                         transform=-2)
         nengo.Connection(ramp_reset_hold.output, ramp_int_go.input,
                          transform=-2)
 
@@ -67,9 +77,11 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         net.go = ramp_int_go.input
         net.end = ramp_reset_thresh.input
+        net.init = ramp_init_hold.input
         net.reset = ramp_reset_hold.input
 
         net.stop = ramp_int_stop.output
+        net.init_hold = ramp_init_hold.output
         net.reset_hold = ramp_reset_hold.output
 
     return net

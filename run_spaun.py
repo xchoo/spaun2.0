@@ -6,6 +6,13 @@ import numpy as np
 
 import nengo
 
+from _spaun.configurator import cfg
+from _spaun.vocabulator import vocab
+from _spaun.experimenter import experiment
+from _spaun.loggerator import logger
+from _spaun.modules.vision.data import vis_data
+from _spaun.modules.motor.data import mtr_data
+from _spaun.utils import get_probe_data_filename
 
 # ----- Defaults -----
 def_dim = 512
@@ -71,6 +78,10 @@ parser.add_argument(
 parser.add_argument(
     '--noprobes', action='store_true',
     help='Supply to disable probes.')
+parser.add_argument(
+    '--probeio', action='store_true',
+    help='Supply to generate probe data for spaun inputs and outputs.' +
+         '(recorded in a separate probe data file)')
 parser.add_argument(
     '--seed', type=int, default=-1,
     help='Random seed to use.')
@@ -162,8 +173,6 @@ else:
     nengo.rc.set("decoder_cache", "enabled", "False")
 
 # ----- Backend Configurations -----
-from _spaun.config import cfg
-
 cfg.backend = args.b
 if args.ocl:
     cfg.backend = 'ocl'
@@ -189,32 +198,25 @@ for n in range(args.n):
     print "MODEL SEED: %i" % cfg.seed
 
     # ----- Model Configurations -----
-    cfg.sp_dim = args.d
-    cfg.raw_seq_str = args.s
+    vocab.sp_dim = args.d
     cfg.data_dir = args.data_dir
 
     # Parse --config options
     if args.config is not None:
         print "USING CONFIGURATION OPTIONS: "
         for cfg_options in args.config:
-            print "  * " + str(cfg_options)
             cfg_opts = cfg_options.split('=')
             cfg_param = cfg_opts[0]
             cfg_value = cfg_opts[1]
-            setattr(cfg, cfg_param, eval(cfg_value))
-
-    if cfg.use_mpi:
-        sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
-
-        mpi_save = args.mpi_save.split('.')
-        mpi_savename = '.'.join(mpi_save[:-1])
-        mpi_saveext = mpi_save[-1]
-
-        cfg.gen_probe_data_filename(mpi_savename, suffix=args.tag)
-    else:
-        cfg.gen_probe_data_filename(suffix=args.tag)
-
-    make_probes = not args.noprobes
+            if hasattr(cfg, cfg_param):
+                print "  * cfg: " + str(cfg_options)
+                setattr(cfg, cfg_param, eval(cfg_value))
+            elif hasattr(experiment, cfg_param):
+                print "  * experiment: " + str(cfg_options)
+                setattr(experiment, cfg_param, eval(cfg_value))
+            elif hasattr(vocab, cfg_param):
+                print "  * vocab: " + str(cfg_options)
+                setattr(vocab, cfg_param, eval(cfg_value))
 
     # ----- Check if data folder exists -----
     if not(os.path.isdir(cfg.data_dir) and os.path.exists(cfg.data_dir)):
@@ -222,27 +224,61 @@ for n in range(args.n):
                            ' does not exist. Please ensure the correct path' +
                            ' has been specified.')
 
-    # ----- Raw stimulus seq -----
-    print "RAW STIM SEQ: %s" % (str(cfg.raw_seq_str))
-
     # ----- Spaun imports -----
     from _spaun.utils import get_total_n_neurons
-    from _spaun.probes import idstr, config_and_setup_probes
+    from _spaun.probes import config_and_setup_probes, write_probe_data
+    from _spaun.probes import setup_probes, setup_probes_animation
     from _spaun.spaun_main import Spaun
-    from _spaun.modules import get_est_runtime
+
+    # ----- Enable debug logging -----
+    if args.debug:
+        nengo.log('debug')
+
+    # ----- Experiment and vocabulary initialization -----
+    experiment.initialize(args.s, vis_data.get_image_ind,
+                          vis_data.get_image_label,
+                          cfg.mtr_est_digit_response_time, cfg.rng)
+    vocab.initialize(experiment.num_learn_actions, cfg.rng)
+    vocab.initialize_mtr_vocab(mtr_data.dimensions, mtr_data.sps)
+    vocab.initialize_vis_vocab(vis_data.dimensions, vis_data.sps)
+
+    # ----- Configure output log files -----
+    if cfg.use_mpi:
+        sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
+
+        mpi_save = args.mpi_save.split('.')
+        mpi_savename = '.'.join(mpi_save[:-1])
+        mpi_saveext = mpi_save[-1]
+
+        cfg.probe_data_filename = get_probe_data_filename(mpi_savename,
+                                                          suffix=args.tag)
+    else:
+        cfg.probe_data_filename = get_probe_data_filename(suffix=args.tag)
+
+    # ----- Initalize looger and write header data -----
+    logger.initialize(cfg.data_dir, cfg.probe_data_filename[:-4] + '_log.txt')
+    cfg.write_header()
+    experiment.write_header()
+    vocab.write_header()
+    logger.flush()
+
+    # ----- Raw stimulus seq -----
+    print "RAW STIM SEQ: %s" % (str(experiment.raw_seq_str))
 
     # ----- Spaun proper -----
     model = Spaun()
 
     # ----- Display stimulus seq -----
-    print "PROCESSED RAW STIM SEQ: %s" % (str(cfg.raw_seq))
-    print "STIMULUS SEQ: %s" % (str(cfg.stim_seq))
+    print "PROCESSED RAW STIM SEQ: %s" % (str(experiment.raw_seq_list))
+    print "STIMULUS SEQ: %s" % (str(experiment.stim_seq_list))
 
     # ----- Calculate runtime -----
     # Note: Moved up here so that we have data to disable probes if necessary
-    runtime = args.t if args.t > 0 else get_est_runtime()
+    runtime = args.t if args.t > 0 else experiment.get_est_simtime()
 
     # ----- Set up probes -----
+    make_probes = not args.noprobes
+
     if runtime > max_probe_time:
         print (">>> !!! WARNING !!! EST RUNTIME > %0.2fs - DISABLING PROBES" %
                max_probe_time)
@@ -250,7 +286,15 @@ for n in range(args.n):
 
     if make_probes:
         print "PROBE FILENAME: %s" % cfg.probe_data_filename
-        config_and_setup_probes(model)
+        config_and_setup_probes(model, cfg.data_dir,
+                                cfg.probe_data_filename, setup_probes)
+
+    # ----- Set up animation probes -----
+    if args.showanim or args.showiofig or args.probeio:
+        anim_probe_data_filename = cfg.probe_data_filename[:-4] + '_anim.npz'
+        print "ANIM PROBE FILENAME: %s" % anim_probe_data_filename
+        config_and_setup_probes(model, cfg.data_dir, anim_probe_data_filename,
+                                setup_probes_animation)
 
     # ----- Neuron count debug -----
     print "MODEL N_NEURONS:  %i" % (get_total_n_neurons(model))
@@ -278,6 +322,11 @@ for n in range(args.n):
     timestamp = time.time()
 
     if args.nengo_gui:
+        # Set environment variables (for nengo_gui)
+        if cfg.use_opencl:
+            os.environ['PYOPENCL_CTX'] = '%s:%s' % (args.ocl_platform,
+                                                    args.ocl_device)
+
         print "STARTING NENGO_GUI"
         import nengo_gui
         nengo_gui.GUI(__file__, model=model, locals=locals(),
@@ -315,7 +364,8 @@ for n in range(args.n):
         mpi_savefile = \
             ('+'.join([cfg.get_probe_data_filename(mpi_savename)[:-4],
                       ('%ip' % args.mpi_p if not args.mpi_p_auto else 'autop'),
-                      '%0.2fs' % get_est_runtime()]) + '.' + mpi_saveext)
+                      '%0.2fs' % experiment.get_est_simtime()]) + '.' +
+             mpi_saveext)
         mpi_savefile = os.path.join(cfg.data_dir, mpi_savefile)
 
         print "USING MPI - Saving to: %s" % (mpi_savefile)
@@ -340,13 +390,13 @@ for n in range(args.n):
     print "BUILD FINISHED - build time: %fs" % t_build
 
     # ----- Spaun simulation run -----
+    experiment.reset()
     if cfg.use_opencl or cfg.use_ref:
         print "START SIM - est_runtime: %f" % runtime
         sim.run(runtime)
 
         # Close output logging file
-        if hasattr(model, 'monitor'):
-            model.monitor.close()
+        logger.close()
 
         if args.ocl_profile:
             sim.print_plans()
@@ -387,13 +437,14 @@ for n in range(args.n):
         n_bytes_bias += sim.model.params[ens].bias.nbytes
         n_ens += 1
 
-    print "## DEBUG: num bytes used for eval points: %s B" % (
-        "{:,}".format(n_bytes_ev))
-    print "## DEBUG: num bytes used for gains: %s B" % (
-        "{:,}".format(n_bytes_gain))
-    print "## DEBUG: num bytes used for biases: %s B" % (
-        "{:,}".format(n_bytes_bias))
-    print "## DEBUG: num ensembles: %s" % n_ens
+    if args.debug:
+        print("## DEBUG: num bytes used for eval points: %s B" %
+              ("{:,}".format(n_bytes_ev)))
+        print("## DEBUG: num bytes used for gains: %s B" %
+              ("{:,}".format(n_bytes_gain)))
+        print("## DEBUG: num bytes used for biases: %s B" %
+              ("{:,}".format(n_bytes_bias)))
+        print("## DEBUG: num ensembles: %s" % n_ens)
 
     # ----- Close simulator -----
     if hasattr(sim, 'close'):
@@ -402,30 +453,44 @@ for n in range(args.n):
     # ----- Write probe data to file -----
     if make_probes and not cfg.use_mpi:
         print "WRITING PROBE DATA TO FILE"
+        write_probe_data(sim, cfg.data_dir, cfg.probe_data_filename)
 
-        probe_data = {'trange': sim.trange(), 'stim_seq': cfg.stim_seq}
-        for probe in sim.data.keys():
-            if isinstance(probe, nengo.Probe):
-                probe_data[idstr(probe)] = sim.data[probe]
-        np.savez_compressed(os.path.join(cfg.data_dir,
-                                         cfg.probe_data_filename),
-                            **probe_data)
-
-        if args.showgrph or args.showanim:
+        if args.showgrph:
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
                                     os.path.join(cfg.data_dir,
                                                  cfg.probe_data_filename),
                                     str(int(args.showgrph)),
+                                    str(0),
+                                    str(0)]
+
+            # Log subprocess call
+            logger.write("\n# " + " ".join(subprocess_call_list))
+
+            # Open subprocess
+            print "CALLING: %s" % (" ".join(subprocess_call_list))
+            import subprocess
+            subprocess.Popen(subprocess_call_list)
+
+    if (args.showanim or args.showiofig or args.probeio) and not cfg.use_mpi:
+        print "WRITING ANIMATION PROBE DATA TO FILE"
+        write_probe_data(sim, cfg.data_dir, anim_probe_data_filename)
+
+        if args.showanim or args.showiofig:
+            subprocess_call_list = ["python",
+                                    os.path.join(cur_dir,
+                                                 'disp_probe_data.py'),
+                                    os.path.join(cfg.data_dir,
+                                                 anim_probe_data_filename),
+                                    str(0),
                                     str(int(args.showanim)),
                                     str(int(args.showiofig))]
 
             # Log subprocess call
-            if hasattr(model, 'monitor'):
-                model.monitor.monitor_data.write_to_file(
-                    "\n# " + " ".join(subprocess_call_list))
+            logger.write("\n# " + " ".join(subprocess_call_list))
 
+            # Open subprocess
             print "CALLING: %s" % (" ".join(subprocess_call_list))
             import subprocess
             subprocess.Popen(subprocess_call_list)

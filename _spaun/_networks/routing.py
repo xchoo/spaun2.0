@@ -3,9 +3,14 @@ from nengo.networks import EnsembleArray
 from nengo.dists import Choice, Exponential
 
 
-def make_route_connections_common(net, ens_class, num_items, gate_gain,
-                                  default_sel=None, threshold_sel_in=False,
-                                  **ens_args):
+def make_ensarray_func(n_neurons, dimensions, **ens_args):
+    n_ensembles = ens_args.get('n_ensembles', dimensions)
+    return EnsembleArray(n_neurons, n_ensembles, **ens_args)
+
+
+def make_route_connections_common(net, n_neurons, dimensions, num_items,
+                                  make_ens_func, gate_gain, default_sel,
+                                  threshold_sel_in, **ens_args):
     with net:
         bias_node = nengo.Node(output=1)
 
@@ -15,13 +20,15 @@ def make_route_connections_common(net, ens_class, num_items, gate_gain,
         for n in range(num_items):
             sel_node = nengo.Node(size_in=1)
             sel_in = sel_node
-            ens = ens_class(**ens_args)
+            ens = make_ens_func(n_neurons=n_neurons, dimensions=dimensions,
+                                label='Gate %d' % n, **ens_args)
 
             if threshold_sel_in:
                 sel_node = nengo.Ensemble(50, 1,
                                           intercepts=Exponential(0.05, 0.25,
                                                                  0.5),
-                                          encoders=Choice([[1]]))
+                                          encoders=Choice([[1]]),
+                                          label='Sel In %d' % n)
                 nengo.Connection(sel_in, sel_node, synapse=None)
 
             nengo.Connection(sel_node, net.sel_none.neurons,
@@ -63,7 +70,8 @@ def make_route_connections_common(net, ens_class, num_items, gate_gain,
 
 
 class Selector(nengo.Network):
-    def __init__(self, ens_class, num_items, dimensions, gate_gain=3,
+    def __init__(self, n_neurons, dimensions, num_items,
+                 make_ens_func=make_ensarray_func, gate_gain=3,
                  default_sel=None, threshold_sel_in=False,
                  label=None, seed=None, add_to_container=None, **ens_args):
 
@@ -73,10 +81,9 @@ class Selector(nengo.Network):
         self.sel_nodes = []
 
         self.dimensions = dimensions
-        if ens_class != EnsembleArray:
-            ens_args['dimensions'] = dimensions
 
-        make_route_connections_common(self, ens_class, num_items, gate_gain,
+        make_route_connections_common(self, n_neurons, dimensions, num_items,
+                                      make_ens_func, gate_gain,
                                       default_sel=default_sel,
                                       threshold_sel_in=threshold_sel_in,
                                       **ens_args)
@@ -93,7 +100,8 @@ class Selector(nengo.Network):
 
 
 class Router(nengo.Network):
-    def __init__(self, ens_class, num_items, dimensions, gate_gain=3,
+    def __init__(self, n_neurons, dimensions, num_items,
+                 make_ens_func=make_ensarray_func, gate_gain=3,
                  default_sel=None, threshold_sel_in=False,
                  label=None, seed=None, add_to_container=None, **ens_args):
 
@@ -103,10 +111,9 @@ class Router(nengo.Network):
         self.sel_nodes = []
 
         self.dimensions = dimensions
-        if ens_class != EnsembleArray:
-            ens_args['dimensions'] = dimensions
 
-        make_route_connections_common(self, ens_class, num_items, gate_gain,
+        make_route_connections_common(self, n_neurons, dimensions, num_items,
+                                      make_ens_func, gate_gain,
                                       default_sel=default_sel,
                                       threshold_sel_in=threshold_sel_in,
                                       **ens_args)

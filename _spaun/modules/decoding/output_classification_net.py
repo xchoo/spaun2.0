@@ -1,7 +1,7 @@
 import numpy as np
 import nengo
 
-from ...config import cfg
+from ...configurator import cfg
 
 
 def Output_Classification_Network(net=None, net_label='OUT CLASSIFICATION'):
@@ -60,9 +60,6 @@ def Output_Classification_Network(net=None, net_label='OUT CLASSIFICATION'):
                          transform=-2, synapse=None)
 
         # ----------------------- Inputs and Outputs --------------------------
-        net.item_input = nengo.Node(cfg.sp_dim)
-        net.item_output = nengo.Node(cfg.sp_dim)
-
         net.output_know = output_know.output
         net.output_unk = output_unk.output
         net.output_stop = output_stop.output

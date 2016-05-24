@@ -2,7 +2,6 @@
 Denoising autoencoders, single-layer and deep.
 """
 import numpy as np
-import lif_vision as vision_net
 
 
 def rms(x, **kwargs):
@@ -57,34 +56,3 @@ class FileObject(object):
         self = cls.__new__(cls)
         self.__setstate__(d)
         return self
-
-
-def get_image(label=None, rng=None):
-    if rng is None:
-        rng = np.random.RandomState()
-
-    if isinstance(label, tuple):
-        label = label[0]
-
-    if isinstance(label, int):
-        # Case when 'label' given is really just the image index number
-        return (vision_net.images_data[label], label)
-    elif label is None:
-        # Case where you need just a blank image
-        return (np.zeros(vision_net.images_data_dimensions), -1)
-    else:
-        # All other cases (usually label is a str)
-        label_ind = np.where(vision_net.images_labels_unique == label)
-        if label_ind[0].shape[0] > 0:
-            image_ind = rng.choice(
-                vision_net.images_labels_inds[label_ind[0][0]])
-        else:
-            image_ind = rng.choice(len(vision_net.images_labels_inds))
-        return (vision_net.images_data[image_ind], image_ind)
-
-
-def get_image_label(index):
-    for label, indicies in enumerate(vision_net.images_labels_inds):
-        if index in indicies:
-            return label
-    return -1

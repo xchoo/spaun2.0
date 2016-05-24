@@ -1,5 +1,9 @@
 import numpy as np
 
+from configurator import cfg
+from experimenter import experiment
+from vocabulator import vocab
+
 
 def get_total_n_neurons(model):
     return sum([e.n_neurons for e in model.all_ensembles])
@@ -40,3 +44,19 @@ def invol_matrix(dim):
     result = np.eye(dim)
     return result[-np.arange(dim), :]
 
+
+def get_probe_data_filename(label='probe_data', suffix='', ext='npz'):
+    suffix = str(suffix).replace('?', '@')
+
+    raw_seq = experiment.raw_seq_str.replace('?', '@').replace(':', ';')
+    raw_seq = raw_seq.replace('>', ')').replace('<', '(')
+
+    if experiment.present_blanks:
+        raw_seq = '-'.join(raw_seq)
+
+    return "+".join([label,
+                     "_".join([str(type(cfg.neuron_type).__name__),
+                               str(vocab.sp_dim)]),
+                     raw_seq,
+                     str(cfg.seed)]) + \
+           ("" if suffix is '' else '(' + suffix + ')') + "." + ext

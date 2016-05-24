@@ -52,6 +52,7 @@ class Compare(Module):
             self.dot_prod = nengo.Node(size_in=1)
             nengo.Connection(self.compare.output, self.dot_prod,
                              transform=np.ones((1, self.dimensions)))
+            # END DEBUG
 
             match_vec = vocab.parse('MATCH').v
             if threshold_outputs:
@@ -67,11 +68,6 @@ class Compare(Module):
                 match_transform = np.array([match_vec] * self.dimensions)
                 nengo.Connection(self.compare.output, self.output,
                                  transform=match_transform.T)
-            # else:
-            #     self.output = nengo.Node(size_in=1, label='output')
-
-            # nengo.Connection(self.compare.output, self.output,
-            #                  transform=np.ones((1, dimensions)))
 
         self.inputs = dict(A=(self.inputA, vocab), B=(self.inputB, vocab))
         self.outputs = dict(default=(self.output, vocab))
@@ -100,15 +96,6 @@ class Compare(Module):
                                      transform=np.array([no_match_vec]).T)
                     nengo.Connection(self.compare.output, self.output,
                                      transform=-no_match_transform.T)
-
-                # else:
-                #     self.conjugate = nengo.Node(size_in=1, label='conjugate')
-
-                # nengo.Connection(bias_node, self.conjugate)
-                # nengo.Connection(self.compare.output, self.conjugate,
-                #                  transform=-np.ones((1, dimensions)))
-
-            # self.outputs['conjugate'] = (self.conjugate, None)
 
     def add_input_normalization(self, min_input_magnitude, max_input_magnitude,
                                 normalized_output_magnitude=1.0,

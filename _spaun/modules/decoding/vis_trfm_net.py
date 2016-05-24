@@ -1,24 +1,23 @@
 import numpy as np
-import nengo
-import os
 
+import nengo
 from nengo.networks import EnsembleArray
 
 from ..._networks import convert_func_2_diff_func
-from ...config import cfg
-from ...vocabs import mtr_vocab, mtr_filepath, mtr_sp_scale_factor
-from ..vision.lif_vision import am_threshold, am_vis_sps
-from ..vision.lif_vision import max_rate as lif_vis_max_rate
+from ...configurator import cfg
 
 
-def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
+def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
+                             copy_draw_trfms_x, copy_draw_trfms_y,
+                             mtr_vocab, mtr_sp_scale_factor,
+                             net=None, net_label='VIS TRFM'):
     if net is None:
         net = nengo.Network(label=net_label)
 
     with net:
         # ----------------------- Inputs and Outputs --------------------------
-        net.input = nengo.Node(size_in=cfg.vis_dim)
-        net.output = nengo.Node(size_in=cfg.mtr_dim)
+        net.input = nengo.Node(size_in=vis_vocab.dimensions)
+        net.output = nengo.Node(size_in=mtr_vocab.dimensions)
 
         # ------------------ Digit (Answer) Classification --------------------
         # Takes digit semantic pointer from visual wm and identifies
@@ -28,23 +27,17 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
         # Note: threshold is halved to compenstate (sort of) for drift in the
         #       visual WM system
         digit_classify = \
-            cfg.make_assoc_mem(am_vis_sps[:len(mtr_vocab.keys), :],
+            cfg.make_assoc_mem(vis_vocab.vectors[:len(mtr_vocab.keys), :],
                                np.ones((len(mtr_vocab.keys),
                                         len(mtr_vocab.keys))) -
                                np.eye(len(mtr_vocab.keys)),
-                               threshold=am_threshold * 0.5,
+                               threshold=vis_am_threshold,
                                label='DIGIT CLASSIFY')
         digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)))
         nengo.Connection(net.input, digit_classify.input,
-                         transform=lif_vis_max_rate, synapse=None)
+                         transform=vis_am_input_scale, synapse=None)
 
         # --------------------- Motor SP Transformation -----------------------
-        # Takes visual SP and transforms them to the 'copy-drawn' motor SP
-        copy_draw_tfrm_data = np.load(os.path.join(mtr_filepath,
-                                                   'copydraw_trfms.npz'))
-        copy_draw_trfms_x = copy_draw_tfrm_data['trfms_x']
-        copy_draw_trfms_y = copy_draw_tfrm_data['trfms_y']
-
         if len(mtr_vocab.keys) != copy_draw_trfms_x.shape[0]:
             raise ValueError('Transform System - Number of motor pointers',
                              ' does not match number of given copydraw',
@@ -52,15 +45,17 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
 
         # ------------------ Motor SP Transform ensembles ---------------------
         for n in range(len(mtr_vocab.keys)):
-            mtr_path_dim = cfg.mtr_dim // 2
+            mtr_path_dim = mtr_vocab.dimensions // 2
             # Motor SP contains both X and Y information, so motor path dim is
             # half that of the SP dim
 
-            trfm_x = convert_func_2_diff_func(copy_draw_trfms_x[n])
-            trfm_y = convert_func_2_diff_func(copy_draw_trfms_y[n])
+            # trfm_x = convert_func_2_diff_func(copy_draw_trfms_x[n])
+            # trfm_y = convert_func_2_diff_func(copy_draw_trfms_y[n])
+            trfm_x = np.array(copy_draw_trfms_x[n])
+            trfm_y = np.array(copy_draw_trfms_y[n])
 
             trfm_ea = EnsembleArray(n_neurons=cfg.n_neurons_ens,
-                                    n_ensembles=cfg.mtr_dim,
+                                    n_ensembles=mtr_vocab.dimensions,
                                     radius=mtr_sp_scale_factor)
             cfg.make_inhibitable(trfm_ea)
 
@@ -73,14 +68,14 @@ def Visual_Transform_Network(net=None, net_label='VIS TRFM'):
             # So transform here is just the identity
             inhib_trfm = np.zeros((1, len(mtr_vocab.keys)))
             inhib_trfm[0, n] = 1
-            nengo.Connection(digit_classify.output, trfm_ea.inhib,
+            nengo.Connection(digit_classify.output, trfm_ea.inhibit,
                              transform=inhib_trfm)
             nengo.Connection(trfm_ea.output, net.output, synapse=None)
 
     return net
 
 
-def Dummy_Visual_Transform_Network(net=None, vectors_in=None, vectors_out=None,
+def Dummy_Visual_Transform_Network(vectors_in, vectors_out, net=None,
                                    net_label='DUMMY VIS TRFM'):
     if net is None:
         net = nengo.Network(label=net_label)

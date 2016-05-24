@@ -1,11 +1,11 @@
 import numpy as np
 import nengo
 
-from ...config import cfg
-from ...vocabs import item_vocab, mtr_vocab, n_num_sp
+from ...configurator import cfg
 
 
-def Serial_Recall_Network(net=None, net_label='SER RECALL'):
+def Serial_Recall_Network(item_vocab, mtr_vocab,
+                          net=None, net_label='SER RECALL'):
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -21,9 +21,10 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
             cfg.make_assoc_mem(item_vocab.vectors, mtr_vocab.vectors,
                                inhibitable=True,
                                threshold=cfg.dec_am_min_thresh,
-                               default_output_vector=np.zeros(cfg.mtr_dim))
+                               default_output_vector=(
+                                   np.zeros(mtr_vocab.dimensions)))
         net.dec_am1.add_output_mapping(
-            'linear_output', np.eye(n_num_sp),
+            'linear_output', np.eye(len(item_vocab.keys)),
             net.dec_am1.threshold_shifted_linear_funcs())
 
         nengo.Connection(net.item_dcconv.output, net.dec_am1.input,
@@ -35,7 +36,7 @@ def Serial_Recall_Network(net=None, net_label='SER RECALL'):
                                          inhibitable=True,
                                          threshold=0.0)
         net.dec_am2.add_output_mapping(
-            'linear_output', np.eye(n_num_sp),
+            'linear_output', np.eye(len(item_vocab.keys)),
             net.dec_am2.threshold_shifted_linear_funcs())
 
         nengo.Connection(net.item_dcconv.output, net.dec_am2.input,
