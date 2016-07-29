@@ -17,7 +17,9 @@ class SpaunExperiment(object):
         for key in self.sym_map.keys():
             self.sym_rev_map[self.sym_map[key]] = key
 
-        self.num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        # self.num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        #                      '-']
+        self.num_out_list = ['z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
                              '-']
 
         self.null_output = "="
@@ -98,7 +100,8 @@ class SpaunExperiment(object):
                 count_val = int(task_opts_str)
                 start_val = int(np.random.random() *
                                 (len(self.num_map) - count_val))
-                new_task_str = 'A4[%d][%d]' % (start_val, count_val)
+                new_task_str = ('A4[%d][%d]?' % (start_val, count_val) +
+                                'X' * (count_val + 1))
             elif task_str == "LEARN":
                 # Format: (LEARN; PROB1A+PROB1B+ ... +PROB1N, NUMTRIALS1;
                 #                 PROB2A+PROB2B+ ... +PROB2N, NUMTRAILS2; ...)
@@ -133,6 +136,32 @@ class SpaunExperiment(object):
 
                 # Generate task string
                 new_task_str = 'A2' + '?X.' * num_trials
+            elif task_str == "QA":
+                # Format: (QA; P or K; LIST_LEN)
+                qa_opts = task_opts_str.split(';')
+                qa_type = str(qa_opts[0]).upper()
+                qa_len = int(qa_opts[1])
+
+                # Generate number list
+                num_list = np.arange(len(self.num_map))
+                np.random.shuffle(num_list)
+                num_list = map(str, num_list)
+
+                # Generate position / kind options
+                len_list = np.arange(qa_len)
+                np.random.shuffle(len_list)
+                pk_opt = 0
+                if qa_type == 'P':
+                    pk_opt = str(len_list[0] + 1)
+                elif qa_type == 'K':
+                    pk_opt = num_list[len_list[0]]
+                else:
+                    raise ValueError('Option "%s" unsupported for QA task.' %
+                                     qa_type)
+
+                # Generate task string
+                new_task_str = 'A5[%s]%s[%s]?XX' % (''.join(num_list[:qa_len]),
+                                                    qa_type, pk_opt)
             else:
                 raise ValueError('Custom task string "%s" ' % task_str +
                                  'not supported.')
@@ -155,16 +184,19 @@ class SpaunExperiment(object):
 
     def add_present_blanks(self, seq_list):
         seq_list_new = []
-        for c in seq_list:
+
+        for i, c in enumerate(seq_list):
             seq_list_new.append(c)
             if c != '.' and c is not None:
                 seq_list_new.append(None)
+
         return seq_list_new
 
     def parse_raw_seq(self, raw_seq_str, get_image_ind, get_image_label,
                       present_blanks, mtr_est_digit_response_time, rng):
         (raw_seq, learn_task_options, num_learn_actions) = \
             self.parse_custom_tasks(self.parse_mult_seq(raw_seq_str))
+
         hw_num = False  # Flag to indicate to use a hand written number
         fixed_num = False
 
@@ -219,6 +251,10 @@ class SpaunExperiment(object):
                                          self.present_interval,
                                          mtr_est_digit_response_time)
                 num_mtr_responses = 0
+
+            # 'R' Option for memory task
+            if c == 'B':
+                c = 'R'
 
             raw_seq_list.append(c)
 
@@ -289,22 +325,25 @@ class SpaunExperiment(object):
             if s == 'A':
                 task = 'X'
                 learn_trial_count = 0
-            if s == 'ZER' and task == 'X':
-                task = 'W'
-            if s == 'ONE' and task == 'X':
-                task = 'R'
-            if s == 'TWO' and task == 'X':
-                task = 'L'
-            if s == 'THR' and task == 'X':
-                task = 'M'
-            if s == 'FOR' and task == 'X':
-                task = 'C'
-            if s == 'FIV' and task == 'X':
-                task = 'A'
-            if s == 'SIX' and task == 'X':
-                task = 'V'
-            if s == 'SEV' and task == 'X':
-                task = 'F'
+            elif task == 'X':
+                if s == 'ZER':
+                    task = 'W'
+                elif s == 'ONE':
+                    task = 'R'
+                elif s == 'TWO':
+                    task = 'L'
+                elif s == 'THR':
+                    task = 'M'
+                elif s == 'FOR':
+                    task = 'C'
+                elif s == 'FIV':
+                    task = 'A'
+                elif s == 'SIX':
+                    task = 'V'
+                elif s == 'SEV':
+                    task = 'F'
+                else:
+                    task = 'UNK'
 
             if task == 'L':
                 # Special handling stuff for learning task
@@ -412,6 +451,7 @@ class SpaunExperiment(object):
     def initialize(self, raw_seq_str, get_image_ind, get_image_label,
                    mtr_est_digit_response_time, rng):
         self.raw_seq_str = raw_seq_str.replace(' ', '')
+
         (self.raw_seq_list, self.stim_seq_list, self.task_phase_seq_list,
          self._num_learn_actions) = \
             self.parse_raw_seq(self.raw_seq_str, get_image_ind,

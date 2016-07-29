@@ -19,7 +19,7 @@ class InfoEncoding(Module):
     @with_self
     def init_module(self):
         self.pos_inc = Pos_Inc_Network(vocab.pos, vocab.pos_sp_strs[0],
-                                       vocab.inc_sp)
+                                       vocab.inc_sp, threshold_gate_in=True)
 
         # POS x ITEM
         self.item_cconv = cfg.make_cir_conv()
@@ -37,7 +37,9 @@ class InfoEncoding(Module):
                                              vocab=vocab.pos,
                                              reset_key=0,
                                              radius=acc_radius,
-                                             n_neurons=100)
+                                             n_neurons=50,
+                                             cleanup_mode=1,
+                                             threshold_gate_in=True)
         nengo.Connection(self.pos_inc.output, self.pos_mb_acc.input)
         nengo.Connection(self.pos_mb_acc.output, self.pos_mb_acc.input)
 
@@ -95,8 +97,8 @@ class InfoEncoding(Module):
 
         # Set up connections from production system module
         if hasattr(parent_net, 'ps'):
-            # Suppress the pos acc gate signal when in the learning task
-            pos_mb_acc_no_gate_sp_vecs = vocab.main.parse('L').v
+            # Suppress the pos acc gate signal when in the decoding task stage
+            pos_mb_acc_no_gate_sp_vecs = vocab.main.parse('DEC').v
             nengo.Connection(parent_net.ps.task, self.pos_mb_acc.gate,
                              transform=[-1.25 * pos_mb_acc_no_gate_sp_vecs])
         else:
@@ -104,14 +106,10 @@ class InfoEncoding(Module):
 
         # Set up connections from decoding module
         if hasattr(parent_net, 'dec'):
-            # nengo.Connection(parent_net.dec.pos_mb_gate_bias.output,
-            #                  self.pos_inc.gate, transform=5, synapse=0.05)
-            # nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
-            #                  self.pos_inc.gate, transform=-4, synapse=0.01)
             nengo.Connection(parent_net.dec.pos_mb_gate_bias.output,
-                             self.pos_inc.gate, transform=4, synapse=0.05)
+                             self.pos_inc.gate, transform=4, synapse=0.01)
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
-                             self.pos_inc.gate, transform=-3, synapse=0.01)
+                             self.pos_inc.gate, transform=-4, synapse=0.01)
         else:
             warn("InfoEncoding Module - Cannot connect from 'dec'")
 

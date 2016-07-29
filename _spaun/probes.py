@@ -221,7 +221,7 @@ def setup_probes_generic(model):
             vocab_pos1.add(p1_str, vocab.main.parse(p1_str))
 
         mem_vocab = vocab_seq_list
-        mem_vocab = vocab_pos1
+        # mem_vocab = vocab_pos1
 
         ####
         vocab_seq_list = vocab_rpm
@@ -272,9 +272,12 @@ def setup_probes_generic(model):
             pps11 = nengo.Probe(model.ps.dec_mb.mem2.output)
             pps12 = nengo.Probe(model.ps.dec_mb.mem1.input, synapse=None)
 
-            pps13 = nengo.Probe(model.ps.task_mb.mem1.gate)
-            pps14 = nengo.Probe(model.ps.state_mb.mem1.gate)
-            pps15 = nengo.Probe(model.ps.dec_mb.mem1.gate)
+            pps13 = nengo.Probe(model.ps.task_mb.gate)
+            pps14 = nengo.Probe(model.ps.state_mb.gate)
+            pps15 = nengo.Probe(model.ps.dec_mb.gate)
+            pps13b = nengo.Probe(model.ps.task_mb.mem1.gate)
+            pps14b = nengo.Probe(model.ps.state_mb.mem1.gate)
+            pps15b = nengo.Probe(model.ps.dec_mb.mem1.gate)
 
             # pps13g = nengo.Probe(model.ps.task_mb.mem2.gate)
             # pps14g = nengo.Probe(model.ps.state_mb.mem2.gate)
@@ -319,9 +322,9 @@ def setup_probes_generic(model):
                                # 'ps_task', p0, pps1, pps6, pps4, pps5, pps6b, pps13d, pps13s, pps13, pps13g, pps13r, 0,  # noqa
                                # 'ps_state', p0, pps2, pps9, pps7, pps8, pps14, pps14d, pps14s, pps14g, pps14r, 0,  # noqa
                                # 'ps_dec', p0, pps3, pps12, pps10, pps11, pps15, pps15d, pps15s, pps15g, pps15r, 0,  # noqa
-                               'ps_task', p0, pps1, pps6, pps4, pps5, pps6b, pps13, pps13r, 0,  # noqa
-                               'ps_state', p0, pps2, pps9, pps7, pps8, pps14, pps14r, 0,  # noqa
-                               'ps_dec', p0, pps3, pps12, pps10, pps11, pps15, pps15r, 0,  # noqa
+                               'ps_task', p0, pps6, pps4, pps5, pps6b, pps13, pps13b, pps13r, 0,  # noqa
+                               'ps_state', p0, pps9, pps7, pps8, pps14, pps14b, pps14r, 0,  # noqa
+                               'ps_dec', p0, pps12, pps10, pps11, pps15, pps15b, pps15r, 0,  # noqa
                                'ps_action', p0, pps17, pps16],
                               [pps1, pps2, pps3, pps4, pps5, pps6, pps16])
             add_to_vocab_dict(vocab_dict, {pps1: vocab.ps_task,
@@ -347,6 +350,7 @@ def setup_probes_generic(model):
 
         if hasattr(model, 'enc') and True:
             pen1 = nengo.Probe(model.enc.pos_inc.gate)
+            pen2 = nengo.Probe(model.enc.pos_inc.pos_mb.gateX)
             # pen2 = nengo.Probe(model.enc.pos_mb.gateX)
             # pen3 = nengo.Probe(model.enc.pos_mb.gateN)
             pen4 = nengo.Probe(model.enc.pos_inc.output)
@@ -368,7 +372,7 @@ def setup_probes_generic(model):
 
             add_to_graph_list(graph_list,
                               # ['enc', p0, pen1, pen4, pen7, pen7a, pen6],
-                              ['enc', p0, pen1, pen4, pen5, pen5b, pen6],
+                              ['enc', p0, pen1, pen2, pen4, pen5, pen5b, pen6],
                               [pen4])
             add_to_vocab_dict(vocab_dict, {pen4: vocab.pos,
                                            pen5: vocab.pos,
@@ -418,6 +422,7 @@ def setup_probes_generic(model):
             pmm1i = nengo.Probe(model.mem.input)
             pmm1ai = nengo.Probe(model.mem.mb1_net.mba.mem1.input)
             pmm1bi = nengo.Probe(model.mem.mb1_net.mba.mem2.input)
+            pmm1g = nengo.Probe(model.mem.mb1_net.gate)
             pmm1gx = nengo.Probe(model.mem.mb1_net.mba.gateX)
             pmm1gn = nengo.Probe(model.mem.mb1_net.mba.gateN)
             pmm1ag = nengo.Probe(model.mem.mb1_net.mba.mem1.gate)
@@ -430,7 +435,7 @@ def setup_probes_generic(model):
             # pmm1bg = nengo.Probe(model.mem.mb1_net.mbb.mem1.gate)
 
             add_to_graph_list(graph_list,
-                              ['mb1 details', pmm1i, pmm1ai, pmm1bi, pmm1a, pmm1gx, pmm1gn, pmm1ag, pmm1bg, 0,  # noqa
+                              ['mb1 details', pmm1i, pmm1ai, pmm1bi, pmm1a, pmm1g, pmm1gx, pmm1gn, pmm1ag, pmm1bg, 0,  # noqa
                                ])
 
             add_to_vocab_dict(vocab_dict, {pmm1i: mem_vocab,

@@ -279,7 +279,7 @@ for n in range(args.n):
     # ----- Set up probes -----
     make_probes = not args.noprobes
 
-    if runtime > max_probe_time:
+    if runtime > max_probe_time and make_probes:
         print (">>> !!! WARNING !!! EST RUNTIME > %0.2fs - DISABLING PROBES" %
                max_probe_time)
         make_probes = False
@@ -316,6 +316,9 @@ for n in range(args.n):
         print "- dec  n_neurons: %i" % (get_total_n_neurons(model.dec))
     if hasattr(model, 'mtr'):
         print "- mtr  n_neurons: %i" % (get_total_n_neurons(model.mtr))
+
+    # ----- Connections count debug -----
+    print "MODEL N_CONNECTIONS: %i" % (len(model.all_connections))
 
     # ----- Spaun simulation build -----
     print "START BUILD"
@@ -459,8 +462,9 @@ for n in range(args.n):
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    os.path.join(cfg.data_dir,
-                                                 cfg.probe_data_filename),
+                                    '"' + os.path.join(
+                                        cfg.data_dir,
+                                        cfg.probe_data_filename) + '"',
                                     str(int(args.showgrph)),
                                     str(0),
                                     str(0)]
@@ -481,8 +485,9 @@ for n in range(args.n):
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    os.path.join(cfg.data_dir,
-                                                 anim_probe_data_filename),
+                                    '"' + os.path.join(
+                                        cfg.data_dir,
+                                        anim_probe_data_filename) + '"',
                                     str(0),
                                     str(int(args.showanim)),
                                     str(int(args.showiofig))]

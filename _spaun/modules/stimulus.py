@@ -62,7 +62,7 @@ class SpaunStimulusDummy(Module):
 
     @with_self
     def init_module(self):
-        dimension = 28 * 28
+        dimension = vocab.vis_dim
         self.output = nengo.Node(output=np.random.uniform(size=dimension))
 
         # Define vocabulary inputs and outputs

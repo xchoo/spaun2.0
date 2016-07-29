@@ -8,10 +8,9 @@ from nengo.networks import InputGatedMemory as WM
 
 
 class MemoryBlock(nengo.Network):
-    def __init__(self, n_neurons, dimensions, vocab,
-                 radius=None, gate_mode=1, reset_mode=3,
-                 label=None, seed=None,
-                 add_to_container=None, **mem_args):
+    def __init__(self, n_neurons, dimensions, radius=None, gate_mode=1,
+                 reset_mode=3, label=None, seed=None, add_to_container=None,
+                 **mem_args):
         super(MemoryBlock, self).__init__(label, seed, add_to_container)
 
         if radius is None:
@@ -41,14 +40,12 @@ class MemoryBlock(nengo.Network):
             wm_args = dict(mem_args)
             wm_args['difference_gain'] = mem_args.get('difference_gain', 15)
 
-            wm_config = nengo.Config(nengo.Ensemble, nengo.Connection)
+            wm_config = nengo.Config(nengo.Ensemble)
             wm_config[nengo.Ensemble].radius = radius
-            wm_config[nengo.Connection].synapse = nengo.Lowpass(0.1)
 
-            self.mem1 = WM(n_neurons, dimensions, mem_config=wm_config,
-                           **wm_args)
-            self.mem2 = WM(n_neurons, dimensions, mem_config=wm_config,
-                           **wm_args)
+            with wm_config:
+                self.mem1 = WM(n_neurons, dimensions, **wm_args)
+                self.mem2 = WM(n_neurons, dimensions, **wm_args)
 
             # gate_modes:
             # - 1: Gate mem1 on gate high, gate mem2 on gate low (default)

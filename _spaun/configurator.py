@@ -36,8 +36,6 @@ class SpaunConfig(object):
         self.max_rates = Uniform(100, 200)
         self.neuron_type = nengo.LIF()
 
-        self.present_interval = 0.15
-        self.present_blanks = False
         self.sim_dt = 0.001
 
         self.ps_mb_gain_scale = 2.0
@@ -45,14 +43,15 @@ class SpaunConfig(object):
         self.ps_action_am_threshold = 0.2
 
         self.enc_mb_acc_radius_scale = 2.5
+        self.enc_pos_cleanup_mode = 2
 
         self.mb_rehearsalbuf_input_scale = 1.0  # 1.75
         self.mb_decaybuf_input_scale = 1.5  # 1.75
-        self.mb_decay_val = 0.992  # 0.985
+        self.mb_decay_val = 0.975
         self.mb_fdbk_val = 1.3
         self.mb_config = {'mem_synapse': Lowpass(0.08), 'difference_gain': 6,
                           'gate_gain': 5}
-        self.mb_gate_scale = 1.5  # 1.2
+        self.mb_gate_scale = 1.0  # 1.2
 
         self.trans_cconv_radius = 2
         self.trans_ave_scale = 0.3
@@ -60,11 +59,11 @@ class SpaunConfig(object):
         self.dcconv_radius = 2
         self.dcconv_item_in_scale = 0.75  # 0.5
 
-        self.dec_am_min_thresh = 0.35  # 0.20
+        self.dec_am_min_thresh = 0.30
         self.dec_am_min_diff = 0.1
         self.dec_fr_min_thresh = self.dec_am_min_thresh * 1.2  # 0.3
         self.dec_fr_item_in_scale = 0.65  # 1.0
-        self.dec_fr_to_am_scale = 0.1
+        self.dec_fr_to_am_scale = 0.25
 
         self.mtr_ramp_synapse = 0.05
         self.mtr_ramp_reset_hold_transform = 0.1  # 0.945
@@ -147,8 +146,10 @@ class SpaunConfig(object):
         return get_optimal_radius(dim, subdim)
 
     def make_inhibitable(self, net, inhib_scale=3):
-        if hasattr(net, 'inhib'):
+        if hasattr(net, 'inhibit'):
             pass
+        elif hasattr(net, 'inhib'):
+            net.inhibit = net.inhib
         elif hasattr(net, 'make_inhibitable'):
             net.make_inhibitable(inhib_scale=inhib_scale)
         else:
@@ -240,6 +241,7 @@ class SpaunConfig(object):
         ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
         n_ensembles = ens_args.pop('dimensions', vocab.sp_dim)
         ens_args['n_ensembles'] = args.get('n_ensembles', n_ensembles)
+        ens_args['radius'] = args.get('radius', self.get_optimal_sp_radius())
         return EnsembleArray(**ens_args)
 
     def make_spa_ens_array(self, **args):

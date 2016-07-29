@@ -22,7 +22,7 @@ class ProductionSystem(Module):
                 cfg.make_mem_block(vocab=vocab.ps_task,
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
-                                   wta_output=True, reset_key='X')
+                                   wta_output=False, reset_key='X')
 
             self.state_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_state,
@@ -67,15 +67,20 @@ class ProductionSystem(Module):
 
         # Create threshold ensemble to handle initialization of tasks
         # - task mb gate signal is set high when in init state.
-        self.bias_node = nengo.Node(1)
-        self.task_init = cfg.make_thresh_ens_net(0.6)
+        # - state mb gate signal is set high when in init state.
+        # - dec mb gate signal is set high when in init state.
+        # self.bias_node = nengo.Node(1)
+        self.task_init = cfg.make_thresh_ens_net(0.4)
 
-        nengo.Connection(self.bias_node, self.task_init.input, transform=-0.75)
+        # nengo.Connection(self.bias_node, self.task_init.input, transform=-0.75)
         nengo.Connection(self.task_init.output, self.task_mb.gate)
+        nengo.Connection(self.task_init.output, self.state_mb.reset)
+        nengo.Connection(self.task_init.output, self.dec_mb.reset)
 
         ps_task_init_task_sp_vecs = vocab.main.parse('X').v
         nengo.Connection(self.task, self.task_init.input,
-                         transform=[0.75 * ps_task_init_task_sp_vecs])
+                         transform=[ps_task_init_task_sp_vecs],
+                         synapse=0.01)
 
         # Define module input and outputs
         self.inputs = dict(task=(self.task_mb.input, vocab.ps_task),
@@ -92,8 +97,8 @@ class ProductionSystem(Module):
         if hasattr(parent_net, 'vis'):
             # ###### Task MB ########
             task_mb_gate_sp_vecs = vocab.main.parse('QM').v
-            ps_task_init_vis_sp_vecs = \
-                vocab.main.parse('+'.join(vocab.num_sp_strs)).v
+            # ps_task_init_vis_sp_vecs = \
+            #     vocab.main.parse('+'.join(vocab.num_sp_strs)).v
             task_mb_rst_sp_vecs = vocab.main.parse('A').v
 
             nengo.Connection(parent_net.vis.output, self.task_mb.gate,
@@ -106,12 +111,9 @@ class ProductionSystem(Module):
                              transform=[cfg.mb_gate_scale *
                                         task_mb_rst_sp_vecs])
 
-            nengo.Connection(parent_net.vis.output, self.task_init.input,
-                             transform=[[1] * ps_task_init_vis_sp_vecs])
-
             # ###### State MB ########
             state_mb_gate_sp_vecs = vocab.main.parse('CLOSE+K+P+QM').v
-            state_mb_rst_sp_vecs = vocab.main.parse('A').v
+            state_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.state_mb.gate,
                              transform=[cfg.mb_gate_scale *
@@ -124,10 +126,8 @@ class ProductionSystem(Module):
                                         state_mb_rst_sp_vecs])
 
             # ###### Dec MB ########
-            # dec_mb_gate_sp_vecs = \
-            #     vocab.main.parse('F+R+QM' + '+'.join(vocab.num_sp_strs)).v
             dec_mb_gate_sp_vecs = vocab.main.parse('F+R+QM').v
-            dec_mb_rst_sp_vecs = vocab.main.parse('A').v
+            dec_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.dec_mb.gate,
                              transform=[cfg.mb_gate_scale *
@@ -145,10 +145,10 @@ class ProductionSystem(Module):
         if hasattr(parent_net, 'dec'):
             # ###### State MB ########
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
-                             self.state_mb.gate, transform=4)
+                             self.state_mb.gate, transform=5)
 
             # ###### Dec MB ########
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
-                             self.dec_mb.gate, transform=4)
+                             self.dec_mb.gate, transform=5)
         else:
             warn("ProductionSystem Module - Could not connect from 'dec'")

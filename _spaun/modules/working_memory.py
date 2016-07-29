@@ -21,6 +21,9 @@ class WorkingMemory(Module):
         self.mem_in = nengo.Node(size_in=vocab.sp_dim,
                                  label='WM Module In Node')
 
+        # Memory block common gate signal
+        self.mb_gate_sig = cfg.make_thresh_ens_net(label='MB Gate Sig')
+
         # sp_add_matrix = (vocab.add_sp.get_convolution_matrix() *
         #                  (0.25 + 0.25 / cfg.mb_decaybuf_input_scale))
         sp_add_matrix = (vocab.add_sp.get_convolution_matrix() *
@@ -35,16 +38,18 @@ class WorkingMemory(Module):
 
         self.cnt_gate_sig = cfg.make_thresh_ens_net(0.5, label='Cnt Gate Sig')
 
+        nengo.Connection(self.gate_sig_bias.output, self.mb_gate_sig.input,
+                         transform=2.25)
+        nengo.Connection(self.cnt_gate_sig.output, self.mb_gate_sig.input,
+                         transform=1.5)
+
         # Memory block 1
         self.mb1_net = WM_Generic_Network(vocab.main, sp_add_matrix,
                                           net_label="MB1")
         nengo.Connection(self.mem_in, self.mb1_net.input, synapse=None)
         nengo.Connection(self.num0_bias_node, self.mb1_net.side_load,
                          synapse=None)
-        nengo.Connection(self.gate_sig_bias.output, self.mb1_net.gate,
-                         transform=2.25)
-        nengo.Connection(self.cnt_gate_sig.output, self.mb1_net.gate,
-                         transform=1.5)
+        nengo.Connection(self.mb_gate_sig.output, self.mb1_net.gate)
 
         self.mb1 = self.mb1_net.output
 
@@ -54,10 +59,7 @@ class WorkingMemory(Module):
         nengo.Connection(self.mem_in, self.mb2_net.input, synapse=None)
         nengo.Connection(self.num0_bias_node, self.mb2_net.side_load,
                          synapse=None)
-        nengo.Connection(self.gate_sig_bias.output, self.mb2_net.gate,
-                         transform=2.25)
-        nengo.Connection(self.cnt_gate_sig.output, self.mb2_net.gate,
-                         transform=1.5)
+        nengo.Connection(self.mb_gate_sig.output, self.mb2_net.gate)
 
         self.mb2 = self.mb2_net.output
 
@@ -67,10 +69,7 @@ class WorkingMemory(Module):
         nengo.Connection(self.mem_in, self.mb3_net.input, synapse=None)
         nengo.Connection(self.num0_bias_node, self.mb3_net.side_load,
                          synapse=None)
-        nengo.Connection(self.gate_sig_bias.output, self.mb3_net.gate,
-                         transform=2.25)
-        nengo.Connection(self.cnt_gate_sig.output, self.mb3_net.gate,
-                         transform=1.5)
+        nengo.Connection(self.mb_gate_sig.output, self.mb3_net.gate)
 
         self.mb3 = self.mb3_net.output
 
@@ -96,38 +95,34 @@ class WorkingMemory(Module):
                 vocab.main.parse('+'.join(vocab.num_sp_strs)).v
             item_mb_rst_sp_vecs = vocab.main.parse('A+OPEN').v
 
-            # ###### MB1 ########
-            nengo.Connection(p_net.vis.output, self.mb1_net.gate,
+            # ###### MB COMMON GATE SIG ######
+            nengo.Connection(p_net.vis.output, self.mb_gate_sig.input,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_gate_sp_vecs])
-            nengo.Connection(p_net.vis.neg_attention,
-                             self.mb1_net.gate, transform=-1.5, synapse=0.01)
 
+            # ###### MB1 ########
             nengo.Connection(p_net.vis.output, self.mb1_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
+            nengo.Connection(p_net.vis.neg_attention,
+                             self.mb1_net.gate, transform=-1.5,
+                             synapse=0.01)
 
             # ###### MB2 ########
-            nengo.Connection(p_net.vis.output, self.mb2_net.gate,
-                             transform=[cfg.mb_gate_scale *
-                                        item_mb_gate_sp_vecs])
-            nengo.Connection(p_net.vis.neg_attention,
-                             self.mb2_net.gate, transform=-1.5, synapse=0.01)
-
             nengo.Connection(p_net.vis.output, self.mb2_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
+            nengo.Connection(p_net.vis.neg_attention,
+                             self.mb2_net.gate, transform=-1.5,
+                             synapse=0.01)
 
             # ###### MB3 ########
-            nengo.Connection(p_net.vis.output, self.mb3_net.gate,
-                             transform=[cfg.mb_gate_scale *
-                                        item_mb_gate_sp_vecs])
-            nengo.Connection(p_net.vis.neg_attention,
-                             self.mb3_net.gate, transform=-1.5, synapse=0.01)
-
             nengo.Connection(p_net.vis.output, self.mb3_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
+            nengo.Connection(p_net.vis.neg_attention,
+                             self.mb3_net.gate, transform=-1.5,
+                             synapse=0.01)
 
             # ###### MBAve ########
             ave_mb_gate_sp_vecs = vocab.main.parse('CLOSE').v
@@ -246,7 +241,8 @@ class WorkingMemory(Module):
 
         # Set up connections from encoding module
         if hasattr(p_net, 'enc'):
-            nengo.Connection(p_net.enc.enc_output, self.mem_in)
+            nengo.Connection(p_net.enc.enc_output, self.mem_in,
+                             synapse=0.01)
         else:
             warn("WorkingMemory Module - Cannot connect from 'enc'")
 

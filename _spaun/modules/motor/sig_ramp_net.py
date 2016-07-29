@@ -30,9 +30,9 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
         ramp_int_go = cfg.make_thresh_ens_net()
         nengo.Connection(bias_node, ramp_int_go.input)
         nengo.Connection(ramp_init_hold.output, ramp_int_go.input,
-                         transform=-2)
+                         transform=-10)
         nengo.Connection(ramp_reset_hold.output, ramp_int_go.input,
-                         transform=-2)
+                         transform=-10)
 
         # Ramp integrator stop signal (inverse of ramp integrator go signal)
         ramp_int_stop = cfg.make_thresh_ens_net()
@@ -60,7 +60,7 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
         # reaches the top of the ramp slope.
         ramp_reset_thresh = cfg.make_thresh_ens_net(0.91, radius=1.1)
         nengo.Connection(ramp_reset_thresh.output, ramp_reset_hold.input,
-                         transform=2.5, synapse=0.015)
+                         transform=5.0, synapse=0.015)
 
         # Misc ramp threshold outputs
         ramp_75 = cfg.make_thresh_ens_net(0.75)

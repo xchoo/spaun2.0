@@ -4,7 +4,6 @@ from nengo import spa
 
 from .configurator import cfg
 from .vocabulator import vocab
-from .experimenter import experiment
 from .loggerator import logger
 from _spaun.modules import Stimulus, Vision, ProdSys, RewardEval, InfoEnc
 from _spaun.modules import TrfmSys, Memory, Monitor, InfoDec, Motor
@@ -39,13 +38,13 @@ def Spaun():
 
         if hasattr(model, 'vis') and hasattr(model, 'ps'):
             copy_draw_action = \
-                ['0.5 * (dot(ps_task, X) + dot(vis, ZER)) --> ps_task = W',  # noqa
+                ['0.5 * (dot(ps_task, X) + dot(vis, ZER)) --> ps_task = W, ps_state = TRANS0, ps_dec = FWD',  # noqa
                  'dot(ps_task, W-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
             recog_action = \
-                ['0.5 * (dot(ps_task, X) + dot(vis, ONE)) --> ps_task = R',  # noqa
+                ['0.5 * (dot(ps_task, X) + dot(vis, ONE)) --> ps_task = R, ps_state = TRANS0, ps_dec = FWD',  # noqa
                  'dot(ps_task, R-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
 
-            learn_state_action = ['0.5 * (dot(ps_task, X) + dot(vis, TWO)) - dot(vis, QM) --> ps_task = L']  # noqa
+            learn_state_action = ['0.5 * (dot(ps_task, X) + dot(vis, TWO)) - dot(vis, QM) --> ps_task = L, ps_state = LEARN, ps_dec = FWD']  # noqa
                                   # '0.5 * (dot(ps_task, L) + dot(vis, {:s} + {:s})) --> ps_state = LEARN'.format(*vocab.reward_sp_strs)]  # noqa
             if hasattr(model, 'reward'):
                 learn_action = ['0.5 * dot(ps_task, L) - dot(vis, QM) --> ps_action = %s, ps_state = LEARN, ps_dec = NONE' %  # noqa
@@ -54,32 +53,34 @@ def Spaun():
                 learn_action = []
 
             mem_action = \
-                ['0.5 * (dot(ps_task, X) + dot(vis, THR)) --> ps_task = M',  # noqa
+                ['0.5 * (dot(ps_task, X) + dot(vis, THR)) --> ps_task = M, ps_state = TRANS0, ps_dec = FWD',  # noqa
                  'dot(ps_task, M-DEC) - dot(vis, F + R + QM) --> ps_state = ps_state',  # noqa
                  '0.5 * (dot(ps_task, M-DEC) + dot(vis, F)) - dot(vis, QM) --> ps_dec = FWD',  # noqa
                  '0.5 * (dot(ps_task, M-DEC) + dot(vis, R)) - dot(vis, QM) --> ps_dec = REV']  # noqa
 
             if hasattr(model, 'trfm'):
                 count_action = \
-                    ['0.5 * (dot(ps_task, X) + dot(vis, FOR)) --> ps_task = C',  # noqa
+                    ['0.5 * (dot(ps_task, X) + dot(vis, FOR)) --> ps_task = C, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = CNT0',  # noqa
                      '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, CNT0)) - dot(vis, QM) --> ps_state = CNT1',  # noqa
                      '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = CNT, ps_state = CNT1',  # noqa
                      '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = FWD, ps_state = TRANS0']  # noqa
                 qa_action = \
-                    ['0.5 * (dot(ps_task, X) + dot(vis, FIV)) --> ps_task = A',  # noqa
+                    ['0.5 * (dot(ps_task, X) + dot(vis, FIV)) --> ps_task = A, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      'dot(ps_task, A-DEC) - dot(vis, K + P + QM) --> ps_state = ps_state',  # noqa
                      '0.5 * (dot(ps_task, A-DEC) + dot(vis, K)) - dot(vis, QM) --> ps_state = QAK',  # noqa
                      '0.5 * (dot(ps_task, A-DEC) + dot(vis, P)) - dot(vis, QM) --> ps_state = QAP']  # noqa
+
                 rvc_action = \
-                    ['0.5 * (dot(ps_task, X) + dot(vis, SIX)) --> ps_task = V',  # noqa
+                    ['0.5 * (dot(ps_task, X) + dot(vis, SIX)) --> ps_task = V, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
                      '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
                 fi_action = \
-                    ['0.5 * (dot(ps_task, X) + dot(vis, SEV)) --> ps_task = F',  # noqa
+                    ['0.5 * (dot(ps_task, X) + dot(vis, SEV)) --> ps_task = F, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS2',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
+
             else:
                 count_action = []
                 qa_action = []
@@ -92,7 +93,7 @@ def Spaun():
                  '0.5 * (dot(vis, QM) + dot(ps_task, C)) --> ps_task = DEC, ps_state = ps_state, ps_dec = CNT',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, V + F)) --> ps_task = DEC, ps_state = ps_state, ps_dec = DECI',  # noqa
                  '0.5 * (dot(vis, QM) + dot(ps_task, L)) --> ps_task = L, ps_state = LEARN, ps_dec = FWD',  # noqa
-                 'dot(ps_task, DEC) - dot(ps_dec, CNT) - dot(vis, QM) --> ps_task = ps_task, ps_state = ps_state, ps_dec = ps_dec']  # noqa
+                 'dot(ps_task, DEC) - dot(ps_dec, CNT) - dot(vis, QM + A) --> ps_task = ps_task, ps_state = ps_state, ps_dec = ps_dec']  # noqa
             default_action = \
                 []
 
@@ -106,7 +107,8 @@ def Spaun():
             actions = spa.Actions(*all_actions)
             model.bg = spa.BasalGanglia(actions=actions, input_synapse=0.008,
                                         label='Basal Ganglia')
-            model.thal = spa.Thalamus(model.bg, mutual_inhibit=1,
+            model.thal = spa.Thalamus(model.bg, subdim_channel=1,
+                                      mutual_inhibit=1, route_inhibit=5.0,
                                       label='Thalamus')
 
         # ----- Set up connections (and save record of modules) -----
@@ -124,7 +126,7 @@ def Spaun():
                                               label='BG Bias Ensemble')
                     nengo.Connection(bias_node, bias_ens)
 
-                    for i in range(experiment.num_learn_actions):
+                    for i in range(len(learn_action)):
                         init_trfm = (np.random.random() *
                                      cfg.learn_init_trfm_max)
                         trfm_val = cfg.learn_init_trfm_bias + init_trfm

@@ -21,9 +21,11 @@ def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
         mb_reset = nengo.Node(size_in=1, label=net_label + ' Reset Node')
 
         mba = cfg.make_mem_block(vocab=vocab, reset_key=0,
-                                 label=net_label + 'A (Rehearsal)')
+                                 label=net_label + 'A (Rehearsal)',
+                                 make_ens_func=cfg.make_ens_array)
         mbb = cfg.make_mem_block(vocab=vocab, fdbk_transform=cfg.mb_decay_val,
-                                 reset_key=0, label=net_label + 'B (Decay)')
+                                 reset_key=0, label=net_label + 'B (Decay)',
+                                 make_ens_func=cfg.make_ens_array)
 
         nengo.Connection(sel_in.output, mba.input,
                          transform=cfg.mb_rehearsalbuf_input_scale)

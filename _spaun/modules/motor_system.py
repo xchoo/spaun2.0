@@ -158,6 +158,11 @@ class MotorSystem(Module):
                          (np.sqrt(x[0] ** 2 + x[1] ** 2)) > 0,
                          synapse=0.01)
 
+        # Disable the target_diff_norm when motor bypass
+        nengo.Connection(self.motor_bypass.output,
+                         target_diff_norm.neurons,
+                         transform=[[-3.0]] * target_diff_norm.n_neurons)
+
         # ------ MOTOR PEN DOWN CONTROL ------
         pen_down = cfg.make_thresh_ens_net()
 
@@ -176,7 +181,7 @@ class MotorSystem(Module):
 
         # Pen down signal feedback to rest of motor system (tells the ramp to
         # keep going, and the osc_net to use only kv1)
-        nengo.Connection(pen_down.output, self.ramp_sig.go, transform=8)
+        nengo.Connection(pen_down.output, self.ramp_sig.go, transform=12)
         if arm_obj is not None:
             nengo.Connection(pen_down.output, osc_net.CB2_inhibit)
 
@@ -252,7 +257,8 @@ class MotorSystem(Module):
             nengo.Connection(parent_net.ps.state, self.motor_stop_input.input,
                              transform=[mtr_learn_sp_vecs * -1.0])
 
-            # Motor bypass signal
+            # Motor bypass signal, also disable target_diff_norm
+            # calculation
             mtr_bypass_task_sp_vecs = vocab.main.parse('CNT').v
             nengo.Connection(parent_net.ps.dec, self.motor_bypass.input,
                              transform=[mtr_bypass_task_sp_vecs * 1.0])

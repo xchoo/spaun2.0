@@ -85,7 +85,7 @@ class InfoDecoding(Module):
                          self.free_recall_decode.reset)
         nengo.Connection(self.pos_mb_gate_bias.output,
                          self.free_recall_decode.gate, transform=2,
-                         synapse=0.08)
+                         synapse=0.03)
         # - Large synapse here to smooth out bias signal
         #   (it's kinda wibbly-wobbly)
         nengo.Connection(self.pos_mb_gate_sig.output,
@@ -95,10 +95,6 @@ class InfoDecoding(Module):
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
                          self.free_recall_decode.inhibit, synapse=0.01)
-
-        # nengo.Connection(self.pos_mb_gate_sig.output,
-        #                  self.free_recall_decode.inhibit, synapse=0.01)
-        # IS THIS STILL NEEDED?
 
         # ------------- Visual transform decoding network ------------------- #
         if vocab.vis_dim > 0:
@@ -294,18 +290,12 @@ class InfoDecoding(Module):
             dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
             nengo.Connection(p_net.ps.dec, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_dec_sp_vecs],
-                             synapse=0.05)
+                             synapse=0.02)
 
-            dec_pos_gate_task_sp_vecs = vocab.main.parse('DEC+L').v
+            dec_pos_gate_task_sp_vecs = vocab.main.parse('DEC').v
             nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_task_sp_vecs],
-                             synapse=0.05)
-
-            # #MARK#
-            # dec_pos_gate_state_sp_vecs = vocab.main.parse('LEARN').v
-            # nengo.Connection(p_net.ps.state, self.pos_mb_gate_bias.input,
-            #                  transform=[dec_pos_gate_state_sp_vecs],
-            #                  synapse=0.05)
+                             synapse=0.02)
 
             # Connections for inhibitory signals
             nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
@@ -346,12 +336,6 @@ class InfoDecoding(Module):
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):
-            # nengo.Connection(p_net.mtr.ramp_reset_hold,
-            #                  self.pos_mb_gate_sig.input,
-            #                  synapse=0.005, transform=5)
-            # nengo.Connection(p_net.mtr.ramp_reset_hold,
-            #                  self.pos_mb_gate_sig.input,
-            #                  synapse=0.08, transform=-10)
             nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.pos_mb_gate_sig.input,
                              synapse=0.005)

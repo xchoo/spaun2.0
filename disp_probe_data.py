@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from _spaun.animation import ArmAnim, DataFunctions, GeneratorFunctions
+from _spaun.modules.vision.data import VisionDataObject
 
 supported_data_version = 4
 
@@ -20,13 +21,15 @@ default_filename = 'probe_data_nospc_LIF_256_list7_B.npz'
 
 # --------------------- PROCESS SYSTEM ARGS ---------------------
 if len(sys.argv) > 1:
-    data_filename = sys.argv[1]
+    data_filename = sys.argv[1].strip()
+    data_filename = data_filename.replace('"', '')
 else:
     data_filename = default_filename
 
 if len(sys.argv) > 2:
     show_grphs = int(sys.argv[2])
     show_anim = int(sys.argv[3])
+    show_io = int(sys.argv[4])
 else:
     show_grphs = True
 
@@ -48,7 +51,8 @@ elif data_filename.endswith('.h5'):
 
     gen_trange = True
 else:
-    raise RuntimeError('File format not supported.')
+    raise RuntimeError('Filename: %s - File format not supported.' %
+                       data_filename)
 
 # --------------------- LOAD MODEL & PROBE CONFIG DATA ---------------------
 config_data = np.load(config_filename)
@@ -81,6 +85,10 @@ def handle_close(fig, fig_list):
     if len(fig_list) > 0:
         plt.close(fig_list[0])
 
+
+# Helper function to calculate differences in images (for show_io)
+def rmse(x1, x2):
+    return np.sqrt(np.sum((x1 - x2) ** 2))
 
 # --------------------- DISPLAY GRAPHED DATA ---------------------
 if show_grphs:
@@ -150,12 +158,18 @@ if show_grphs:
             plt.xlim([trange[0], trange[-1]])
             plt.ylabel('%i,%i' % (n + 1, r + 1))
 
-if show_anim:
+            # Compress plots
+            f.subplots_adjust(hspace=0.05, bottom=0.05, left=0.1, right=0.98,
+                              top=0.95)
+            plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+
+if show_anim or show_io:
     anim_config = config_data['anim_config']
 
     print "ANIMATION CONFIG: "
     print anim_config
 
+if show_anim:
     subplot_width = anim_config[-1]['subplot_width']
     subplot_height = anim_config[-1]['subplot_height']
     max_subplot_cols = anim_config[-1]['max_subplot_cols']
@@ -206,6 +220,88 @@ if show_anim:
                                                     **data_gen_func_params)
     anim_obj.start(interval=10)
 
-plt.show()
+if show_io:
+    vis_stim_config = anim_config[0]
+    vis_stim_probe_id_str = vis_stim_config['data_func_params']['data']
+    vis_stim_data = np.array(probe_data[vis_stim_probe_id_str])
 
+    arm_data_dict = anim_config[1]['data_func_params']
+    ee_probe_id_str = arm_data_dict['ee_path_data']
+    ee_data = np.array(probe_data[ee_probe_id_str])
+    pen_probe_id_str = arm_data_dict['pen_status_data']
+    pen_data = np.array(probe_data[pen_probe_id_str])
+
+    arm_data_scale = anim_config[1]['plot_type_params']['xlim'][1]
+
+    A_img = VisionDataObject().get_image('A')[0]
+    num_cols = 0
+    curr_col_ind = 0
+
+    plot_data = []
+    plot_type = []
+
+    pen_down = False
+    pen_down_ind = -1
+
+    img_ind_filter = []
+    path_len_filter = 200
+
+    prev_img = np.zeros(vis_stim_data.shape[1])
+    for i in range(vis_stim_data.shape[0]):
+        img = vis_stim_data[i, :]
+
+        if rmse(prev_img, img) > 0.1:
+            # Img data is an 'A', so reset things
+            if rmse(img, A_img) < 0.1:
+                if len(plot_data) > 0:
+                    num_cols = max(num_cols, len(plot_data[-1]))
+                plot_data.append([])
+                plot_type.append([])
+                curr_col_ind = 0
+            if len(plot_data) <= 0:
+                plot_data.append([])
+                plot_type.append([])
+            if (curr_col_ind in img_ind_filter) or len(img_ind_filter) == 0:
+                plot_data[-1].append(np.array(img))
+                plot_type[-1].append("im")
+            prev_img = img
+            curr_col_ind += 1
+
+        if not pen_down and pen_data[i] > 0.5:
+            pen_down = True
+            pen_down_ind = i
+        elif pen_down and pen_data[i] < 0.25:
+            pen_down = False
+            path_data = ee_data[pen_down_ind:i, :]
+            if path_data.shape[0] > path_len_filter:
+                if len(plot_data) <= 0:
+                    plot_data.append([])
+                    plot_type.append([])
+                plot_data[-1].append(path_data)
+                plot_type[-1].append("path")
+
+    # Get number of columns (gotta do this here to take into account last row)
+    # added to the plot_data array
+    num_cols = max(num_cols, len(plot_data[-1]))
+
+    plt.figure(figsize=(min(2 * num_cols, 18), min(2 * len(plot_data), 12)))
+    for i in range(len(plot_data)):
+        for j in range(len(plot_data[i])):
+            plt.subplot(len(plot_data), num_cols, i * num_cols + j + 1,
+                        aspect=1)
+            if plot_type[i][j] == 'im':
+                # Reshape to 28 * 28 (TODO: FIX for generic images?)
+                im_data = plot_data[i][j].reshape((28, 28))
+                plt.imshow(im_data, cmap=plt.get_cmap('gray'))
+                plt.xticks([])
+                plt.yticks([])
+            else:
+                plt.plot(plot_data[i][j][:, 0], plot_data[i][j][:, 1])
+                plt.xticks([])
+                plt.yticks([])
+                plt.xlim(-arm_data_scale, arm_data_scale)
+                plt.ylim(-arm_data_scale, arm_data_scale)
+    plt.tight_layout()
+
+plt.show()
 probe_data.close()

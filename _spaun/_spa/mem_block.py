@@ -14,6 +14,7 @@ class MemoryBlock(Module):
     def __init__(self, n_neurons, dimensions, vocab,
                  radius=None, gate_mode=1, reset_mode=3, cleanup_mode=0,
                  cleanup_keys=None, reset_key=None, threshold_gate_in=False,
+                 gate_threshold=0.5,
                  label=None, seed=None, add_to_container=None, **mem_args):
         super(MemoryBlock, self).__init__(label, seed, add_to_container)
 
@@ -32,7 +33,8 @@ class MemoryBlock(Module):
 
         if isinstance(reset_key, str):
             reset_vec = vocab.parse(reset_key).v
-        elif reset_key is not None and reset_key != 0:
+        elif (not isinstance(reset_key, (np.ndarray, np.generic)) and
+              reset_key is not None and reset_key != 0):
             reset_vec = np.ones(dimensions) * reset_key
         else:
             reset_vec = reset_key
@@ -80,16 +82,16 @@ class MemoryBlock(Module):
             # threshold population. The gating signal needs to be dead-zero
             # (no neural activity) when WM is non-gated.
             if threshold_gate_in:
-                gate1 = \
-                    nengo.Ensemble(n_neurons, 1, label="gate1",
-                                   intercepts=Exponential(0.15, 0.5, 1),
-                                   encoders=Choice([[1]]))
+                gate1 = nengo.Ensemble(
+                    n_neurons, 1, label="gate1",
+                    intercepts=Exponential(0.15, 0.5, 1),
+                    encoders=Choice([[1]]))
                 nengo.Connection(gate1, self.mem1.gate)
 
-                gate2 = \
-                    nengo.Ensemble(n_neurons, 1, label="gate2",
-                                   intercepts=Exponential(0.15, 0.5, 1),
-                                   encoders=Choice([[1]]))
+                gate2 = nengo.Ensemble(
+                    n_neurons, 1, label="gate2",
+                    intercepts=Exponential(0.15, 0.5, 1),
+                    encoders=Choice([[1]]))
                 nengo.Connection(gate2, self.mem2.gate)
             else:
                 gate1 = self.mem1.gate
@@ -107,6 +109,12 @@ class MemoryBlock(Module):
 
             self.gate = nengo.Node(size_in=1, label="gate")
             bias_node = nengo.Node(output=1)
+
+            # Adjust gate thresholds
+            nengo.Connection(bias_node, self.gateX,
+                             transform=0.5 - gate_threshold)
+            nengo.Connection(bias_node, self.gateN,
+                             transform=gate_threshold - 0.5)
 
             nengo.Connection(self.gate, self.gateX)
             nengo.Connection(self.gate, self.gateN, transform=-1)

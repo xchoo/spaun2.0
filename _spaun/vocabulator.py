@@ -1,3 +1,4 @@
+import time
 import numpy as np
 
 from nengo.spa import Vocabulary
@@ -35,6 +36,12 @@ class SpaunVocabulary(object):
                                 'DEC']
         self.ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
                                     'V', 'W']
+        # --- Task visual semantic pointer usage ---
+        # A - Task initialization
+        # F - Forward recall
+        # R - Reverse recall
+        # K - Q&A 'kind' probe
+        # P - Q&A 'position' probe
 
         # --- Production system semantic pointers ---
         # DECW - Decoding state (output to motor system, but for drawing task)
@@ -85,7 +92,10 @@ class SpaunVocabulary(object):
                 logger.write('# - %s = %s\n' % (param_name, param_value))
         logger.write('\n')
 
-    def initialize(self, num_learn_actions, rng):
+    def initialize(self, num_learn_actions=3, rng=0):
+        if rng == 0:
+            rng = np.random.RandomState(int(time.time()))
+
         # ############### Semantic pointer list definitions ###################
         # --- Position (enumerated) semantic pointers ---
         self.pos_sp_strs = ['POS%i' % (i + 1)
