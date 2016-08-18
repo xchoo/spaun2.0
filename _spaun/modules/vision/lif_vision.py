@@ -18,7 +18,7 @@ def LIFVision(net=None, net_neuron_type=None):
                                 label='Input')
         input_bias = nengo.Node(output=[1] * data.images_data_dimensions)
 
-        layers = []
+        net.layers = []
         for i, [W, b] in enumerate(zip(data.weights, data.biases)):
             n = b.size
             layer = nengo.Ensemble(n, 1, label='layer %d' % i,
@@ -39,13 +39,13 @@ def LIFVision(net=None, net_neuron_type=None):
                                  W.T,
                                  synapse=data.pstc)
             else:
-                nengo.Connection(layers[-1].neurons, layer.neurons,
+                nengo.Connection(net.layers[-1].neurons, layer.neurons,
                                  transform=W.T * data.amp, synapse=data.pstc)
 
-            layers.append(layer)
+            net.layers.append(layer)
 
         # Set up input and outputs to the LIF vision system
         net.input = input_node
-        net.output = layers[-1].neurons
+        net.output = net.layers[-1].neurons
         net.raw_output = input_node
     return net

@@ -99,7 +99,8 @@ class OSControllerNengo(controller.Control):
             output_node = nengo.Node(output=set_output, size_in=3)
 
             # connect up arm feedback to Cerebellum
-            nengo.Connection(arm_node[:6], CB, function=config.CB_scaledown)
+            nengo.Connection(arm_node[:6], CB,
+                             function=lambda x: config.CB_scaledown(x))
 
             def gen_Mqdq(signal, kv):
                 """Generate inertia compensation signal, np.dot(Mq,dq)"""
@@ -122,7 +123,7 @@ class OSControllerNengo(controller.Control):
             if self.kv2 != 0:
                 CB2 = nengo.Ensemble(**config.CB)
                 nengo.Connection(arm_node[:6], CB2,
-                                 function=config.CB_scaledown)
+                                 function=lambda x: config.CB_scaledown(x))
                 nengo.Connection(CB2, u_relay,
                                  function=lambda x: gen_Mqdq(x, self.kv2),
                                  transform=-1, synapse=None)  # , synapse=.005)

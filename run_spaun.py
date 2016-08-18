@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import argparse
-import numpy as np
 
 import nengo
 
@@ -226,8 +225,7 @@ for n in range(args.n):
 
     # ----- Spaun imports -----
     from _spaun.utils import get_total_n_neurons
-    from _spaun.probes import config_and_setup_probes, write_probe_data
-    from _spaun.probes import setup_probes, setup_probes_animation
+    from _spaun.probes import default_probe_config, default_anim_config
     from _spaun.spaun_main import Spaun
 
     # ----- Enable debug logging -----
@@ -286,15 +284,17 @@ for n in range(args.n):
 
     if make_probes:
         print "PROBE FILENAME: %s" % cfg.probe_data_filename
-        config_and_setup_probes(model, cfg.data_dir,
-                                cfg.probe_data_filename, setup_probes)
+        probe_cfg = default_probe_config(model, vocab, cfg.sim_dt,
+                                         cfg.data_dir,
+                                         cfg.probe_data_filename)
 
     # ----- Set up animation probes -----
     if args.showanim or args.showiofig or args.probeio:
         anim_probe_data_filename = cfg.probe_data_filename[:-4] + '_anim.npz'
         print "ANIM PROBE FILENAME: %s" % anim_probe_data_filename
-        config_and_setup_probes(model, cfg.data_dir, anim_probe_data_filename,
-                                setup_probes_animation)
+        probe_anim_cfg = default_anim_config(model, vocab,
+                                             cfg.sim_dt, cfg.data_dir,
+                                             anim_probe_data_filename)
 
     # ----- Neuron count debug -----
     print "MODEL N_NEURONS:  %i" % (get_total_n_neurons(model))
@@ -456,18 +456,15 @@ for n in range(args.n):
     # ----- Write probe data to file -----
     if make_probes and not cfg.use_mpi:
         print "WRITING PROBE DATA TO FILE"
-        write_probe_data(sim, cfg.data_dir, cfg.probe_data_filename)
+        probe_cfg.write_simdata_to_file(sim, experiment)
 
         if args.showgrph:
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    '"' + os.path.join(
-                                        cfg.data_dir,
-                                        cfg.probe_data_filename) + '"',
-                                    str(int(args.showgrph)),
-                                    str(0),
-                                    str(0)]
+                                    '"' + cfg.probe_data_filename + '"',
+                                    '--data_dir', '"' + cfg.data_dir + '"',
+                                    '--showgrph']
 
             # Log subprocess call
             logger.write("\n# " + " ".join(subprocess_call_list))
@@ -479,18 +476,18 @@ for n in range(args.n):
 
     if (args.showanim or args.showiofig or args.probeio) and not cfg.use_mpi:
         print "WRITING ANIMATION PROBE DATA TO FILE"
-        write_probe_data(sim, cfg.data_dir, anim_probe_data_filename)
+        probe_anim_cfg.write_simdata_to_file(sim, experiment)
 
         if args.showanim or args.showiofig:
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    '"' + os.path.join(
-                                        cfg.data_dir,
-                                        anim_probe_data_filename) + '"',
-                                    str(0),
-                                    str(int(args.showanim)),
-                                    str(int(args.showiofig))]
+                                    '"' + anim_probe_data_filename + '"',
+                                    '--data_dir', '"' + cfg.data_dir + '"']
+            if args.showanim:
+                subprocess_call_list += ['--showanim']
+            if args.showio:
+                subprocess_call_list += ['--showio']
 
             # Log subprocess call
             logger.write("\n# " + " ".join(subprocess_call_list))
