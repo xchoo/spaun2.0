@@ -16,7 +16,7 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
         nengo.Connection(ramp_init_hold.output,
                          ramp_init_hold.input)
         nengo.Connection(bias_node, ramp_init_hold.input,
-                         transform=-cfg.mtr_ramp_reset_hold_transform)
+                         transform=-cfg.mtr_ramp_init_hold_transform)
 
         # Ramp reset hold
         ramp_reset_hold = \

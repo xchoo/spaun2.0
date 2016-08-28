@@ -1,38 +1,31 @@
 from warnings import warn
+import numpy as np
 
 import nengo
-from nengo.spa import Vocabulary
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from .._networks import DetectChange
-from .._spa import MemoryBlock as MB
 
 from ..configurator import cfg
 from ..vocabulator import vocab
 from .stimulus import stim_func_vocab
-from .vision.lif_vision import LIFVision as LIFVisionNet
-from .vision.data import vis_data
+from .vision import VisionNet
+from .vision import vis_data
 
 
 class VisionSystem(Module):
-    def __init__(self, label="Vision Sys", seed=None, add_to_container=None,
-                 vis_net=None, detect_net=None, vis_sps=None,
-                 vis_sps_scale=None, vis_net_neuron_type=None):
+    def __init__(self, label="Vision Sys", seed=None, add_to_container=None):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
-        if vis_sps is None:
-            vis_sps = vis_data.sps
-        if vis_sps_scale is None:
-            vis_sps_scale = vis_data.sps_scale
-        self.init_module(vis_net, detect_net, vis_sps, vis_sps_scale,
-                         vis_net_neuron_type)
+        self.init_module(None, None, vis_data.sps, vis_data.sps_element_scale,
+                         None)
 
     @with_self
     def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale,
                     vis_net_neuron_type):
         # Make LIF vision network
         if vis_net is None:
-            vis_net = LIFVisionNet(net_neuron_type=vis_net_neuron_type)
+            vis_net = VisionNet(vis_data, net_neuron_type=vis_net_neuron_type)
         self.vis_net = vis_net
 
         # Make network to detect changes in visual input stream
@@ -55,33 +48,83 @@ class VisionSystem(Module):
 
         # Visual memory block (for the visual semantic pointers - top layer of
         #                      vis_net)
-        vocab.vis_dim = vis_sps.shape[1]
-        vis_sp_vocab = Vocabulary(vocab.vis_dim)  # TODO: FIX THIS?
+        self.vis_mem = cfg.make_memory(n_neurons=cfg.n_neurons_mb * 2,
+                                       dimensions=vocab.vis_dim,
+                                       make_ens_func=cfg.make_ens_array,
+                                       radius=vis_sps_scale)
+        nengo.Connection(self.vis_net.output, self.vis_mem.input,
+                         synapse=0.020)
 
-        self.vis_mb = MB(cfg.n_neurons_mb * 2, vocab.vis_dim, gate_mode=2,
-                         vocab=vis_sp_vocab, radius=vis_sps_scale,
-                         **cfg.mb_config)
+        bias_node = nengo.Node(1)
+        nengo.Connection(bias_node, self.vis_mem.gate)
+        vis_mem_gate_sp_vecs = vocab.main.parse('+'.join(vocab.num_sp_strs)).v
+        nengo.Connection(self.am.cleaned_output, self.vis_mem.gate,
+                         transform=[cfg.mb_neg_gate_scale *
+                                    vis_mem_gate_sp_vecs])
+        # vis_mem holds value when gate == 1, so have standard 1-x gating
+        # signal (i.e. allow values when gate is 1 - <vis_mem_gate_sp_vecs>)
+        # circuit here.
+        nengo.Connection(self.detect_change_net.output, self.vis_mem.gate)
 
-        vis_mb_gate_sp_vecs = vocab.main.parse('+'.join(vocab.num_sp_strs)).v
-        nengo.Connection(self.am.cleaned_output, self.vis_mb.gate,
-                         transform=[cfg.mb_gate_scale * vis_mb_gate_sp_vecs])
-        nengo.Connection(self.vis_net.output, self.vis_mb.input,
-                         transform=vis_data.amp, synapse=0.03)
+        # Visual memory (for the visual concept semantic pointers - out
+        #                of the AM)
+        self.vis_main_mem = cfg.make_memory(dimensions=vocab.sp_dim,
+                                            n_neurons=100,
+                                            make_ens_func=cfg.make_ens_array)
+        nengo.Connection(self.am.cleaned_output, self.vis_main_mem.input,
+                         synapse=0.01)
         nengo.Connection(self.detect_change_net.output,
-                         self.vis_mb.gate, transform=-1, synapse=0.01)
+                         self.vis_main_mem.gate, transform=1.5)
 
         # Define network input and outputs
         self.input = self.vis_net.input
         self.output = self.am.cleaned_output
-        self.mb_output = self.vis_mb.output
+        self.mb_output = self.vis_mem.output
         self.neg_attention = self.detect_change_net.output
 
         # Define module inputs and outputs
-        self.outputs = dict(default=(self.output, vocab.vis_main))
+        self.outputs = dict(default=(self.output, vocab.vis_main),
+                            mem=(self.vis_main_mem.output, vocab.vis_main))
 
         # ######################## DEBUG PROBES ###############################
         self.vis_out = self.vis_net.output
         self.am_utilities = self.am.cleaned_output_utilities
+
+        def cleanup_func(t, x, vectors):
+            return vectors[np.argmax(np.dot(x, vectors.T)), :]
+
+        def rmse_func(t, x, dim):
+            v1 = x[:dim]
+            v2 = x[dim:]
+            return np.sqrt(np.sum((v1 - v2) ** 2))
+
+        def diff_func(t, x, dim):
+            v1 = x[:dim]
+            v2 = x[dim:]
+            return np.array(v1 - v2)
+
+        self.cleanup_node = nengo.Node(
+            size_in=vocab.sp_dim,
+            output=lambda t, x, vectors=vocab.vis_main.vectors:
+            cleanup_func(t, x, vectors))
+        nengo.Connection(self.vis_main_mem.output, self.cleanup_node,
+                         synapse=0.01)
+
+        self.rmse_node = nengo.Node(
+            size_in=vocab.sp_dim * 2,
+            output=lambda t, x, dim=vocab.sp_dim: rmse_func(t, x, dim))
+        nengo.Connection(self.vis_main_mem.output,
+                         self.rmse_node[:vocab.sp_dim], synapse=0.01)
+        nengo.Connection(self.cleanup_node, self.rmse_node[vocab.sp_dim:],
+                         synapse=0.01)
+
+        self.diff_node = nengo.Node(
+            size_in=vocab.sp_dim * 2,
+            output=lambda t, x, dim=vocab.sp_dim: diff_func(t, x, dim))
+        nengo.Connection(self.vis_main_mem.output,
+                         self.diff_node[:vocab.sp_dim], synapse=0.01)
+        nengo.Connection(self.cleanup_node, self.diff_node[vocab.sp_dim:],
+                         synapse=0.01)
 
     def setup_connections(self, parent_net):
         # Set up connections from stimulus module

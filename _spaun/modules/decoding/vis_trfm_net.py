@@ -32,10 +32,12 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
                                         len(mtr_vocab.keys))) -
                                np.eye(len(mtr_vocab.keys)),
                                threshold=vis_am_threshold,
-                               label='DIGIT CLASSIFY')
+                               label='DIGIT CLASSIFY', inhibitable=True)
         digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)))
         nengo.Connection(net.input, digit_classify.input,
                          transform=vis_am_input_scale, synapse=None)
+
+        net.am_inhibit = digit_classify.inhibit
 
         # --------------------- Motor SP Transformation -----------------------
         if len(mtr_vocab.keys) != copy_draw_trfms_x.shape[0]:
@@ -72,6 +74,8 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
                              transform=inhib_trfm)
             nengo.Connection(trfm_ea.output, net.output, synapse=None)
 
+        # ------------------------- Debug outputs -----------------------------
+        net.digit_classify = digit_classify
     return net
 
 

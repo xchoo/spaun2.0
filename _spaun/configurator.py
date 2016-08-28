@@ -38,7 +38,10 @@ class SpaunConfig(object):
 
         self.sim_dt = 0.001
 
+        self.vis_module = 'lif_vision'
+
         self.ps_mb_gain_scale = 2.0
+        self.ps_mb_gate_scale = 1.2
         self.ps_use_am_mb = True
         self.ps_action_am_threshold = 0.2
 
@@ -51,7 +54,8 @@ class SpaunConfig(object):
         self.mb_fdbk_val = 1.3
         self.mb_config = {'mem_synapse': Lowpass(0.08), 'difference_gain': 6,
                           'gate_gain': 5}
-        self.mb_gate_scale = 1.0  # 1.2
+        self.mb_gate_scale = 1.25  # 1.2
+        self.mb_neg_gate_scale = -1.5  # 1.2
 
         self.trans_cconv_radius = 2
         self.trans_ave_scale = 0.3
@@ -59,7 +63,7 @@ class SpaunConfig(object):
         self.dcconv_radius = 2
         self.dcconv_item_in_scale = 0.75  # 0.5
 
-        self.dec_am_min_thresh = 0.30
+        self.dec_am_min_thresh = 0.30  # 0.20
         self.dec_am_min_diff = 0.1
         self.dec_fr_min_thresh = self.dec_am_min_thresh * 1.2  # 0.3
         self.dec_fr_item_in_scale = 0.65  # 1.0
@@ -67,21 +71,36 @@ class SpaunConfig(object):
 
         self.mtr_ramp_synapse = 0.05
         self.mtr_ramp_reset_hold_transform = 0.1  # 0.945
+        self.mtr_ramp_init_hold_transform = 0.01
         self.mtr_ramp_scale = 2
-        self.mtr_est_digit_response_time = 1.0 / self.mtr_ramp_scale + 0.5
+        self.mtr_est_digit_response_time = 1.0 / self.mtr_ramp_scale + 0.60
 
-        self.mtr_kp = 65
-        self.mtr_kv1 = np.sqrt(8)
-        self.mtr_kv2 = np.sqrt(18) - self.mtr_kv1
+        self.mtr_module = 'osc'
+        self.mtr_kp = None
+        self.mtr_kv1 = None
+        self.mtr_kv2 = None
         self.mtr_arm_type = 'three_link'
         self.mtr_arm_rest_x_bias = -0.3
         self.mtr_arm_rest_y_bias = 2.5
-        self.mtr_tgt_threshold = 0.075
+        self.mtr_tgt_threshold = 0.05  # 0.075
+
+        self.mtr_dyn_adaptation = False
+        self.mtr_dyn_adaptation_n_neurons = 1000
+        self.mtr_dyn_adaptation_learning_rate = 9e-5
+        self.mtr_forcefield = 'NoForcefield'
+        self.mtr_forcefield_synapse = 0.05
+
+        self.instr_cconv_radius = 2.0
+        self.instr_out_gain = 1.5
+        self.instr_ps_threshold = 0.5
+        self.instr_pos_inc_cleanup_mode = 1
 
         self._backend = 'ref'
 
         self.data_dir = ''
         self.probe_data_filename = 'probe_data.npz'
+        self.probe_graph_config = 'ProbeCfgDefault'
+        self.probe_anim_config = 'ProbeCfgAnimDefault'
 
     @property
     def backend(self):
@@ -120,9 +139,6 @@ class SpaunConfig(object):
 
     @property
     def mtr_arm_class(self):
-        if self.mtr_arm_type is None:
-            return lambda: None
-
         arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
                                 globals(), locals(), 'Arm')
         return arm_module.Arm

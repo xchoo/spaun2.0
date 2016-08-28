@@ -1,8 +1,12 @@
 import os
+import sys
 import numpy as np
 import numpy.ma as ma
 import argparse
 import matplotlib.pyplot as plt
+
+from _spaun.animation import ArmAnim, DataFunctions, GeneratorFunctions
+from _spaun.modules.vision.data import VisionDataObject
 
 
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
@@ -33,14 +37,7 @@ parser.add_argument(
     help='Directory to store output data.')
 parser.add_argument(
     '--legend_pos', type=str, default='best',
-    help='Legend position argument to use for matplotlib plots.')
-parser.add_argument(
-    '--aspect', type=str, default='auto',
-    help='Aspect ratio to use for image plots and path plots.')
-parser.add_argument(
-    '--trange', type=float, nargs=2, default=None,
-    help=('Minimum and maximum time values (in seconds) to display on the ' +
-          'graphs. Provided as two values e.g. --trange MIN MAX.'))
+    help='')
 
 args = parser.parse_args()
 
@@ -98,13 +95,6 @@ if not gen_trange:
 else:
     data_len = probe_data[probe_data.keys()[0]].shape[0]
     trange = np.arange(0, data_len * sim_dt, sim_dt)
-
-if args.trange is None:
-    trange_inds = np.arange(trange.shape[0])
-else:
-    trange_min, trange_max = args.trange
-    trange_inds = np.where((trange >= trange_min) & (trange <= trange_max))
-t_data = trange[trange_inds]
 
 # --------------------- DISPLAY PROBE DATA ---------------------
 print "\nDISPLAYING PROBE DATA."
@@ -191,10 +181,6 @@ if show_grphs:
             # Figure out if probe plot needs a legend
             disp_legend = probe_opts[-1] == '*'
 
-            # Get probe data (filtered by min and max tranges)
-            if probe_opts[0] != 'p':
-                p_data = probe_data[probe][trange_inds]
-
             if probe_opts[0] == 'V':
                 # Vector with vocabulary plots
                 vocab = vocab_dict[probe]
@@ -203,31 +189,31 @@ if show_grphs:
                 plt.gca().set_color_cycle([colormap(i) for i in
                                            np.linspace(0, 0.9, num_classes)])
                 for i in range(num_classes):
-                    plt.plot(t_data,
-                             np.dot(p_data, vocab.vectors.T)[:, i])
+                    plt.plot(trange,
+                             np.dot(probe_data[probe], vocab.vectors.T)[:, i])
                 if disp_legend:
                     plot_legend(vocab.keys)
             elif probe_opts[0] == 'v':
                 # vector without vocabulary plots
-                num_classes = p_data[-1].size
+                num_classes = probe_data[probe][-1].size
                 if num_classes < 30:
                     plt.gca().set_color_cycle([colormap(i) for i in
                                                np.linspace(0, 0.9,
                                                            num_classes)])
                     for i in range(num_classes):
-                        plt.plot(t_data, p_data[:, i])
+                        plt.plot(trange, probe_data[probe][:, i])
                     if disp_legend:
                         plot_legend(map(str, range(num_classes)))
                 else:
-                    plt.plot(t_data, p_data)
+                    plt.plot(trange, probe_data[probe])
             elif probe_opts[0] == 's':
                 # Spike display options
                 height = 0.75  # Height of 1 spike
                 spike_value = 1.0 / sim_dt
 
                 # Find the neurons to display
-                # Choose random selection of top 35% of fastest firing neurons
-                spike_totals = np.sum(p_data, axis=0)
+                # Choose random selection of top 25% of fastest firing neurons
+                spike_totals = np.sum(probe_data[probe], axis=0)
 
                 total_neuron_count = spike_totals.shape[0]
                 disp_neuron_count = min(ncount_dict[probe], total_neuron_count)
@@ -237,7 +223,7 @@ if show_grphs:
                 spike_ind_sorted = np.argsort(spike_totals)[-top_neuron_count:]
                 spike_ind_selected = np.random.permutation(spike_ind_sorted)
                 spike_ind_selected = spike_ind_selected[:disp_neuron_count]
-                spike_data = p_data[:, spike_ind_selected]
+                spike_data = probe_data[probe][:, spike_ind_selected]
 
                 # Set the color cycle to grayscale
                 plt.gca().set_color_cycle(
@@ -245,7 +231,7 @@ if show_grphs:
                      np.linspace(0, 0.8, disp_neuron_count)])
 
                 # Triple the trange (spike plotting oddities)
-                strange = ma.array(t_data).repeat(3)
+                strange = ma.array(trange).repeat(3)
 
                 # Plot the spike plot
                 for nn in range(disp_neuron_count):
@@ -267,8 +253,8 @@ if show_grphs:
                     # processing now.
                     # Calculate root square error to figure out when the image
                     # changes
-                    im_rse = np.sqrt(np.sum(np.diff(p_data, axis=0) ** 2,
-                                            axis=1))
+                    im_rse = np.sqrt(np.sum(np.diff(probe_data[probe],
+                                                    axis=0) ** 2, axis=1))
                     # Figure out where the changes take place
                     im_timeline = \
                         np.concatenate(([0], np.where(im_rse > 0.1)[0] + 1))
@@ -282,11 +268,11 @@ if show_grphs:
 
                 # Plot the images
                 for im_ind in im_timeline:
-                    im_data = p_data[im_ind, :]
-                    im_time = t_data[im_ind]
+                    im_data = probe_data[probe][im_ind, :]
+                    im_time = trange[im_ind]
                     plt.imshow(im_data.reshape(im_shape),
                                cmap=plt.get_cmap('gray'),
-                               interpolation='nearest', aspect=args.aspect,
+                               interpolation='nearest', aspect='equal',
                                extent=(im_time, im_time + im_width,
                                        0, im_height))
                     plt.plot([im_time] * 2,
@@ -306,7 +292,7 @@ if show_grphs:
                     pen_d_threshold = 0.5
                     pen_u_threshold = 0.25
 
-                    pen_raw_data = probe_data[probe_pen][trange_inds]
+                    pen_raw_data = probe_data[probe_pen]
                     pen_data = np.zeros(shape=pen_raw_data.shape)
 
                     # Anything above pen_d_threshold is considered down
@@ -325,7 +311,7 @@ if show_grphs:
                     pen_change_inds = np.where(np.diff(pen_data))[0] + 1
                     # Split the time data into different chunks corresponding
                     # to each pen state
-                    t_change = np.split(t_data, pen_change_inds)
+                    t_change = np.split(trange, pen_change_inds)
                     # Split the path data into different chunks corresponding
                     # to each pen state
                     path_change = np.split(probe_data[probe_path],
@@ -335,8 +321,8 @@ if show_grphs:
                     # path at the end of the graph
                     pen_change_inds = [0]
                     pen_data = [1]
-                    t_change = [[0], [t_data[-1]]]
-                    path_change = [[0], probe_data[probe_path][trange_inds]]
+                    t_change = [[0], [trange[-1]]]
+                    path_change = [[0], probe_data[probe_path]]
 
                 # Get path limits
                 path_x_limit, path_y_limit = path_limits[probe_path]
@@ -359,7 +345,7 @@ if show_grphs:
                                                [0, present_interval])
                         plt.plot(path_x, path_y, 'b')
 
-                plt.gca().set_aspect(args.aspect)
+                plt.gca().set_aspect('equal')
                 plt.ylim(-aspect_equal_y_margin,
                          present_interval + aspect_equal_y_margin)
                 plt.yticks([])
@@ -367,7 +353,7 @@ if show_grphs:
                 raise RuntimeError('Probe option: "%s" not supported' %
                                    probe_opts[0])
 
-            plt.xlim([t_data[0], t_data[-1]])
+            plt.xlim([trange[0], trange[-1]])
             if probe_labels[probe] is None:
                 plt.ylabel('%i,%i' % (n + 1, r + 1))
             else:
@@ -385,8 +371,6 @@ if show_anim or show_io:
     print anim_config
 
 if show_io:
-    from _spaun.modules.vision.data import VisionDataObject
-
     # TODO: UPDATE TO USE NEW CODE FROM ABOVE
     vis_stim_config = anim_config[0]
     vis_stim_probe_id_str = vis_stim_config['data_func_params']['data']
@@ -474,8 +458,6 @@ if show_io:
     plt.tight_layout()
 
 if show_anim:
-    from _spaun.animation import ArmAnim, DataFunctions, GeneratorFunctions
-
     subplot_width = anim_config[-1]['subplot_width']
     subplot_height = anim_config[-1]['subplot_height']
     max_subplot_cols = anim_config[-1]['max_subplot_cols']

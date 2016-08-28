@@ -25,14 +25,14 @@ class SpaunLogger(object):
 
     def write(self, str):
         if self.data_obj is not None:
-           orig_closed_state = self.data_obj.closed
-           if orig_closed_state:
-               self.data_obj = open(self.data_filename, 'a')
-   
-           self.data_obj.write(str)
-   
-           if orig_closed_state:
-               self.data_obj.close()
+            orig_closed_state = self.data_obj.closed
+            if orig_closed_state:
+                self.data_obj = open(self.data_filename, 'a')
+
+            self.data_obj.write(str)
+
+            if orig_closed_state:
+                self.data_obj.close()
 
     def flush(self):
         self.data_obj.flush()

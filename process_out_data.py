@@ -103,6 +103,9 @@ def process_line(task_str, task_data_str):
             np.array(list(mass_str_replace(task_data_split[1],
                                            response_strs, num_list_strs)))
 
+        if len(task_answer_spaun) == 0:
+            return (None, None)
+
     # ------ Reference answer generation ------
     if task_str in ['A0', 'A1', 'A3']:
         # For copy-draw, classification, memory task
@@ -208,7 +211,7 @@ def process_line(task_str, task_data_str):
             task_answer_ref = np.array(map(str, [list1[0] + induction_diff]))
         elif induction_len_change is not None and induction_diff is None:
             task_answer_ref = np.array(map(str, [list1[0]] * (len(list1) + 1)))
-    else:
+        else:
             warn('A7: Multiple induction types encountered?')
             task_str = 'INVALID'
 
@@ -224,7 +227,7 @@ def process_line(task_str, task_data_str):
         task_answer[:task_answer_len] = task_answer_spaun[:task_answer_len]
 
         # DEBUG
-        print task_data_str, task_answer, task_answer_ref
+        # print task_data_str, task_answer, task_answer_ref
     else:
         print task_data_str
 
@@ -249,7 +252,7 @@ if len(args.s) > 0:
 if args.t is not None:
     str_suffix = '(' + args.t + ')_log.txt'
 else:
-str_suffix = '_log.txt'
+    str_suffix = '_log.txt'
 
 processed_results = {}
 
@@ -266,10 +269,11 @@ for filename in os.listdir(probe_dir):
 
                 task_str, task_result = process_line(task_str, task_data)
 
-                        if task_str not in processed_results:
-                            processed_results[task_str] = [task_result]
-                        else:
-                            processed_results[task_str].append(task_result)
+                if task_str is not None:
+                    if task_str not in processed_results:
+                        processed_results[task_str] = [task_result]
+                    else:
+                        processed_results[task_str].append(task_result)
 
 # Convert all data structures in processed results to np arrays
 for task in processed_results:
@@ -305,10 +309,11 @@ if not args.r:
     # Write new data to file
     np.savez_compressed(output_filepath, **processed_results)
 
-for key in processed_results:
-    print ">>>>> %s <<<<<" % key
-    for d in processed_results[key]:
-        print d
+# DEBUG
+# for key in processed_results:
+#     print ">>>>> %s <<<<<" % key
+#     for d in processed_results[key]:
+#         print d
 
 # Compute CI and plot data
 ci_data_filepath = output_filepath[:-4] + '_ci.npz'

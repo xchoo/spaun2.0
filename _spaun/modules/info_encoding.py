@@ -18,8 +18,12 @@ class InfoEncoding(Module):
 
     @with_self
     def init_module(self):
+        self.bias_node = nengo.Node(1, label='Bias')
+
+        # ------ Position (auto) incrementer network ------
         self.pos_inc = Pos_Inc_Network(vocab.pos, vocab.pos_sp_strs[0],
-                                       vocab.inc_sp, threshold_gate_in=True)
+                                       vocab.inc_sp, reversable=True,
+                                       threshold_gate_in=True)
 
         # POS x ITEM
         self.item_cconv = cfg.make_cir_conv()
@@ -43,6 +47,17 @@ class InfoEncoding(Module):
         nengo.Connection(self.pos_inc.output, self.pos_mb_acc.input)
         nengo.Connection(self.pos_mb_acc.output, self.pos_mb_acc.input)
 
+        # REV state pos_inc gate bias (generates a pulse when VIS=QM and
+        # DEC=REV to decrease POS in pos_inc by one -- because pos_inc always
+        # holds the POS of the next item to be encoded).
+        self.pos_inc_rev_gate_bias = cfg.make_thresh_ens_net()
+        nengo.Connection(self.bias_node, self.pos_inc_rev_gate_bias.input,
+                         transform=-1)
+        nengo.Connection(self.pos_inc_rev_gate_bias.output, self.pos_inc.gate,
+                         transform=cfg.mb_gate_scale)
+        nengo.Connection(self.pos_inc_rev_gate_bias.output,
+                         self.pos_inc.reverse, transform=cfg.mb_gate_scale)
+
         # Define network inputs and outputs
         self.pos_output = self.pos_inc.output
         self.pos_acc_output = self.pos_mb_acc.output
@@ -65,8 +80,8 @@ class InfoEncoding(Module):
             pos_mb_rst_sp_vecs = vocab.main.parse('A+OPEN+QM').v
 
             nengo.Connection(parent_net.vis.output, self.pos_inc.gate,
-                             transform=[pos_mb_gate_sp_vecs * 1.25],
-                             synapse=0.01)
+                             transform=[cfg.mb_gate_scale *
+                                        pos_mb_gate_sp_vecs])
             nengo.Connection(parent_net.vis.neg_attention,
                              self.pos_inc.gate, transform=-1.25,
                              synapse=0.01)
@@ -74,25 +89,24 @@ class InfoEncoding(Module):
             nengo.Connection(parent_net.vis.output, self.pos_inc.reset,
                              transform=[pos_mb_rst_sp_vecs])
 
+            # POS REV gate bias control signal
+            pos_mb_rev_gate_sp_vecs = vocab.main.parse('QM').v
+            nengo.Connection(parent_net.vis.output,
+                             self.pos_inc_rev_gate_bias.input,
+                             transform=[pos_mb_rev_gate_sp_vecs])
+
             # POS MB ACC Control signals
             pos_mb_acc_rst_sp_vecs = vocab.main.parse('A+OPEN').v
 
             nengo.Connection(parent_net.vis.output, self.pos_mb_acc.gate,
-                             transform=[pos_mb_gate_sp_vecs])
+                             transform=[cfg.mb_gate_scale *
+                                        pos_mb_gate_sp_vecs])
             nengo.Connection(parent_net.vis.neg_attention,
                              self.pos_mb_acc.gate, transform=-1.25,
                              synapse=0.01)
 
             nengo.Connection(parent_net.vis.output, self.pos_mb_acc.reset,
                              transform=[pos_mb_acc_rst_sp_vecs])
-
-            # TODO: Fix no resetting for REV recall
-            # - Disable reset during QM
-            # - Set INC selector to ~INC
-
-            # Encode item in encoding (POSxITEM + ITEM)
-            # nengo.Connection(parent_net.vis.output, self.enc_output,
-            #                  synapse=None)
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 
@@ -102,6 +116,27 @@ class InfoEncoding(Module):
             pos_mb_acc_no_gate_sp_vecs = vocab.main.parse('DEC').v
             nengo.Connection(parent_net.ps.task, self.pos_mb_acc.gate,
                              transform=[-1.25 * pos_mb_acc_no_gate_sp_vecs])
+
+            # Suppress the pos inc reset if dec == REV
+            pos_mb_no_rst_sp_vecs = vocab.main.parse('REV').v
+            nengo.Connection(parent_net.ps.dec, self.pos_inc.reset,
+                             transform=[-1.25 * pos_mb_no_rst_sp_vecs])
+
+            # Provide rev signal for pos_inc network
+            pos_inc_rev_sp_vecs = vocab.main.parse('REV').v
+            nengo.Connection(parent_net.ps.dec, self.pos_inc.reverse,
+                             transform=[pos_inc_rev_sp_vecs])
+            # But only when decoding
+            pos_inc_no_rev_sp_vecs = vocab.main.parse('DEC').v
+            nengo.Connection(self.bias_node, self.pos_inc.reverse,
+                             transform=-1.25)
+            nengo.Connection(parent_net.ps.task, self.pos_inc.reverse,
+                             transform=[1.25 * pos_inc_no_rev_sp_vecs])
+
+            # Provide rev signal for pos_inc_rev_gate_bias signal
+            nengo.Connection(parent_net.ps.dec,
+                             self.pos_inc_rev_gate_bias.input,
+                             transform=[pos_inc_rev_sp_vecs])
         else:
             warn("InfoEncoding Module - Cannot connect from 'ps'")
 
@@ -113,5 +148,3 @@ class InfoEncoding(Module):
                              self.pos_inc.gate, transform=-4, synapse=0.01)
         else:
             warn("InfoEncoding Module - Cannot connect from 'dec'")
-
-        # TODO: Add connection from PS to do REV recall

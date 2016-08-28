@@ -8,12 +8,11 @@ from nengo.utils.network import with_self
 
 from ..configurator import cfg
 from ..vocabulator import vocab
-from .._networks import DetectChange
 
 from .decoding import Serial_Recall_Network, Free_Recall_Network
 from .decoding import Visual_Transform_Network, Output_Classification_Network
-from .vision.data import vis_data
-from .motor.data import mtr_data
+from .vision import vis_data
+from .motor import mtr_data
 
 
 class InfoDecoding(Module):
@@ -45,12 +44,6 @@ class InfoDecoding(Module):
         # Generic inhibition signal?
         self.dec_am_inhibit = cfg.make_thresh_ens_net(0.1)
 
-        # Inhibition signal when position vector changes
-        self.pos_change = \
-            DetectChange(dimensions=vocab.sp_dim, n_neurons=cfg.n_neurons_ens,
-                         item_magnitude=cfg.get_optimal_sp_radius())
-        nengo.Connection(self.pos_input, self.pos_change.input)
-
         # ---------- Decoding POS mem block gate signal generation ---------- #
         # Decoding POS mem block gate signal generation (from motor system)
         self.pos_mb_gate_bias = cfg.make_thresh_ens_net(n_neurons=200)
@@ -72,7 +65,6 @@ class InfoDecoding(Module):
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
                          serial_decode.inhibit, synapse=0.01)
-        nengo.Connection(self.pos_change.output, serial_decode.inhibit)
 
         # ---------------- Free recall decoding network --------------------- #
         self.free_recall_decode = Free_Recall_Network(vocab.item, vocab.pos,
@@ -103,23 +95,27 @@ class InfoDecoding(Module):
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
                          self.free_recall_decode.inhibit, synapse=0.01)
-        nengo.Connection(self.pos_change.output,
-                         self.free_recall_decode.inhibit)
 
         # ------------- Visual transform decoding network ------------------- #
         if vocab.vis_dim > 0:
             # Takes visual SP and transforms them to the 'copy-drawn' motor SP
-            copy_draw_tfrm_data = np.load(os.path.join(mtr_data.filepath,
-                                                       'copydraw_trfms.npz'))
+            copy_draw_tfrm_data = \
+                np.load(os.path.join(mtr_data.filepath, cfg.mtr_module,
+                                     '_'.join([cfg.vis_module,
+                                               'copydraw_trfms.npz'])))
             copy_draw_trfms_x = copy_draw_tfrm_data['trfms_x']
             copy_draw_trfms_y = copy_draw_tfrm_data['trfms_y']
 
             vis_trfm_decode = \
                 Visual_Transform_Network(vocab.vis,
-                                         vis_data.am_threshold * 0.5,
-                                         vis_data.max_rate, copy_draw_trfms_x,
+                                         vis_data.am_threshold * 0.5, 1,
+                                         copy_draw_trfms_x,
                                          copy_draw_trfms_y, vocab.mtr,
                                          mtr_data.sp_scaling_factor)
+
+            # Inhibitory connections
+            nengo.Connection(self.dec_am_task_inhibit.output,
+                             vis_trfm_decode.am_inhibit, synapse=0.01)
         else:
             from .decoding.vis_trfm_net import Dummy_Visual_Transform_Network
             vis_trfm_decode = \
@@ -204,6 +200,7 @@ class InfoDecoding(Module):
         self.pos_acc_input = self.free_recall_decode.pos_acc_input
         self.fr_recall_mb = self.free_recall_decode.pos_recall_mb
         self.fr_dcconv = self.free_recall_decode.fr_dcconv
+        self.fr_am_out = self.free_recall_decode.fr_am.output
 
         self.select_am = self.select_out.sel0
         self.select_vis = self.select_out.sel1
@@ -243,6 +240,8 @@ class InfoDecoding(Module):
         for n in range(5):
             nengo.Connection(getattr(self.select_out, 'sel%d' % n),
                              self.sel_signals[n], synapse=None)
+
+        self.vis_trfm_decode = vis_trfm_decode
 
         # ########################## END DEBUG ################################
 
@@ -311,9 +310,10 @@ class InfoDecoding(Module):
             nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
                              transform=[dec_pos_gate_task_sp_vecs * -1.5])
 
-            # Inhibit FR for induction, learning tasks
+            # Inhibit FR for induction, learning, counting, react, and instr
+            # tasks
             # - also set fr_utils_n to high
-            dec_inhibit_fr_sp_vecs = vocab.main.parse('DECI+L').v
+            dec_inhibit_fr_sp_vecs = vocab.main.parse('DECI+L+C+REACT+INSTR').v
             nengo.Connection(p_net.ps.task, self.free_recall_decode.inhibit,
                              transform=[dec_inhibit_fr_sp_vecs])
             nengo.Connection(p_net.ps.dec, self.free_recall_decode.inhibit,
@@ -346,6 +346,12 @@ class InfoDecoding(Module):
 
         # Set up connections from motor module
         if hasattr(p_net, 'mtr'):
+            # nengo.Connection(p_net.mtr.ramp_reset_hold,
+            #                  self.pos_mb_gate_sig.input,
+            #                  synapse=0.005, transform=5)
+            # nengo.Connection(p_net.mtr.ramp_reset_hold,
+            #                  self.pos_mb_gate_sig.input,
+            #                  synapse=0.08, transform=-10)
             nengo.Connection(p_net.mtr.ramp_reset_hold,
                              self.pos_mb_gate_sig.input,
                              synapse=0.005)
