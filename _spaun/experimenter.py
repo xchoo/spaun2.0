@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 from loggerator import logger
 
@@ -17,15 +18,21 @@ class SpaunExperiment(object):
         for key in self.sym_map.keys():
             self.sym_rev_map[self.sym_map[key]] = key
 
-        self.num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        # self.num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        #                      '-']
+        self.num_out_list = ['z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
                              '-']
 
         self.null_output = "="
 
         self.raw_seq_str = ''
+        self.raw_instr_str = ''
+
         self.raw_seq_list = []
         self.stim_seq_list = []
         self.task_phase_seq_list = []
+        self.instr_sps_list = []
+        self.instr_dict = []
 
         self.learn_min_num_actions = 3
         self._num_learn_actions = self.learn_min_num_actions
@@ -51,6 +58,8 @@ class SpaunExperiment(object):
                     param_value = str(param_value[:20])[:-1] + '...'
 
                 logger.write('# - %s = %s\n' % (param_name, param_value))
+        logger.write('# ------\n')
+        logger.write('# Simulation time: %0.2fs' % self.get_est_simtime())
         logger.write('#\n')
 
     def parse_mult_seq(self, seq_str):
@@ -98,7 +107,8 @@ class SpaunExperiment(object):
                 count_val = int(task_opts_str)
                 start_val = int(np.random.random() *
                                 (len(self.num_map) - count_val))
-                new_task_str = 'A4[%d][%d]' % (start_val, count_val)
+                new_task_str = ('A4[%d][%d]?' % (start_val, count_val) +
+                                'X' * (count_val + 1))
             elif task_str == "LEARN":
                 # Format: (LEARN; PROB1A+PROB1B+ ... +PROB1N, NUMTRIALS1;
                 #                 PROB2A+PROB2B+ ... +PROB2N, NUMTRAILS2; ...)
@@ -133,6 +143,33 @@ class SpaunExperiment(object):
 
                 # Generate task string
                 new_task_str = 'A2' + '?X.' * num_trials
+
+            elif task_str == "QA":
+                # Format: (QA; P or K; LIST_LEN)
+                qa_opts = task_opts_str.split(';')
+                qa_type = str(qa_opts[0]).upper()
+                qa_len = int(qa_opts[1])
+
+                # Generate number list
+                num_list = np.arange(len(self.num_map))
+                np.random.shuffle(num_list)
+                num_list = map(str, num_list)
+
+                # Generate position / kind options
+                len_list = np.arange(qa_len)
+                np.random.shuffle(len_list)
+                pk_opt = 0
+                if qa_type == 'P':
+                    pk_opt = str(len_list[0] + 1)
+                elif qa_type == 'K':
+                    pk_opt = num_list[len_list[0]]
+                else:
+                    raise ValueError('Option "%s" unsupported for QA task.' %
+                                     qa_type)
+
+                # Generate task string
+                new_task_str = 'A5[%s]%s[%s]?XX' % (''.join(num_list[:qa_len]),
+                                                    qa_type, pk_opt)
             else:
                 raise ValueError('Custom task string "%s" ' % task_str +
                                  'not supported.')
@@ -142,6 +179,25 @@ class SpaunExperiment(object):
 
         return (rslt_str + seq_str[task_close_ind + 1:], learn_task_options,
                 num_learn_actions)
+
+    def parse_instruction_str(self, instr_str):
+        instr_dict = OrderedDict()
+
+        if len(instr_str) <= 0:
+            return instr_dict
+
+        instrs = instr_str.split(';')
+        for instr in instrs:
+            instr_data = instr.split(':')
+            instr_key = instr_data[0]
+            instr_sps = instr_data[1].split(',')
+
+            if len(instr_sps) != 2:
+                raise ValueError('Spaun Experimenter: Malformed instruction' +
+                                 ' options.')
+
+            instr_dict[instr_key] = instr_sps
+        return instr_dict
 
     def insert_mtr_wait_sym(self, raw_seq_list, num_mtr_responses,
                             present_interval, mtr_est_digit_response_time):
@@ -153,26 +209,38 @@ class SpaunExperiment(object):
 
         raw_seq_list.extend([None] * extra_spaces)
 
-    def add_present_blanks(self, seq_list):
+    def add_present_blanks(self, seq_list, instr_list):
         seq_list_new = []
-        for c in seq_list:
+        instr_list_new = []
+
+        for i, c in enumerate(seq_list):
             seq_list_new.append(c)
+            instr_list_new.append(instr_list[i])
             if c != '.' and c is not None:
                 seq_list_new.append(None)
-        return seq_list_new
+                instr_list_new.append(instr_list[i])
+
+        return seq_list_new, instr_list_new
 
     def parse_raw_seq(self, raw_seq_str, get_image_ind, get_image_label,
-                      present_blanks, mtr_est_digit_response_time, rng):
+                      present_blanks, mtr_est_digit_response_time,
+                      instruction_str, rng):
         (raw_seq, learn_task_options, num_learn_actions) = \
             self.parse_custom_tasks(self.parse_mult_seq(raw_seq_str))
+
+        instr_dict = self.parse_instruction_str(instruction_str)
+
         hw_num = False  # Flag to indicate to use a hand written number
         fixed_num = False
+        is_instr = False
 
         raw_seq_list = []
         stim_seq_list = []
+        instr_seq_list = []
 
         prev_c = ''
         fixed_c = ''
+        instr_c = ''
         value_maps = {}
 
         num_n = 0
@@ -220,6 +288,10 @@ class SpaunExperiment(object):
                                          mtr_est_digit_response_time)
                 num_mtr_responses = 0
 
+            # 'R' Option for memory task
+            if c == 'B':
+                c = 'R'
+
             raw_seq_list.append(c)
 
         # Insert trailing motor response wait symbols
@@ -245,6 +317,15 @@ class SpaunExperiment(object):
                 fixed_c = ''
                 continue
 
+            if c == '%':
+                if not is_instr:
+                    instr_c = ''
+                is_instr = not is_instr
+                continue
+            elif is_instr:
+                instr_c += c
+                continue
+
             if c in self.sym_map:
                 c = self.sym_map[c]
             if not hw_num and c in self.num_map:
@@ -255,18 +336,22 @@ class SpaunExperiment(object):
             if (c is not None and prev_c == c and not present_blanks) or \
                c == '.':
                 stim_seq_list.append(None)
+                instr_seq_list.append(instr_c)
 
             if c is not None and c.isdigit() and hw_num:
                 img_ind = get_image_ind(c, rng)
                 stim_seq_list.append((img_ind, c))
+                instr_seq_list.append(instr_c)
                 c = img_ind
                 hw_num = False
             elif c is not None and c == '>' and fixed_num:
                 stim_seq_list.append(
                     (int(fixed_c), str(get_image_label(int(fixed_c)))))
+                instr_seq_list.append(instr_c)
                 fixed_num = False
             else:
                 stim_seq_list.append(c)
+                instr_seq_list.append(instr_c)
 
             # Keep track of previous character (to insert spaces between)
             # duplicate characters
@@ -274,7 +359,8 @@ class SpaunExperiment(object):
 
         # Insert blanks if present_blanks option is set
         if present_blanks:
-            stim_seq_list = self.add_present_blanks(stim_seq_list)
+            stim_seq_list, instr_seq_list = \
+                self.add_present_blanks(stim_seq_list, instr_seq_list)
 
         # Generate task phase sequence list
         task_phase_seq_list = []
@@ -289,22 +375,25 @@ class SpaunExperiment(object):
             if s == 'A':
                 task = 'X'
                 learn_trial_count = 0
-            if s == 'ZER' and task == 'X':
-                task = 'W'
-            if s == 'ONE' and task == 'X':
-                task = 'R'
-            if s == 'TWO' and task == 'X':
-                task = 'L'
-            if s == 'THR' and task == 'X':
-                task = 'M'
-            if s == 'FOR' and task == 'X':
-                task = 'C'
-            if s == 'FIV' and task == 'X':
-                task = 'A'
-            if s == 'SIX' and task == 'X':
-                task = 'V'
-            if s == 'SEV' and task == 'X':
-                task = 'F'
+            elif task == 'X':
+                if s == 'ZER':
+                    task = 'W'
+                elif s == 'ONE':
+                    task = 'R'
+                elif s == 'TWO':
+                    task = 'L'
+                elif s == 'THR':
+                    task = 'M'
+                elif s == 'FOR':
+                    task = 'C'
+                elif s == 'FIV':
+                    task = 'A'
+                elif s == 'SIX':
+                    task = 'V'
+                elif s == 'SEV':
+                    task = 'F'
+                else:
+                    task = 'UNK'
 
             if task == 'L':
                 # Special handling stuff for learning task
@@ -327,8 +416,25 @@ class SpaunExperiment(object):
             else:
                 task_phase_seq_list.append(task)
 
+        # Parse Instruction character key list into instruction sem pointer
+        # list
+        instr_sp_list = []
+        for key in instr_seq_list:
+            if key == '':
+                instr_sp_list.append(None)
+            else:
+                instr_sp_sublist = []
+                for sp_str in key.split('+'):
+                    if sp_str in instr_dict.keys():
+                        instr_sp_sublist.append(instr_dict[sp_str])
+                    else:
+                        raise ValueError('Spaun Experimenter: Instruction ' +
+                                         'key "%s"' % sp_str + ' not found ' +
+                                         'in provided instruction options.')
+                instr_sp_list.append(instr_sp_sublist)
+
         return (raw_seq_list, stim_seq_list, task_phase_seq_list,
-                num_learn_actions)
+                instr_sp_list, instr_dict, num_learn_actions)
 
     def get_est_simtime(self):
         return (len(self.stim_seq_list) * self.present_interval)
@@ -378,6 +484,13 @@ class SpaunExperiment(object):
         else:
             return self.stim_seq_list[t_ind]
 
+    def get_instruction_sps(self, t):
+        t_ind = self.get_t_ind(t)
+        if t_ind < len(self.instr_sps_list):
+            return self.instr_sps_list[t_ind]
+        else:
+            return None
+
     def update_output(self, t, out_ind):
         # Figure out what the motor output is and write it to file
         if out_ind >= 0 and out_ind < len(self.num_out_list):
@@ -410,13 +523,16 @@ class SpaunExperiment(object):
             pass
 
     def initialize(self, raw_seq_str, get_image_ind, get_image_label,
-                   mtr_est_digit_response_time, rng):
+                   mtr_est_digit_response_time, instruction_str, rng):
         self.raw_seq_str = raw_seq_str.replace(' ', '')
+        self.raw_instr_str = instruction_str.replace(' ', '')
+
         (self.raw_seq_list, self.stim_seq_list, self.task_phase_seq_list,
-         self._num_learn_actions) = \
+         self.instr_sps_list, self.instr_dict, self._num_learn_actions) = \
             self.parse_raw_seq(self.raw_seq_str, get_image_ind,
                                get_image_label, self.present_blanks,
-                               mtr_est_digit_response_time, rng)
+                               mtr_est_digit_response_time,
+                               self.raw_instr_str, rng)
 
     def reset(self):
         self.prev_t_ind = -1

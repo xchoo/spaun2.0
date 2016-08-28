@@ -1,4 +1,6 @@
-from .lif_vision import LIFVision
-from .utils import mnist
-from .utils import load_image_data
-from .utils import normalize as normalize_images
+import importlib
+
+from ...configurator import cfg
+vis_module = importlib.import_module('_spaun.modules.vision.' + cfg.vis_module)
+vis_data = vis_module.DataObject()
+VisionNet = vis_module.VisionNet

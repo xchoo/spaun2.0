@@ -24,7 +24,7 @@ class TransformationSystem(Module):
         # ----- Input and output selectors ----- #
         self.select_in_a = cfg.make_selector(3)
         self.select_in_b = cfg.make_selector(6, represent_identity=True)
-        self.select_out = cfg.make_selector(6, represent_identity=True)
+        self.select_out = cfg.make_selector(7, represent_identity=True)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=vocab.sp_dim)
@@ -101,6 +101,7 @@ class TransformationSystem(Module):
         nengo.Connection(self.select_out.output, self.output, synapse=None)
 
         # ----- Set up module vocab inputs and outputs -----
+        self.inputs = dict(input=(self.select_out.input6, vocab.main))
         self.outputs = dict(compare=(self.compare.output, vocab.main))
 
     @with_self
@@ -169,6 +170,7 @@ class TransformationSystem(Module):
             # - sel3 (~CC1 Out): State = TRANS1 + TRANS2 & Dec = -DECI
             # - sel4 (CC1 Out): Dec = DECI
             # - sel5 (ACT LEARN Out): State = LEARN & Dec = -NONE
+            # - sel6 (TRFM IN DIRECT): Task = REACT + INSTR
             out_sel0_sp_vecs = vocab.main.parse('QAP').v
             nengo.Connection(p_net.ps.state, self.select_out.sel0,
                              transform=[out_sel0_sp_vecs])
@@ -198,6 +200,10 @@ class TransformationSystem(Module):
                              transform=[out_sel5_sp_vecs])
             nengo.Connection(p_net.ps.dec, self.select_out.sel5,
                              transform=[out_sel5_sp_vecs])
+
+            out_sel6_sp_vecs = vocab.main.parse('DIRECT').v
+            nengo.Connection(p_net.ps.state, self.select_out.sel6,
+                             transform=[out_sel6_sp_vecs])
 
             # Disable input normalization for Dec = DECI + FWD + REV
             dis_norm_sp_vecs = vocab.main.parse('FWD+REV+DECI').v

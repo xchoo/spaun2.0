@@ -18,14 +18,15 @@ def Free_Recall_Network(item_vocab, pos_vocab, mtr_vocab, net=None,
 
         net.pos_recall_mb = cfg.make_mem_block(vocab=pos_vocab, reset_key=0,
                                                radius=acc_radius,
-                                               n_neurons=100)
+                                               n_neurons=50,
+                                               cleanup_mode=1)
         nengo.Connection(net.pos_recall_mb.output, net.pos_recall_mb.input)
 
         # ------------------------- FR CConv Unit -----------------------------
         net.fr_dcconv = cfg.make_cir_conv(invert_b=True,
                                           input_magnitude=cfg.dcconv_radius)
         nengo.Connection(net.pos_recall_mb.output, net.fr_dcconv.B,
-                         transform=-1.5)
+                         transform=-1)
 
         # -------------------------- FR Assoc Mem -----------------------------
         net.fr_am = \

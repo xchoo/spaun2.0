@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import argparse
-import numpy as np
 
 import nengo
 
@@ -10,8 +9,6 @@ from _spaun.configurator import cfg
 from _spaun.vocabulator import vocab
 from _spaun.experimenter import experiment
 from _spaun.loggerator import logger
-from _spaun.modules.vision.data import vis_data
-from _spaun.modules.motor.data import mtr_data
 from _spaun.utils import get_probe_data_filename
 
 # ----- Defaults -----
@@ -69,6 +66,14 @@ parser.add_argument(
          '"#" to a digit to use handwritten digits, a "[" for the open ' +
          'bracket, a "]" for the close bracket, and a "X" for each expected ' +
          'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
+parser.add_argument(
+    '-i', type=str, default='',
+    help='Instructions event sequence. Use the following format to provide ' +
+         'customized instructions to spaun (which can then be put into the ' +
+         'stimulus string using "%%INSTR_KEY%%": ' +
+         '"INSTR_KEY: ANTECEDENT_SP_STR, CONSEQUENCE_SP_STR; ..."' +
+         'e.g. "I1: TASK*INSTR + VIS*ONE, TRFM*POS1*THR", and the stimulus ' +
+         'string: "%%I1%%A0[0]?XX"')
 parser.add_argument(
     '-b', type=str, default='ref',
     help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
@@ -226,9 +231,10 @@ for n in range(args.n):
 
     # ----- Spaun imports -----
     from _spaun.utils import get_total_n_neurons
-    from _spaun.probes import config_and_setup_probes, write_probe_data
-    from _spaun.probes import setup_probes, setup_probes_animation
     from _spaun.spaun_main import Spaun
+
+    from _spaun.modules.vision import vis_data
+    from _spaun.modules.motor import mtr_data
 
     # ----- Enable debug logging -----
     if args.debug:
@@ -237,7 +243,7 @@ for n in range(args.n):
     # ----- Experiment and vocabulary initialization -----
     experiment.initialize(args.s, vis_data.get_image_ind,
                           vis_data.get_image_label,
-                          cfg.mtr_est_digit_response_time, cfg.rng)
+                          cfg.mtr_est_digit_response_time, args.i, cfg.rng)
     vocab.initialize(experiment.num_learn_actions, cfg.rng)
     vocab.initialize_mtr_vocab(mtr_data.dimensions, mtr_data.sps)
     vocab.initialize_vis_vocab(vis_data.dimensions, vis_data.sps)
@@ -277,45 +283,55 @@ for n in range(args.n):
     runtime = args.t if args.t > 0 else experiment.get_est_simtime()
 
     # ----- Set up probes -----
-    make_probes = not args.noprobes
+    from _spaun import probes as probe_module
 
-    if runtime > max_probe_time:
+    make_probes = not args.noprobes
+    if runtime > max_probe_time and make_probes:
         print (">>> !!! WARNING !!! EST RUNTIME > %0.2fs - DISABLING PROBES" %
                max_probe_time)
         make_probes = False
 
     if make_probes:
         print "PROBE FILENAME: %s" % cfg.probe_data_filename
-        config_and_setup_probes(model, cfg.data_dir,
-                                cfg.probe_data_filename, setup_probes)
+        default_probe_config = getattr(probe_module, cfg.probe_graph_config)
+        probe_cfg = default_probe_config(model, vocab, cfg.sim_dt,
+                                         cfg.data_dir,
+                                         cfg.probe_data_filename)
 
     # ----- Set up animation probes -----
     if args.showanim or args.showiofig or args.probeio:
         anim_probe_data_filename = cfg.probe_data_filename[:-4] + '_anim.npz'
+        default_anim_config = getattr(probe_module, cfg.probe_anim_config)
         print "ANIM PROBE FILENAME: %s" % anim_probe_data_filename
-        config_and_setup_probes(model, cfg.data_dir, anim_probe_data_filename,
-                                setup_probes_animation)
+        probe_anim_cfg = default_anim_config(model, vocab,
+                                             cfg.sim_dt, cfg.data_dir,
+                                             anim_probe_data_filename)
 
     # ----- Neuron count debug -----
     print "MODEL N_NEURONS:  %i" % (get_total_n_neurons(model))
     if hasattr(model, 'vis'):
-        print "- vis  n_neurons: %i" % (get_total_n_neurons(model.vis))
+        print "- vis   n_neurons: %i" % (get_total_n_neurons(model.vis))
     if hasattr(model, 'ps'):
-        print "- ps   n_neurons: %i" % (get_total_n_neurons(model.ps))
+        print "- ps    n_neurons: %i" % (get_total_n_neurons(model.ps))
     if hasattr(model, 'bg'):
-        print "- bg   n_neurons: %i" % (get_total_n_neurons(model.bg))
+        print "- bg    n_neurons: %i" % (get_total_n_neurons(model.bg))
     if hasattr(model, 'thal'):
-        print "- thal n_neurons: %i" % (get_total_n_neurons(model.thal))
+        print "- thal  n_neurons: %i" % (get_total_n_neurons(model.thal))
     if hasattr(model, 'enc'):
-        print "- enc  n_neurons: %i" % (get_total_n_neurons(model.enc))
+        print "- enc   n_neurons: %i" % (get_total_n_neurons(model.enc))
     if hasattr(model, 'mem'):
-        print "- mem  n_neurons: %i" % (get_total_n_neurons(model.mem))
+        print "- mem   n_neurons: %i" % (get_total_n_neurons(model.mem))
     if hasattr(model, 'trfm'):
-        print "- trfm n_neurons: %i" % (get_total_n_neurons(model.trfm))
+        print "- trfm  n_neurons: %i" % (get_total_n_neurons(model.trfm))
+    if hasattr(model, 'instr'):
+        print "- instr n_neurons: %i" % (get_total_n_neurons(model.instr))
     if hasattr(model, 'dec'):
-        print "- dec  n_neurons: %i" % (get_total_n_neurons(model.dec))
+        print "- dec   n_neurons: %i" % (get_total_n_neurons(model.dec))
     if hasattr(model, 'mtr'):
-        print "- mtr  n_neurons: %i" % (get_total_n_neurons(model.mtr))
+        print "- mtr   n_neurons: %i" % (get_total_n_neurons(model.mtr))
+
+    # ----- Connections count debug -----
+    print "MODEL N_CONNECTIONS: %i" % (len(model.all_connections))
 
     # ----- Spaun simulation build -----
     print "START BUILD"
@@ -453,17 +469,15 @@ for n in range(args.n):
     # ----- Write probe data to file -----
     if make_probes and not cfg.use_mpi:
         print "WRITING PROBE DATA TO FILE"
-        write_probe_data(sim, cfg.data_dir, cfg.probe_data_filename)
+        probe_cfg.write_simdata_to_file(sim, experiment)
 
         if args.showgrph:
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    os.path.join(cfg.data_dir,
-                                                 cfg.probe_data_filename),
-                                    str(int(args.showgrph)),
-                                    str(0),
-                                    str(0)]
+                                    '"' + cfg.probe_data_filename + '"',
+                                    '--data_dir', '"' + cfg.data_dir + '"',
+                                    '--showgrph']
 
             # Log subprocess call
             logger.write("\n# " + " ".join(subprocess_call_list))
@@ -475,17 +489,18 @@ for n in range(args.n):
 
     if (args.showanim or args.showiofig or args.probeio) and not cfg.use_mpi:
         print "WRITING ANIMATION PROBE DATA TO FILE"
-        write_probe_data(sim, cfg.data_dir, anim_probe_data_filename)
+        probe_anim_cfg.write_simdata_to_file(sim, experiment)
 
         if args.showanim or args.showiofig:
             subprocess_call_list = ["python",
                                     os.path.join(cur_dir,
                                                  'disp_probe_data.py'),
-                                    os.path.join(cfg.data_dir,
-                                                 anim_probe_data_filename),
-                                    str(0),
-                                    str(int(args.showanim)),
-                                    str(int(args.showiofig))]
+                                    '"' + anim_probe_data_filename + '"',
+                                    '--data_dir', '"' + cfg.data_dir + '"']
+            if args.showanim:
+                subprocess_call_list += ['--showanim']
+            if args.showiofig:
+                subprocess_call_list += ['--showiofig']
 
             # Log subprocess call
             logger.write("\n# " + " ".join(subprocess_call_list))

@@ -2,62 +2,25 @@ import os
 import numpy as np
 import bisect as bs
 
-import nengo
-
-from .utils import mnist
-from .utils import load_image_data
+import mnist
 
 
 class VisionDataObject(object):
     def __init__(self):
         self.filepath = os.path.join('_spaun', 'modules', 'vision')
 
-        # --- LIF vision network configurations ---
-        self.max_rate = 63.04
-        self.intercept = 0.
-        self.amp = 1.0 / self.max_rate
-        self.pstc = 0.005
-
-        # --- LIF vision network weights configurations ---
-        self.vision_network_filename = os.path.join(self.filepath,
-                                                    'params.npz')
-        self.vision_network_data = np.load(self.vision_network_filename)
-        self.dimensions = self.vision_network_data['Wc'].shape[0]
-
-        self.weights = self.vision_network_data['weights']
-        self.biases = self.vision_network_data['biases']
-        weights_class = self.vision_network_data['Wc']
-        biases_class = self.vision_network_data['bc']
-
-        # --- LIF vision network neuron model ---
-        neuron_type = nengo.LIF(tau_rc=0.02, tau_ref=0.002)
-        assert np.allclose(neuron_type.gain_bias(np.asarray([self.max_rate]),
-                                                 np.asarray([self.intercept])),
-                           (1, 1), atol=1e-2)
-
-        self.neuron_type = neuron_type
-
-        # --- Visual associative memory configurations ---
-        means_filename = os.path.join(self.filepath, 'class_means.npz')
-        means_data = np.matrix(1.0 / np.load(means_filename)['means'])
-
-        self.am_threshold = 0.5
-        self.sps = np.array(np.multiply(weights_class.T * self.amp,
-                                        means_data.T))
-
-        self.num_classes = weights_class.shape[1]
-
-        self.sps_scale = 4.5
-        # For magic number 4.5, see reference_code/vision_2/data_analysis.py
-
         # --- Mnist data ---
         _, _, [images_data, images_labels] = \
-            mnist(filepath=self.filepath)
+            mnist.read_file('mnist.pkl.gz', self.filepath)
         images_labels = list(map(str, images_labels))
 
         # --- Spaun symbol data ---
-        _, _, [symbol_data, symbol_labels] = \
-            load_image_data('spaun_sym.pkl.gz', filepath=self.filepath)
+        _, _, [symbol_data, _] = \
+            mnist.read_file('spaun_sym.pkl.gz', self.filepath)
+
+        symbol_labels = ['ZER', 'ONE', 'TWO', 'THR', 'FOR', 'FIV', 'SIX',
+                         'SEV', 'EIG', 'NIN', 'OPEN', 'CLOSE', 'SPACE', 'QM',
+                         'A', 'C', 'F', 'K', 'L', 'M', 'P', 'R', 'V', 'W']
 
         # --- Combined image (mnist + spaun symbol) data ---
         images_data = np.append(images_data, symbol_data, axis=0)
@@ -82,6 +45,7 @@ class VisionDataObject(object):
                                                                  lbl)))
 
         self.images_data = images_data
+        self.images_labels = images_labels
 
     def get_image(self, label=None, rng=None):
         if rng is None:
@@ -115,6 +79,3 @@ class VisionDataObject(object):
         else:
             image_ind = rng.choice(len(self.images_labels_inds))
         return image_ind
-
-
-vis_data = VisionDataObject()

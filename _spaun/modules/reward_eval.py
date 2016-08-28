@@ -11,8 +11,6 @@ from ..configurator import cfg
 from ..vocabulator import vocab
 from ..experimenter import experiment
 
-# from .reward import
-
 
 class RewardEvaluationSystem(Module):
     def __init__(self, label="Reward Evaluation Sys", seed=None,
@@ -46,13 +44,13 @@ class RewardEvaluationSystem(Module):
 
         # Calculate positive reward values
         self.pos_reward_vals = \
-            cfg.make_ens_array(n_ensembles=num_actions)
+            cfg.make_ens_array(n_ensembles=num_actions, radius=1)
         nengo.Connection(self.action_input, self.pos_reward_vals.input,
                          transform=np.eye(num_actions), synapse=None)
 
         # Calculate negative reward values
         self.neg_reward_vals = \
-            cfg.make_ens_array(n_ensembles=num_actions)
+            cfg.make_ens_array(n_ensembles=num_actions, radius=1)
         nengo.Connection(self.action_input, self.neg_reward_vals.input,
                          transform=np.ones(num_actions) - np.eye(num_actions),
                          synapse=None)

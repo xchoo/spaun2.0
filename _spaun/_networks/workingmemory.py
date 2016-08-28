@@ -211,7 +211,7 @@ class InputGatedCleanupMemory(nengo.Network):
 
         make_mem_args = dict()
         make_mem_args['input_vectors'] = cleanup_values
-        make_mem_args['threshold'] = 0.5
+        make_mem_args['threshold'] = ens_args.pop('threshold', 0.5)
 
         make_mem_network(self, self.n_neurons, self.dimensions,
                          make_am_func, make_mem_args, make_ens_func, ens_args,
