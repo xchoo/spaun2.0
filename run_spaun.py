@@ -110,7 +110,7 @@ parser.add_argument(
     '--ocl', action='store_true',
     help='Supply to use the OpenCL backend (will override -b).')
 parser.add_argument(
-    '--ocl_platform', type=int, default=0,
+    '--ocl_platform', type=int, default=-1,
     help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
           ' backend can be listed using "pyopencl.get_platforms()"'))
 parser.add_argument(
@@ -340,8 +340,14 @@ for n in range(args.n):
     if args.nengo_gui:
         # Set environment variables (for nengo_gui)
         if cfg.use_opencl:
-            os.environ['PYOPENCL_CTX'] = '%s:%s' % (args.ocl_platform,
-                                                    args.ocl_device)
+            if args.ocl_platform >= 0 and args.ocl_device >= 0:
+                os.environ['PYOPENCL_CTX'] = '%s:%s' % (args.ocl_platform,
+                                                        args.ocl_device)
+            else:
+                raise RuntimeError('Error - OCL platform and device must be' +
+                                   'specified when using ocl with nengo_gui.' +
+                                   ' Use the --ocl_platform and --ocl_device' +
+                                   ' argument options to set.')
 
         print "STARTING NENGO_GUI"
         import nengo_gui
@@ -358,22 +364,26 @@ for n in range(args.n):
         print "AVAILABLE PLATFORMS:"
         print '  ' + '\n  '.join(map(str, cl.get_platforms()))
 
-        pltf = cl.get_platforms()[args.ocl_platform]
-        print "USING PLATFORM:"
-        print '  ' + str(pltf)
+        if args.ocl_platform >= 0:
+            pltf = cl.get_platforms()[args.ocl_platform]
+            print "USING PLATFORM:"
+            print '  ' + str(pltf)
 
-        print "AVAILABLE DEVICES:"
-        print '  ' + '\n  '.join(map(str, pltf.get_devices()))
-        if args.ocl_device >= 0:
-            ctx = cl.Context([pltf.get_devices()[args.ocl_device]])
-            print "USING DEVICE:"
-            print '  ' + str(pltf.get_devices()[args.ocl_device])
-        else:
-            ctx = cl.Context(pltf.get_devices())
-            print "USING DEVICES:"
+            print "AVAILABLE DEVICES:"
             print '  ' + '\n  '.join(map(str, pltf.get_devices()))
-        sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx,
-                                  profiling=args.ocl_profile)
+            if args.ocl_device >= 0:
+                ctx = cl.Context([pltf.get_devices()[args.ocl_device]])
+                print "USING DEVICE:"
+                print '  ' + str(pltf.get_devices()[args.ocl_device])
+            else:
+                ctx = cl.Context(pltf.get_devices())
+                print "USING DEVICES:"
+                print '  ' + '\n  '.join(map(str, pltf.get_devices()))
+            sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx,
+                                      profiling=args.ocl_profile)
+        else:
+            sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt,
+                                      profiling=args.ocl_profile)
     elif cfg.use_mpi:
         import nengo_mpi
 
