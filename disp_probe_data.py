@@ -1,12 +1,8 @@
 import os
-import sys
 import numpy as np
 import numpy.ma as ma
 import argparse
 import matplotlib.pyplot as plt
-
-from _spaun.animation import ArmAnim, DataFunctions, GeneratorFunctions
-from _spaun.modules.vision.data import VisionDataObject
 
 
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
@@ -371,6 +367,8 @@ if show_anim or show_io:
     print anim_config
 
 if show_io:
+    from _spaun.modules.vision.data import VisionDataObject
+
     # TODO: UPDATE TO USE NEW CODE FROM ABOVE
     vis_stim_config = anim_config[0]
     vis_stim_probe_id_str = vis_stim_config['data_func_params']['data']
@@ -458,6 +456,8 @@ if show_io:
     plt.tight_layout()
 
 if show_anim:
+    from _spaun.animation import ArmAnim, DataFunctions, GeneratorFunctions
+
     subplot_width = anim_config[-1]['subplot_width']
     subplot_height = anim_config[-1]['subplot_height']
     max_subplot_cols = anim_config[-1]['max_subplot_cols']
