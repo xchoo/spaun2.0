@@ -245,7 +245,7 @@ def process_line(task_str, task_data_str):
 
 
 # Process probe data file
-probe_dir = args.d
+probe_dir = args.data_dir
 str_prefix = '+'.join([args.p, args.n])
 if len(args.s) > 0:
     str_prefix = '+'.join([str_prefix, args.s])
