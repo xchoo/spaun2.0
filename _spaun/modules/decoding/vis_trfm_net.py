@@ -3,7 +3,6 @@ import numpy as np
 import nengo
 from nengo.networks import EnsembleArray
 
-from ..._networks import convert_func_2_diff_func
 from ...configurator import cfg
 
 
@@ -26,6 +25,7 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
         # -            Default output vectors inhibits all.
         # Note: threshold is halved to compenstate (sort of) for drift in the
         #       visual WM system
+        # TODO: Use output of Serial Decode instead of replicating code?
         digit_classify = \
             cfg.make_assoc_mem(vis_vocab.vectors[:len(mtr_vocab.keys), :],
                                np.ones((len(mtr_vocab.keys),

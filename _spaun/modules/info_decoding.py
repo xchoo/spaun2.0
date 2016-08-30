@@ -99,6 +99,7 @@ class InfoDecoding(Module):
         # ------------- Visual transform decoding network ------------------- #
         if vocab.vis_dim > 0:
             # Takes visual SP and transforms them to the 'copy-drawn' motor SP
+            # TODO: Use output of Serial Decode instead of replicating code?
             copy_draw_tfrm_data = \
                 np.load(os.path.join(mtr_data.filepath, cfg.mtr_module,
                                      '_'.join([cfg.vis_module,
