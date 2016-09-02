@@ -35,6 +35,9 @@ parser.add_argument(
     '--legend_pos', type=str, default='best',
     help='Legend position argument to use for matplotlib plots.')
 parser.add_argument(
+    '--aspect', type=str, default='auto',
+    help='Aspect ratio to use for image plots and path plots.')
+parser.add_argument(
     '--trange', type=float, nargs=2, default=None,
     help=('Minimum and maximum time values (in seconds) to display on the ' +
           'graphs. Provided as two values e.g. --trange MIN MAX.'))
@@ -283,7 +286,7 @@ if show_grphs:
                     im_time = t_data[im_ind]
                     plt.imshow(im_data.reshape(im_shape),
                                cmap=plt.get_cmap('gray'),
-                               interpolation='nearest', aspect='equal',
+                               interpolation='nearest', aspect=args.aspect,
                                extent=(im_time, im_time + im_width,
                                        0, im_height))
                     plt.plot([im_time] * 2,
@@ -356,7 +359,7 @@ if show_grphs:
                                                [0, present_interval])
                         plt.plot(path_x, path_y, 'b')
 
-                plt.gca().set_aspect('equal')
+                plt.gca().set_aspect(args.aspect)
                 plt.ylim(-aspect_equal_y_margin,
                          present_interval + aspect_equal_y_margin)
                 plt.yticks([])

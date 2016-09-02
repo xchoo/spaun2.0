@@ -112,7 +112,7 @@ class ProductionSystem(Module):
         # Set up connections from vision module
         if hasattr(parent_net, 'vis'):
             # ###### Task MB ########
-            task_mb_gate_sp_vecs = vocab.main.parse('QM+M').v
+            task_mb_gate_sp_vecs = vocab.main.parse('QM+M+V').v
             task_mb_rst_sp_vecs = vocab.main.parse('A').v
 
             nengo.Connection(parent_net.vis.output, self.task_mb.gate,

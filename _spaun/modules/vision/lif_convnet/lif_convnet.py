@@ -34,9 +34,26 @@ def LIFConvNetVision(vis_data, net=None, net_neuron_type=None):
 
         # --- Set up input and outputs to the LIF vision system
         net.input = input_node
-        net.output = \
-            nengo.Node(size_in=ccnet.layer_outputs[vis_data.okey].size_out)
-        nengo.Connection(ccnet.layer_outputs[vis_data.okey], net.output,
-                         transform=vis_data.vis_net_output_scale, synapse=None)
-        net.raw_output = ccnet.inputs['data']
+        net.raw_output = input_node
+
+        # Output to the visual WM
+        net.to_mem_output = nengo.Node(size_in=vis_data.dimensions)
+        nengo.Connection(ccnet.layer_outputs[vis_data.mem_okey],
+                         net.to_mem_output,
+                         transform=vis_data.sps_output_scale, synapse=None)
+
+        # Output to the vision network classifier
+        net.to_classify_output = nengo.Node(size_in=vis_data.num_classes)
+        # nengo.Connection(ccnet.layer_outputs[vis_data.classify_okey],
+        #                  net.to_classify_output[:10],
+        #                  transform=1.25 / vis_data.sps_fc10_means,
+        #                  synapse=None)
+        # nengo.Connection(
+        #     ccnet.layer_outputs[vis_data.mem_okey],
+        #     net.to_classify_output[10:],
+        #     transform=vis_data.sps_output_scale * vis_data.sps[10:, :],
+        #     synapse=None)
+        nengo.Connection(ccnet.layer_outputs[vis_data.classify_okey],
+                         net.to_classify_output,
+                         transform=1.0 / vis_data.sps_fc10_means, synapse=None)
     return net

@@ -46,8 +46,13 @@ def LIFVision(vis_data, net=None, net_neuron_type=None):
 
         # --- Set up input and outputs to the LIF vision system
         net.input = input_node
-        net.output = nengo.Node(size_in=net.layers[-1].n_neurons)
-        nengo.Connection(net.layers[-1].neurons, net.output,
-                         transform=vis_data.vis_net_output_scale, synapse=None)
         net.raw_output = input_node
+
+        # Output to the visual WM
+        net.to_mem_output = nengo.Node(size_in=net.layers[-1].n_neurons)
+        nengo.Connection(net.layers[-1].neurons, net.to_mem_output,
+                         transform=vis_data.sps_output_scale, synapse=None)
+
+        # Output to the vision network classifier
+        net.to_classify_output = net.to_mem_output
     return net

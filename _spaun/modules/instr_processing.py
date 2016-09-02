@@ -113,6 +113,7 @@ class InstructionProcessingSystem(Module):
 
         # ----------- SEQUENTIAL INSTRUCTION POSITION INC NETWORK -------------
         # Position increment network for sequential instructions
+        # Note; There is no position 0 instruction. Starts at position 1.
         self.pos_inc = Set_Pos_Inc_Net(vocab.pos, vocab.main.parse('0').v,
                                        vocab.inc_sp, vocab.item_1_index,
                                        threshold_gate_in=True)
@@ -125,9 +126,11 @@ class InstructionProcessingSystem(Module):
 
         # Only enable the pos_inc num_2_pos am in pos_inc_init state. This is
         # to ignore other non-init number inputs to the system
-        nengo.Connection(bias_node, self.pos_inc.inhibit_am)
-        nengo.Connection(self.pos_inc_init.output, self.pos_inc.inhibit_am,
+        self.pos_inc_inhibit = cfg.make_thresh_ens_net()
+        nengo.Connection(bias_node, self.pos_inc_inhibit.input)
+        nengo.Connection(self.pos_inc_init.output, self.pos_inc_inhibit.input,
                          transform=-1)
+        nengo.Connection(self.pos_inc_inhibit.output, self.pos_inc.inhibit_am)
 
         # ----------- INSTRUCTION POSITION CLEANUP NETWORK --------------------
         pos_am = cfg.make_assoc_mem(vocab.pos.vectors, threshold=0.35,
@@ -271,7 +274,7 @@ class InstructionProcessingSystem(Module):
 
             # ####### POS INC NETWORK #######
             pos_inc_gate_sp_vecs = vocab.main.parse('V').v
-            pos_inc_rst_sp_vecs = vocab.main.parse('P').v
+            pos_inc_rst_sp_vecs = vocab.main.parse('P+A+M').v
 
             nengo.Connection(parent_net.vis.output, self.pos_inc.gate,
                              transform=[pos_inc_gate_sp_vecs])

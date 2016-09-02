@@ -323,7 +323,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
         # ========================= MAKE PROBES ===============================
         if hasattr(self.m, 'stim'):
             p0 = self.probe_image(self.m.stim.output, synapse=None,
-                                  shape=(28, 28))
+                                  shape=(28, 28), label='Stim')
         else:
             with self.m:
                 self.m.null_node = nengo.Node(0)
@@ -331,11 +331,13 @@ class ProbeCfgDefault(SpaunProbeConfig):
 
         if hasattr(self.m, 'vis') and True:
             net = self.m.vis
-            pvs1 = self.probe_value(net.output, vocab=self.v.vis_main)
-            pvs2 = self.probe_value(net.neg_attention)
-            pvs3 = self.probe_value(net.am_utilities)
-            pvs4 = self.probe_value(net.mb_output)
-            pvs5 = self.probe_value(net.vis_out)
+            pvs1 = self.probe_value(net.output, vocab=self.v.vis_main,
+                                    label='Vis Vcb')
+            pvs2 = self.probe_value(net.neg_attention, label='Neg Attn')
+            pvs3 = self.probe_value(net.vis_classify_utilities,
+                                    label='Vis Utils')
+            pvs4 = self.probe_value(net.mb_output, label='Vis MB')
+            pvs5 = self.probe_value(net.vis_out, label='Vis Out')
             pvs6 = self.probe_value(net.vis_main_mem.output,
                                     vocab=self.v.vis_main)
             pvs6b = self.probe_value(net.vis_main_mem.input,
@@ -364,9 +366,12 @@ class ProbeCfgDefault(SpaunProbeConfig):
 
         if hasattr(self.m, 'ps') and True:
             net = self.m.ps
-            pps1 = self.probe_value(net.task, vocab=self.v.ps_task)
-            pps2 = self.probe_value(net.state, vocab=self.v.ps_state)
-            pps3 = self.probe_value(net.dec, vocab=self.v.ps_dec)
+            pps1 = self.probe_value(net.task, vocab=self.v.ps_task,
+                                    label='ps task')
+            pps2 = self.probe_value(net.state, vocab=self.v.ps_state,
+                                    label='ps state')
+            pps3 = self.probe_value(net.dec, vocab=self.v.ps_dec,
+                                    label='ps dec')
 
             pps4 = self.probe_value(net.task_mb.mem1.output,
                                     vocab=self.v.ps_task)
@@ -672,12 +677,16 @@ class ProbeCfgDefault(SpaunProbeConfig):
         if hasattr(self.m, 'instr'):
             net = self.m.instr
             # pins1 = self.probe_value(net.instr_input)
-            pins2 = self.probe_value(net.pos_am.output, vocab=self.v.pos)
-            pins2a = self.probe_value(net.pos_am.input, vocab=self.v.pos)
-            pins2b = self.probe_value(net.pos_am.elem_utilities)
-            pins3 = self.probe_value(net.output, vocab=self.v.pos1)
+            pins2 = self.probe_value(net.pos_am.output, vocab=self.v.pos,
+                                     label='pos out')
+            pins2a = self.probe_value(net.pos_am.input, vocab=self.v.pos,
+                                      label='pos in')
+            pins2b = self.probe_value(net.pos_am.elem_utilities,
+                                      label='pos utils')
+            pins3 = self.probe_value(net.output, vocab=self.v.pos1,
+                                     label='instr out')
             pins4 = self.probe_value(net.instr_pos_cconv.output,
-                                     vocab=self.v.pos)
+                                     vocab=self.v.pos, label='cconv pos')
             pins5 = self.probe_value(net.vis_input, vocab=self.v.vis_main)
             pins6 = self.probe_value(net.task_input, vocab=self.v.ps_task)
 
@@ -685,31 +694,54 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pins8 = self.probe_value(net.norm_node2)
             # pins9 = self.probe_value(net.instr_ea.output)
 
-            pins10a = self.probe_value(net.task_node, vocab=self.v.ps_task)
-            pins10 = self.probe_value(net.task_output, vocab=self.v.ps_task)
-            pins11a = self.probe_value(net.state_node, vocab=self.v.ps_state)
-            pins11 = self.probe_value(net.state_output, vocab=self.v.ps_state)
-            pins12a = self.probe_value(net.dec_node, vocab=self.v.ps_dec)
-            pins12 = self.probe_value(net.dec_output, vocab=self.v.ps_dec)
+            pins10a = self.probe_value(net.task_node, vocab=self.v.ps_task,
+                                       label='task node')
+            pins10 = self.probe_value(net.task_output, vocab=self.v.ps_task,
+                                      label='task out')
+            pins11a = self.probe_value(net.state_node, vocab=self.v.ps_state,
+                                       label='state node')
+            pins11 = self.probe_value(net.state_output, vocab=self.v.ps_state,
+                                      label='state out')
+            pins12a = self.probe_value(net.dec_node, vocab=self.v.ps_dec,
+                                       label='dec node')
+            pins12 = self.probe_value(net.dec_output, vocab=self.v.ps_dec,
+                                      label='dec out')
 
-            pins13 = self.probe_value(net.task_gate_sig)
-            pins14 = self.probe_value(net.state_gate_sig)
-            pins15 = self.probe_value(net.dec_gate_sig)
-            pins16 = self.probe_value(net.data_gate_sig)
+            pins13 = self.probe_value(net.task_gate_sig, label='task sig')
+            pins14 = self.probe_value(net.state_gate_sig, label='state sig')
+            pins15 = self.probe_value(net.dec_gate_sig, label='dec sig')
+            pins16 = self.probe_value(net.data_gate_sig, label='data sig')
 
             pins17 = self.probe_value(net.pos_inc.num_2_pos_am.output,
                                       vocab=self.v.pos)
             pins18 = self.probe_value(net.pos_inc.input,
                                       vocab=self.v.item_1_index)
             pins19 = self.probe_value(net.pos_instr, vocab=self.v.pos)
-            pins20 = self.probe_value(net.pos_inc.output, vocab=self.v.pos)
-            pins21 = self.probe_value(net.pos_inc_init.output)
-            pins22 = self.probe_value(net.pos_inc.gate)
+            pins20a = self.probe_value(net.pos_inc.input,
+                                       vocab=self.v.vis_main, label='pi in')
+            pins20 = self.probe_value(net.pos_inc.output, vocab=self.v.pos,
+                                      label='pi out')
+            pins21 = self.probe_value(net.pos_inc_init.output,
+                                      label='pos init')
+            pins22 = self.probe_value(net.pos_inc.gate, label='pos gate')
             pins18a = self.probe_value(net.pos_inc.input_debug)
 
             pins23 = self.probe_value(net.gate_disable.output)
             pins24 = self.probe_value(net.pos_util_output,
                                       vocab=self.v.ps_task)
+
+            pins25 = self.probe_value(net.pos_inc.num_2_pos_am.output,
+                                      vocab=self.v.pos, label='pi am out')
+            pins25i = self.probe_value(net.pos_inc.num_2_pos_am.inhibit,
+                                       label='pi am inh')
+            pins26a = self.probe_value(net.pos_inc.pos_mb.mem1.output,
+                                       vocab=self.v.pos, label='pi mb1 out')
+            pins26b = self.probe_value(net.pos_inc.pos_mb.mem2.output,
+                                       vocab=self.v.pos, label='pi mb2 out')
+            pins26r = self.probe_value(net.pos_inc.pos_mb.mem2.reset,
+                                       label='pi mb2 rst')
+            pins26g = self.probe_value(net.pos_inc.pos_mb.gate,
+                                       label='pi mb gate')
 
             self.add_graph(
                 'instr',
@@ -720,12 +752,15 @@ class ProbeCfgDefault(SpaunProbeConfig):
                  pins15, pins16])
             self.add_graph(
                 'instr3',
-                [p0, pins10a, pins10, pins11a, pins11, pins12a, pins12,
-                 pins24])
+                [p0, pins10a, pins10, pins13, pins11a, pins11, pins14,
+                 pins12a, pins12, pins15, pins24])
             self.add_graph(
                 'instr4',
-                [p0, pins21, pins22, pins18, pins18a, pins17, pins20,
+                [p0, pins21, pins22, pins18, pins18a, pins17, pins20a, pins20,
                  pins2a, pins2, pins19])
+            self.add_graph(
+                'instr5',
+                [p0, pins25, pins25i, pins26a, pins26b, pins26g, pins26r])
 
 
 class ProbeCfgDarpaDebug(SpaunProbeConfig):
