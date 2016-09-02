@@ -27,17 +27,20 @@ def Settable_Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, num_vocab,
         nengo.Connection(net.pos_mb.output, net.pos_mb.input,
                          transform=inc_sp.get_convolution_matrix())
 
-        # Disable pos_mb mem2 output when am is active
+        # Set up pos_mb output gate and inhibit am is active
+        # Note: taking output from mem1 for faster performance switching
+        net.pos_mb_out = cfg.make_spa_ens_array_gate(threshold_gate=False)
+        nengo.Connection(net.pos_mb.mem1.output, net.pos_mb_out.input)
         nengo.Connection(net.num_2_pos_am.output_utilities,
-                         net.pos_mb.mem2.reset,
+                         net.pos_mb_out.gate,
                          transform=[[1] * num_pos_vecs])
 
         # Output node
         # -- Combine the output of the num_2_pos_am and the pos_mb (which is
         #    disabled when there is a valid output from the am)
         net.output = nengo.Node(size_in=pos_vocab.dimensions)
-        nengo.Connection(net.pos_mb.output, net.output)
-        nengo.Connection(net.num_2_pos_am.output, net.output)
+        nengo.Connection(net.pos_mb_out.output, net.output, synapse=0.01)
+        nengo.Connection(net.num_2_pos_am.output, net.output, synapse=0.01)
 
         net.inhibit_am = net.num_2_pos_am.inhibit
         net.input = net.num_2_pos_am.input

@@ -255,6 +255,8 @@ else:
     str_suffix = '_log.txt'
 
 processed_results = {}
+num_tasks = 0
+num_null_responses = 0
 
 for filename in os.listdir(probe_dir):
     if filename[-len(str_suffix):] == str_suffix and \
@@ -274,6 +276,12 @@ for filename in os.listdir(probe_dir):
                         processed_results[task_str] = [task_result]
                     else:
                         processed_results[task_str].append(task_result)
+                else:
+                    # Increase the count of null responses
+                    num_null_responses += 1
+
+                # Keep track of the number of tasks that have been processed
+                num_tasks +=1
 
 # Convert all data structures in processed results to np arrays
 for task in processed_results:
@@ -332,7 +340,14 @@ else:
     ci_data = dict(np.load(ci_data_filepath))
 
 # Print CI data
-print ci_data
+print "CI Data: ", ci_data
+
+# Print task run data
+print "Number of tasks: ", num_tasks
+print "Number of null responses: ", num_null_responses
+if num_tasks > 0:
+    print "Percentage of null responses: ", (1.0 * num_null_responses /
+                                             num_tasks)
 
 # Plot results
 for task in ci_data:

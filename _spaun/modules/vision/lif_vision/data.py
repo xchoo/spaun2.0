@@ -13,7 +13,7 @@ class LIFVisionDataObject(VisionDataObject):
 
         # --- LIF vision network configurations ---
         self.max_rate = 63.04
-        self.intercept = 0.
+        self.intercept = 0.0
         self.amp = 1.0 / self.max_rate
         self.pstc = 0.005
 
@@ -36,16 +36,17 @@ class LIFVisionDataObject(VisionDataObject):
         self.neuron_type = neuron_type
 
         # --- Visual associative memory configurations ---
+        self.am_threshold = 0.5
+
         means_filename = \
             os.path.join(self.filepath, self.module_name, 'class_means.npz')
         means_data = np.matrix(1.0 / np.load(means_filename)['means'])
 
         self.num_classes = weights_class.shape[1]
 
-        self.vis_net_output_scale = self.amp
+        self.sps_output_scale = self.amp
 
         # --- Mandatory data object attributes ---
-        self.am_threshold = 0.5
         self.sps = np.array(np.multiply(weights_class.T, means_data.T))
         self.dimensions = self.vision_network_data['Wc'].shape[0]
 

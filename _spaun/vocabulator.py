@@ -47,7 +47,8 @@ class SpaunVocabulary(object):
         # DECW - Decoding state (output to motor system, but for drawing task)
         # DECI - Decoding state (output to motor system, but for inductn tasks)
         self.ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
-                                 'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP']
+                                 'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
+                                 'INSTRV']
         self.ps_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
 
         # --- Misc actions semantic pointers

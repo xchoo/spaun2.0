@@ -70,10 +70,10 @@ parser.add_argument(
     '-i', type=str, default='',
     help='Instructions event sequence. Use the following format to provide ' +
          'customized instructions to spaun (which can then be put into the ' +
-         'stimulus string using "%%INSTR_KEY%%": ' +
+         'stimulus string using %%INSTR_KEYN+INSTR_KEYM%%": ' +
          '"INSTR_KEY: ANTECEDENT_SP_STR, CONSEQUENCE_SP_STR; ..."' +
          'e.g. "I1: TASK*INSTR + VIS*ONE, TRFM*POS1*THR", and the stimulus ' +
-         'string: "%%I1%%A0[0]?XX"')
+         'string: "%%I1+I2%%A0[0]?XX"')
 parser.add_argument(
     '-b', type=str, default='ref',
     help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')

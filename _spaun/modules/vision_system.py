@@ -10,28 +10,27 @@ from .._networks import DetectChange
 from ..configurator import cfg
 from ..vocabulator import vocab
 from .stimulus import stim_func_vocab
-from .vision import VisionNet
-from .vision import vis_data
+from .vision import vis_data, VisionNet, VisionNetClassifier
 
 
 class VisionSystem(Module):
     def __init__(self, label="Vision Sys", seed=None, add_to_container=None):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
-        self.init_module(None, None, vis_data.sps, vis_data.sps_element_scale,
-                         None)
+        self.init_module(None, None, vis_data, None)
 
     @with_self
-    def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale,
+    def init_module(self, vis_net, detect_net, vis_net_cfg,
                     vis_net_neuron_type):
         # Make LIF vision network
         if vis_net is None:
-            vis_net = VisionNet(vis_data, net_neuron_type=vis_net_neuron_type)
+            vis_net = VisionNet(vis_net_cfg,
+                                net_neuron_type=vis_net_neuron_type)
         self.vis_net = vis_net
 
         # Make network to detect changes in visual input stream
         if detect_net is None:
             detect_net = \
-                DetectChange(dimensions=vis_data.images_data_dimensions,
+                DetectChange(dimensions=vis_net_cfg.images_data_dimensions,
                              n_neurons=cfg.n_neurons_ens)
         self.detect_change_net = detect_net
         nengo.Connection(self.vis_net.raw_output, self.detect_change_net.input,
@@ -39,26 +38,33 @@ class VisionSystem(Module):
 
         # Make associative memory to map visual image semantic pointers to
         # visual conceptual semantic pointers
-        self.am = cfg.make_assoc_mem(vis_sps, vocab.vis_main.vectors,
-                                     threshold=vis_data.am_threshold,
-                                     inhibitable=True)
-        nengo.Connection(self.vis_net.output, self.am.input, synapse=0.005)
-        nengo.Connection(self.detect_change_net.output, self.am.inhibit,
-                         transform=3, synapse=0.005)
+        # self.vis_classify = cfg.make_assoc_mem(vis_sps, vocab.vis_main.vectors,
+        #                              threshold=vis_data.am_threshold,
+        #                              inhibitable=True)
+        # nengo.Connection(self.vis_net.output, self.vis_classify.input, synapse=0.005)
+        # nengo.Connection(self.detect_change_net.output, self.vis_classify.inhibit,
+        #                  transform=3, synapse=0.005)
+
+        self.vis_classify = VisionNetClassifier(vis_net_cfg,
+                                                vocab.vis_main.vectors)
+        nengo.Connection(self.vis_net.to_classify_output,
+                         self.vis_classify.input, synapse=0.005)
+        nengo.Connection(self.detect_change_net.output,
+                         self.vis_classify.inhibit, transform=3, synapse=0.005)
 
         # Visual memory block (for the visual semantic pointers - top layer of
         #                      vis_net)
         self.vis_mem = cfg.make_memory(n_neurons=cfg.n_neurons_mb * 2,
                                        dimensions=vocab.vis_dim,
                                        make_ens_func=cfg.make_ens_array,
-                                       radius=vis_sps_scale)
-        nengo.Connection(self.vis_net.output, self.vis_mem.input,
+                                       radius=vis_net_cfg.sps_element_scale)
+        nengo.Connection(self.vis_net.to_mem_output, self.vis_mem.input,
                          synapse=0.020)
 
         bias_node = nengo.Node(1)
         nengo.Connection(bias_node, self.vis_mem.gate)
         vis_mem_gate_sp_vecs = vocab.main.parse('+'.join(vocab.num_sp_strs)).v
-        nengo.Connection(self.am.cleaned_output, self.vis_mem.gate,
+        nengo.Connection(self.vis_classify.output, self.vis_mem.gate,
                          transform=[cfg.mb_neg_gate_scale *
                                     vis_mem_gate_sp_vecs])
         # vis_mem holds value when gate == 1, so have standard 1-x gating
@@ -71,14 +77,14 @@ class VisionSystem(Module):
         self.vis_main_mem = cfg.make_memory(dimensions=vocab.sp_dim,
                                             n_neurons=100,
                                             make_ens_func=cfg.make_ens_array)
-        nengo.Connection(self.am.cleaned_output, self.vis_main_mem.input,
+        nengo.Connection(self.vis_classify.output, self.vis_main_mem.input,
                          synapse=0.01)
         nengo.Connection(self.detect_change_net.output,
                          self.vis_main_mem.gate, transform=1.5)
 
         # Define network input and outputs
         self.input = self.vis_net.input
-        self.output = self.am.cleaned_output
+        self.output = self.vis_classify.output
         self.mb_output = self.vis_mem.output
         self.neg_attention = self.detect_change_net.output
 
@@ -87,8 +93,8 @@ class VisionSystem(Module):
                             mem=(self.vis_main_mem.output, vocab.vis_main))
 
         # ######################## DEBUG PROBES ###############################
-        self.vis_out = self.vis_net.output
-        self.am_utilities = self.am.cleaned_output_utilities
+        self.vis_out = self.vis_net.to_classify_output
+        self.vis_classify_utilities = self.vis_classify.output_utilities
 
         def cleanup_func(t, x, vectors):
             return vectors[np.argmax(np.dot(x, vectors.T)), :]
@@ -138,14 +144,11 @@ class VisionSystemDummy(VisionSystem):
     def __init__(self, label="Dummy Vision Sys", seed=None,
                  add_to_container=None,
                  vis_net=None, detect_net=None,
-                 vis_sps=None, vis_sps_scale=None,
-                 vis_net_neuron_type=None, **args):
+                 vis_net_cfg=vis_data, vis_net_neuron_type=None, **args):
         super(VisionSystemDummy, self).__init__(label, seed, add_to_container,
                                                 self.dummy_lif_vis_net(),
                                                 self.dummy_detect_net(),
-                                                vocab.vis_main.vectors,
-                                                cfg.get_optimal_sp_radius(),
-                                                **args)
+                                                vis_net_cfg, **args)
 
         # Indicate to the transform system that we are using a dummy vision
         # system
