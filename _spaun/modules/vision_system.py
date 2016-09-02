@@ -38,13 +38,6 @@ class VisionSystem(Module):
 
         # Make associative memory to map visual image semantic pointers to
         # visual conceptual semantic pointers
-        # self.vis_classify = cfg.make_assoc_mem(vis_sps, vocab.vis_main.vectors,
-        #                              threshold=vis_data.am_threshold,
-        #                              inhibitable=True)
-        # nengo.Connection(self.vis_net.output, self.vis_classify.input, synapse=0.005)
-        # nengo.Connection(self.detect_change_net.output, self.vis_classify.inhibit,
-        #                  transform=3, synapse=0.005)
-
         self.vis_classify = VisionNetClassifier(vis_net_cfg,
                                                 vocab.vis_main.vectors)
         nengo.Connection(self.vis_net.to_classify_output,
