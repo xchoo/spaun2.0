@@ -673,6 +673,6 @@ class SpaunProbeCfgDarpa(SpaunProbeConfig):
 
 # Helper definitions to return probe configuration defaults
 # default_probe_config = SpaunProbeCfgVisOnly
-default_probe_config = SpaunProbeCfgDarpa
-# default_probe_config = SpaunProbeCfgDefault
+# default_probe_config = SpaunProbeCfgDarpa
+default_probe_config = SpaunProbeCfgDefault
 default_anim_config = SpaunProbeCfgAnimDefault
