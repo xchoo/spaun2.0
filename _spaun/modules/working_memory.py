@@ -22,7 +22,8 @@ class WorkingMemory(Module):
                                  label='WM Module In Node')
 
         # Memory block common gate signal
-        self.mb_gate_sig = cfg.make_thresh_ens_net(label='MB Gate Sig')
+        self.mb_gate_sig = cfg.make_thresh_ens_net(label='MB Gate Sig',
+                                                   radius=2.25)
 
         # sp_add_matrix = (vocab.add_sp.get_convolution_matrix() *
         #                  (0.25 + 0.25 / cfg.mb_decaybuf_input_scale))
