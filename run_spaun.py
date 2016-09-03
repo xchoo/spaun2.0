@@ -486,7 +486,7 @@ for n in range(args.n):
                                     '--data_dir', '"' + cfg.data_dir + '"']
             if args.showanim:
                 subprocess_call_list += ['--showanim']
-            if args.showio:
+            if args.showiofig:
                 subprocess_call_list += ['--showiofig']
 
             # Log subprocess call
