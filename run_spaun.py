@@ -487,7 +487,7 @@ for n in range(args.n):
             if args.showanim:
                 subprocess_call_list += ['--showanim']
             if args.showio:
-                subprocess_call_list += ['--showio']
+                subprocess_call_list += ['--showiofig']
 
             # Log subprocess call
             logger.write("\n# " + " ".join(subprocess_call_list))
