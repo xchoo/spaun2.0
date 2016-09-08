@@ -346,16 +346,16 @@ class ProbeCfgDefault(SpaunProbeConfig):
                                      vocab=self.v.vis_main)
             pvs6g = self.probe_value(net.vis_main_mem.gate)
 
-            pvsdb1 = self.probe_value(net.rmse_node)
-            pvsdb2 = self.probe_value(net.cleanup_node)
-            pvsdb3 = self.probe_value(net.diff_node)
+            # pvsdb1 = self.probe_value(net.rmse_node)
+            # pvsdb2 = self.probe_value(net.cleanup_node)
+            # pvsdb3 = self.probe_value(net.diff_node)
             # pvsdb4 = self.probe_value(net.vis_main_mem.output,
             #                           vocab=self.v.vis_main)
 
             self.add_graph('vis', [p0, pvs1, pvs2, pvs3, pvs6, pvs6b, pvs6g])
             self.add_graph('vis net', [pvs4, pvs4b, pvs5])
-            self.add_graph('vis dbg',
-                           [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
+            # self.add_graph('vis dbg',
+            #                [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
 
         # ############ FOR DEBUGGING VIS DETECT SYSTEM ########################
         # if hasattr(self.m, 'vis') and True:
