@@ -155,6 +155,15 @@ class ProductionSystem(Module):
         else:
             warn("ProductionSystem Module - Cannot connect from 'vis'")
 
+        # Set up connections from trfm module
+        if hasattr(parent_net, 'trfm'):
+            nengo.Connection(parent_net.trfm.compare_gate_sig,
+                             self.state_mb.gate, transform=4)
+            nengo.Connection(parent_net.trfm.compare_gate_sig,
+                             self.dec_mb.gate, transform=4)
+        else:
+            warn("ProductionSystem Module - Could not connect from 'trfm'")
+
         # Set up connections from dec module
         if hasattr(parent_net, 'dec'):
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,

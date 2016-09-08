@@ -86,6 +86,8 @@ class TransformationSystem(Module):
         nengo.Connection(self.am_trfms.action_out, self.select_out.input5)
 
         # ----- Compare transformation (for counting task) -----
+        bias_node = nengo.Node(1)
+
         self.compare = \
             Compare(vocab.main, output_no_match=True, threshold_outputs=0.5,
                     dot_product_input_magnitude=cfg.get_optimal_sp_radius(),
@@ -95,6 +97,21 @@ class TransformationSystem(Module):
                          transform=1.5)
         nengo.Connection(self.norm_b.output, self.compare.inputB,
                          transform=1.5)
+
+        self.compare_match_thresh = cfg.make_thresh_ens_net()
+        nengo.Connection(self.compare.output, self.compare_match_thresh.input,
+                         transform=[vocab.main['MATCH'].v])
+
+        self.compare_gate_sig_gen = cfg.make_thresh_ens_net()
+        nengo.Connection(self.compare_match_thresh.output,
+                         self.compare_gate_sig_gen.input, synapse=0.005,
+                         transform=5)
+        nengo.Connection(self.compare_match_thresh.output,
+                         self.compare_gate_sig_gen.input, synapse=0.020,
+                         transform=-5)
+        nengo.Connection(bias_node, self.compare_gate_sig_gen.input,
+                         transform=-1)
+        self.compare_gate_sig = self.compare_gate_sig_gen.output
 
         # ----- Output node -----
         self.output = nengo.Node(size_in=vocab.sp_dim)
@@ -205,12 +222,17 @@ class TransformationSystem(Module):
             nengo.Connection(p_net.ps.state, self.select_out.sel6,
                              transform=[out_sel6_sp_vecs])
 
-            # Disable input normalization for Dec = DECI + FWD + REV
+            # Disable input normalization for Dec == DECI + FWD + REV
             dis_norm_sp_vecs = vocab.main.parse('FWD+REV+DECI').v
             nengo.Connection(p_net.ps.dec, self.norm_a.disable,
                              transform=[dis_norm_sp_vecs])
             nengo.Connection(p_net.ps.dec, self.norm_b.disable,
                              transform=[dis_norm_sp_vecs])
+
+            # Enable compare gate output for DEC == CNT
+            en_compare_gate_sp_vecs = vocab.main.parse('CNT').v
+            nengo.Connection(p_net.ps.dec, self.compare_gate_sig_gen.input,
+                             transform=[en_compare_gate_sp_vecs])
         else:
             warn("TransformationSystem Module - Cannot connect from 'ps'")
 
