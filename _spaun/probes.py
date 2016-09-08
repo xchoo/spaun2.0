@@ -316,8 +316,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             vocab_pos1.add(p1_str, self.v.main.parse(p1_str))
 
         # ----------- Default vocabs ------------------
-        mem_vocab = vocab_seq_list
-        # mem_vocab = vocab_pos1
+        # mem_vocab = vocab_seq_list
+        mem_vocab = vocab_pos1
         # vocab_seq_list = vocab_rpm
 
         # ========================= MAKE PROBES ===============================
@@ -337,6 +337,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pvs3 = self.probe_value(net.vis_classify_utilities,
                                     label='Vis Utils')
             pvs4 = self.probe_value(net.mb_output, label='Vis MB')
+            pvs4b = self.probe_value(net.mb_output, label='Vis MB',
+                                     vocab=self.v.vis)
             pvs5 = self.probe_value(net.vis_out, label='Vis Out')
             pvs6 = self.probe_value(net.vis_main_mem.output,
                                     vocab=self.v.vis_main)
@@ -351,7 +353,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
             #                           vocab=self.v.vis_main)
 
             self.add_graph('vis', [p0, pvs1, pvs2, pvs3, pvs6, pvs6b, pvs6g])
-            self.add_graph('vis net', [pvs4, pvs5])
+            self.add_graph('vis net', [pvs4, pvs4b, pvs5])
             self.add_graph('vis dbg',
                            [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
 
@@ -451,10 +453,10 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pmm1b = self.probe_value(net.mb1_net.mb_dcy, vocab=mem_vocab)
             pmm2 = self.probe_value(net.mb1_net.gate)
             pmm3 = self.probe_value(net.mb1_net.reset)
-            pmm4 = self.probe_value(net.mb2, vocab=vocab_seq_list)
+            pmm4 = self.probe_value(net.mb2, vocab=mem_vocab)
             pmm5 = self.probe_value(net.mb2_net.gate)
             pmm6 = self.probe_value(net.mb2_net.reset)
-            pmm7 = self.probe_value(net.mb3, vocab=vocab_seq_list)
+            pmm7 = self.probe_value(net.mb3, vocab=mem_vocab)
             pmm8 = self.probe_value(net.mb3_net.gate)
             pmm9 = self.probe_value(net.mb3_net.reset)
 
@@ -490,7 +492,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             # pmm1bg = self.probe_value(net.mb1_net.mbb.mem1.gate)
             pmm1gg1 = self.probe_value(net.gate_in)
             # pmm1gg2 = self.probe_value(net.gate_in_vis_dbg)
-            # pmm1gg3 = self.probe_value(net.gate_sig_bias.output)
+            pmm1gg3 = self.probe_value(net.gate_sig_bias.output,
+                                       label='gate sig bias')
             # pmm1gg4 = self.probe_value(net.cnt_gate_sig.output)
             # pmm1gg5 = self.probe_value(net.gate_in_neg_att_dbg)
             pmm1gg6 = self.probe_value(net.gate_in_2)
@@ -506,7 +509,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
             self.add_graph(
                 'mb1 details',
                 [pmm1gg6, pmm1gg1, pmm1sg1, pmm1sg2, pmm1gg7, pmm1gg8, pmm1gg9,
-                 pmm1gg10, pmm1sg, pmm1g])
+                 pmm1gg10, pmm1sg, pmm1g, pmm1gg3])
 
         if hasattr(self.m, 'mem') and True:
             net = self.m.mem
@@ -539,13 +542,14 @@ class ProbeCfgDefault(SpaunProbeConfig):
             ptf11a = self.probe_value(net.cconv1.A, vocab=vocab_rpm)
             ptf11b = self.probe_value(net.cconv1.B, vocab=vocab_rpm)
             ptf12 = self.probe_value(net.select_out.input6, vocab=self.v.pos1)
+            ptf13 = self.probe_value(net.compare_gate_sig, label='cmp gate')
 
             self.add_graph(
                 'trfm io', [p0, ptf1, ptf2, ptf4, ptf12], [ptf1, ptf4])
             self.add_graph(
                 'trfm cc', [p0, pmm11, ptf3, ptf3b, ptf11a, ptf11b])
             self.add_graph(
-                'trfm cmp', [ptf5, ptf8, ptf6, ptf9, ptf7, ptf10],
+                'trfm cmp', [ptf5, ptf8, ptf6, ptf9, ptf7, ptf10, ptf13],
                 [ptf6, ptf7])
 
         if hasattr(self.m, 'trfm') and \
@@ -639,6 +643,10 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pde37 = self.probe_value(net.serial_decode.inhibit)
             pde38 = self.probe_value(net.free_recall_decode.inhibit)
 
+            pde40 = self.probe_value(
+                net.vis_trfm_decode.digit_classify.output_utilities,
+                label='VTF Class')
+
             self.add_graph(
                 'dec decconv', [pde28, pde29, pde1, pde4, pde21], [pde21])
             self.add_graph('dec kn unk st', [pde15, pde16, pde18])
@@ -648,7 +656,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             self.add_graph(
                 'dec fr', [pde11b, pde11, pde12, pde13, pde14, pde14b])
             self.add_graph('dec sel', [pde30, pde31, pde32, pde33], [pde30])
-            self.add_graph('dec out class', [pde34, pde35, pde36, pde39])
+            self.add_graph('dec out class', [pde34, pde35, pde36, pde39,
+                                             pde40])
 
         if hasattr(self.m, 'mtr'):
             net = self.m.mtr

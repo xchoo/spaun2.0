@@ -56,6 +56,7 @@ class SpaunConfig(object):
                           'gate_gain': 5}
         self.mb_gate_scale = 1.25  # 1.2
         self.mb_neg_gate_scale = -1.5  # 1.2
+        self.mb_neg_attn_scale = 2.0
 
         self.trans_cconv_radius = 2
         self.trans_ave_scale = 0.3
@@ -88,7 +89,7 @@ class SpaunConfig(object):
         self.mtr_dyn_adaptation_n_neurons = 1000
         self.mtr_dyn_adaptation_learning_rate = 9e-5
         self.mtr_forcefield = 'NoForcefield'
-        self.mtr_forcefield_synapse = 0.05
+        self.mtr_forcefield_synapse = 0.052
 
         self.instr_cconv_radius = 2.0
         self.instr_out_gain = 1.5

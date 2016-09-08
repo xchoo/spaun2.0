@@ -38,7 +38,7 @@ class WorkingMemory(Module):
 
         self.gate_sig_bias = cfg.make_thresh_ens_net(label='Gate Sig Bias')
         # Bias the -1.5 neg_atn during decoding phase (when there is no input)
-        nengo.Connection(self.gate_sig_bias.output, self.select_gate.input0)
+        # nengo.Connection(self.gate_sig_bias.output, self.select_gate.input0)
 
         self.cnt_gate_sig = cfg.make_thresh_ens_net(0.5, label='Cnt Gate Sig')
         nengo.Connection(self.cnt_gate_sig.output, self.select_gate.input0,
@@ -52,8 +52,8 @@ class WorkingMemory(Module):
         nengo.Connection(self.select_gate.output, self.mb1_net.gate)
         nengo.Connection(self.num0_bias_node, self.mb1_net.side_load,
                          synapse=None)
-        # nengo.Connection(self.gate_sig_bias.output, self.mb1_net.gate,
-        #                  transform=1.0)
+        nengo.Connection(self.gate_sig_bias.output, self.mb1_net.gate,
+                         transform=cfg.mb_neg_attn_scale * 0.75, synapse=0.01)
         # nengo.Connection(self.cnt_gate_sig.output, self.mb1_net.gate,
         #                  transform=1.0)
 
@@ -67,8 +67,8 @@ class WorkingMemory(Module):
         nengo.Connection(self.select_gate.output, self.mb2_net.gate)
         nengo.Connection(self.num0_bias_node, self.mb2_net.side_load,
                          synapse=None)
-        # nengo.Connection(self.gate_sig_bias.output, self.mb2_net.gate,
-        #                  transform=1.0)
+        nengo.Connection(self.gate_sig_bias.output, self.mb2_net.gate,
+                         transform=cfg.mb_neg_attn_scale * 0.75, synapse=0.01)
         # nengo.Connection(self.cnt_gate_sig.output, self.mb2_net.gate,
         #                  transform=1.0)
 
@@ -82,8 +82,8 @@ class WorkingMemory(Module):
         nengo.Connection(self.select_gate.output, self.mb3_net.gate)
         nengo.Connection(self.num0_bias_node, self.mb3_net.side_load,
                          synapse=None)
-        # nengo.Connection(self.gate_sig_bias.output, self.mb3_net.gate,
-        #                  transform=1.0)
+        nengo.Connection(self.gate_sig_bias.output, self.mb3_net.gate,
+                         transform=cfg.mb_neg_attn_scale * 0.75, synapse=0.01)
         # nengo.Connection(self.cnt_gate_sig.output, self.mb3_net.gate,
         #                  transform=1.0)
 
@@ -144,7 +144,8 @@ class WorkingMemory(Module):
                              transform=[cfg.mb_gate_scale *
                                         item_mb_gate_sp_vecs])
             nengo.Connection(p_net.vis.neg_attention,
-                             self.gate_in_2, transform=-2.0, synapse=0.01)
+                             self.gate_in_2,
+                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
             # ### DEBUG ###
 
             # ###### MB1 ########
@@ -152,21 +153,21 @@ class WorkingMemory(Module):
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
             nengo.Connection(p_net.vis.neg_attention, self.mb1_net.gate,
-                             transform=-2.0, synapse=0.01)
+                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
 
             # ###### MB2 ########
             nengo.Connection(p_net.vis.output, self.mb2_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
             nengo.Connection(p_net.vis.neg_attention, self.mb2_net.gate,
-                             transform=-2.0, synapse=0.01)
+                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
 
             # ###### MB3 ########
             nengo.Connection(p_net.vis.output, self.mb3_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         item_mb_rst_sp_vecs])
             nengo.Connection(p_net.vis.neg_attention, self.mb3_net.gate,
-                             transform=-2.0, synapse=0.01)
+                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
 
             # ###### MBAve ########
             ave_mb_gate_sp_vecs = vocab.main.parse('CLOSE').v
@@ -176,7 +177,8 @@ class WorkingMemory(Module):
                              transform=[cfg.mb_gate_scale *
                                         ave_mb_gate_sp_vecs])
             nengo.Connection(p_net.vis.neg_attention,
-                             self.mbave_net.gate, transform=-2.0, synapse=0.01)
+                             self.mbave_net.gate,
+                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
 
             nengo.Connection(p_net.vis.output, self.mbave_net.reset,
                              transform=[cfg.mb_gate_scale *
@@ -331,7 +333,10 @@ class WorkingMemory(Module):
 
         # Set up connections from motor module (for counting task)
         if hasattr(parent_net, 'mtr'):
-            nengo.Connection(parent_net.mtr.ramp_50_75,
+            # nengo.Connection(parent_net.mtr.ramp_50_75,
+            #                  self.cnt_gate_sig.input, transform=2.0,
+            #                  synapse=0.01)
+            nengo.Connection(parent_net.mtr.ramp_reset_hold,
                              self.cnt_gate_sig.input, transform=2.0,
                              synapse=0.01)
         else:

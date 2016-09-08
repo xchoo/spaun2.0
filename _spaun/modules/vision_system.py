@@ -54,7 +54,7 @@ class VisionSystem(Module):
         nengo.Connection(self.vis_net.to_mem_output, self.vis_mem.input,
                          synapse=0.020)
 
-        bias_node = nengo.Node(1)
+        bias_node = nengo.Node(1, label='Bias')
         nengo.Connection(bias_node, self.vis_mem.gate)
         vis_mem_gate_sp_vecs = vocab.main.parse('+'.join(vocab.num_sp_strs)).v
         nengo.Connection(self.vis_classify.output, self.vis_mem.gate,
@@ -89,41 +89,41 @@ class VisionSystem(Module):
         self.vis_out = self.vis_net.to_classify_output
         self.vis_classify_utilities = self.vis_classify.output_utilities
 
-        def cleanup_func(t, x, vectors):
-            return vectors[np.argmax(np.dot(x, vectors.T)), :]
+        # def cleanup_func(t, x, vectors):
+        #     return vectors[np.argmax(np.dot(x, vectors.T)), :]
 
-        def rmse_func(t, x, dim):
-            v1 = x[:dim]
-            v2 = x[dim:]
-            return np.sqrt(np.sum((v1 - v2) ** 2))
+        # def rmse_func(t, x, dim):
+        #     v1 = x[:dim]
+        #     v2 = x[dim:]
+        #     return np.sqrt(np.sum((v1 - v2) ** 2))
 
-        def diff_func(t, x, dim):
-            v1 = x[:dim]
-            v2 = x[dim:]
-            return np.array(v1 - v2)
+        # def diff_func(t, x, dim):
+        #     v1 = x[:dim]
+        #     v2 = x[dim:]
+        #     return np.array(v1 - v2)
 
-        self.cleanup_node = nengo.Node(
-            size_in=vocab.sp_dim,
-            output=lambda t, x, vectors=vocab.vis_main.vectors:
-            cleanup_func(t, x, vectors))
-        nengo.Connection(self.vis_main_mem.output, self.cleanup_node,
-                         synapse=0.01)
+        # self.cleanup_node = nengo.Node(
+        #     size_in=vocab.sp_dim,
+        #     output=lambda t, x, vectors=vocab.vis_main.vectors:
+        #     cleanup_func(t, x, vectors))
+        # nengo.Connection(self.vis_main_mem.output, self.cleanup_node,
+        #                  synapse=0.01)
 
-        self.rmse_node = nengo.Node(
-            size_in=vocab.sp_dim * 2,
-            output=lambda t, x, dim=vocab.sp_dim: rmse_func(t, x, dim))
-        nengo.Connection(self.vis_main_mem.output,
-                         self.rmse_node[:vocab.sp_dim], synapse=0.01)
-        nengo.Connection(self.cleanup_node, self.rmse_node[vocab.sp_dim:],
-                         synapse=0.01)
+        # self.rmse_node = nengo.Node(
+        #     size_in=vocab.sp_dim * 2,
+        #     output=lambda t, x, dim=vocab.sp_dim: rmse_func(t, x, dim))
+        # nengo.Connection(self.vis_main_mem.output,
+        #                  self.rmse_node[:vocab.sp_dim], synapse=0.01)
+        # nengo.Connection(self.cleanup_node, self.rmse_node[vocab.sp_dim:],
+        #                  synapse=0.01)
 
-        self.diff_node = nengo.Node(
-            size_in=vocab.sp_dim * 2,
-            output=lambda t, x, dim=vocab.sp_dim: diff_func(t, x, dim))
-        nengo.Connection(self.vis_main_mem.output,
-                         self.diff_node[:vocab.sp_dim], synapse=0.01)
-        nengo.Connection(self.cleanup_node, self.diff_node[vocab.sp_dim:],
-                         synapse=0.01)
+        # self.diff_node = nengo.Node(
+        #     size_in=vocab.sp_dim * 2,
+        #     output=lambda t, x, dim=vocab.sp_dim: diff_func(t, x, dim))
+        # nengo.Connection(self.vis_main_mem.output,
+        #                  self.diff_node[:vocab.sp_dim], synapse=0.01)
+        # nengo.Connection(self.cleanup_node, self.diff_node[vocab.sp_dim:],
+        #                  synapse=0.01)
 
     def setup_connections(self, parent_net):
         # Set up connections from stimulus module
