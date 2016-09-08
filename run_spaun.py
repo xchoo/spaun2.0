@@ -352,7 +352,7 @@ for n in range(args.n):
         print "STARTING NENGO_GUI"
         import nengo_gui
         nengo_gui.GUI(__file__, model=model, locals=locals(),
-                      interactive=False).start()
+                      editor=False).start()
         print "NENGO_GUI STOPPED"
         sys.exit()
 
