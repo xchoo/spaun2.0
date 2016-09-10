@@ -207,13 +207,13 @@ class InstructionProcessingSystem(Module):
 
         # Connect gate disable signal to gate signal generators
         nengo.Connection(self.gate_disable.output, data_sig_gen.gate_sig_in,
-                         transform=-80)
+                         transform=-80, synapse=0.01)
         nengo.Connection(self.gate_disable.output, task_sig_gen.gate_sig_in,
-                         transform=-80)
+                         transform=-80, synapse=0.01)
         nengo.Connection(self.gate_disable.output, state_sig_gen.gate_sig_in,
-                         transform=-80)
+                         transform=-80, synapse=0.01)
         nengo.Connection(self.gate_disable.output, dec_sig_gen.gate_sig_in,
-                         transform=-80)
+                         transform=-80, synapse=0.01)
 
         # ------------- POS AM UTILITY OUTPUT (TO BG) ------------------------
         self.pos_util_output = nengo.Node(size_in=vocab.ps_task.dimensions)

@@ -735,7 +735,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pins22 = self.probe_value(net.pos_inc.gate, label='pos gate')
             pins18a = self.probe_value(net.pos_inc.input_debug)
 
-            pins23 = self.probe_value(net.gate_disable.output)
+            pins23 = self.probe_value(net.gate_disable.output,
+                                      label='gate dis')
             pins24 = self.probe_value(net.pos_util_output,
                                       vocab=self.v.ps_task)
 
