@@ -87,7 +87,7 @@ class SpaunConfig(object):
 
         self.mtr_dyn_adaptation = False
         self.mtr_dyn_adaptation_n_neurons = 1000
-        self.mtr_dyn_adaptation_learning_rate = 9e-5
+        self.mtr_dyn_adaptation_learning_rate = 8e-5
         self.mtr_forcefield = 'NoForcefield'
         self.mtr_forcefield_synapse = 0.0525
 
