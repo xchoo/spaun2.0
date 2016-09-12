@@ -379,7 +379,8 @@ class SpaunExperiment(object):
         return int(self.get_t_ind_float(t))
 
     def in_learning_phase(self, t):
-        task = self.task_phase_seq_list[self.get_t_ind(t)]
+        t_ind = min(self.get_t_ind(t), len(self.task_phase_seq_list) - 1)
+        task = self.task_phase_seq_list[t_ind]
         return (len(task) > 1 and task[0] == 'L')
 
     def get_stimulus(self, t):
@@ -433,7 +434,9 @@ class SpaunExperiment(object):
 
             # In learning phase. Evaluate output and choose reward
             if out_ind >= 0 and out_ind < (len(self.num_out_list) - 1):
-                rewards = self.task_phase_seq_list[self.get_t_ind(t)][1]
+                t_ind = min(self.get_t_ind(t),
+                            len(self.task_phase_seq_list) - 1)
+                rewards = self.task_phase_seq_list[t_ind][1]
 
                 if out_ind >= 0 and out_ind < self.num_learn_actions:
                     reward_chance = rewards[out_ind]
