@@ -65,7 +65,8 @@ class InfoEncoding(Module):
             pos_mb_rst_sp_vecs = vocab.main.parse('A+OPEN+QM').v
 
             nengo.Connection(parent_net.vis.output, self.pos_inc.gate,
-                             transform=[pos_mb_gate_sp_vecs])
+                             transform=[pos_mb_gate_sp_vecs] * 1.25,
+                             synapse=0.01)
             nengo.Connection(parent_net.vis.neg_attention,
                              self.pos_inc.gate, transform=-1.25,
                              synapse=0.01)
