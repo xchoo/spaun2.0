@@ -1,6 +1,6 @@
 import numpy as np
 
-from loggerator import logger
+from .loggerator import logger
 
 
 class SpaunExperiment(object):
@@ -217,7 +217,7 @@ class SpaunExperiment(object):
                 num_n += 1
                 continue
             else:
-                cs = np.random.choice(self.num_map.keys(), num_n,
+                cs = np.random.choice(list(self.num_map.keys()), num_n,
                                       replace=False)
                 for n in cs:
                     raw_seq_list.append(n)
@@ -227,7 +227,7 @@ class SpaunExperiment(object):
                 num_r += 1
                 continue
             else:
-                cs = np.random.choice(self.num_map.keys(), num_r, replace=True)
+                cs = np.random.choice(list(self.num_map.keys()), num_r, replace=True)
                 for r in cs:
                     raw_seq_list.append(r)
                 num_r = 0
@@ -239,7 +239,7 @@ class SpaunExperiment(object):
 
             if c.islower():
                 if c not in value_maps:
-                    value_maps[c] = np.random.choice(self.num_map.keys(), 1,
+                    value_maps[c] = np.random.choice(list(self.num_map.keys()), 1,
                                                      replace=True)[0]
                 c = value_maps[c]
 

@@ -5,8 +5,8 @@ from nengo import spa
 from .configurator import cfg
 from .vocabulator import vocab
 from .loggerator import logger
-from _spaun.modules import Stimulus, Vision, ProdSys, RewardEval, InfoEnc
-from _spaun.modules import TrfmSys, Memory, Monitor, InfoDec, Motor
+from .modules import Stimulus, Vision, ProdSys, RewardEval, InfoEnc
+from .modules import TrfmSys, Memory, Monitor, InfoDec, Motor
 
 # #### DEBUG DUMMY NETWORK IMPORTS ####
 # from _spaun.modules.experimenter import StimulusDummy as Stimulus  # noqa

@@ -10,12 +10,15 @@ def rms(x, **kwargs):
 
 def mnist(filepath=''):
     import os
-    import urllib
+    try:
+        from urllib.request import urlretrieve
+    except ImportError:
+        from urllib import urlretrieve
 
     filename = 'mnist.pkl.gz'
     if not os.path.exists(os.path.join(filepath, filename)):
         url = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
-        urllib.urlretrieve(url, filename=os.path.join(filepath, filename))
+        urlretrieve(url, filename=os.path.join(filepath, filename))
 
     return load_image_data(filename, filepath)
 
@@ -23,10 +26,13 @@ def mnist(filepath=''):
 def load_image_data(filename, filepath=''):
     import os
     import gzip
-    import cPickle as pickle
+    try:
+        import cPickle as pickle
+    except ImportError:
+        import pickle
 
-    with gzip.open(os.path.join(filepath, filename), 'rb') as f:
-        train, valid, test = pickle.load(f)
+    with gzip.open(os.path.join(filepath, filename), 'r') as f:
+        train, valid, test = pickle.load(f, encoding='bytes')
 
     return train, valid, test
 

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import time
 import sys
 import numpy as np
@@ -188,7 +190,7 @@ class DataFunctions(object):
     @staticmethod
     def generic_constant(data):
         flatten_data = np.asarray(data).flatten()
-        print flatten_data.shape
+        print(flatten_data.shape)
 
         def data_func(t_index, data=flatten_data):
             return data

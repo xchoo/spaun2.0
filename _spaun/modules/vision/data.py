@@ -10,7 +10,7 @@ from .utils import load_image_data
 
 class VisionDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'vision')
+        self.filepath = os.path.dirname(__file__)
 
         # --- LIF vision network configurations ---
         self.max_rate = 63.04
@@ -21,7 +21,7 @@ class VisionDataObject(object):
         # --- LIF vision network weights configurations ---
         self.vision_network_filename = os.path.join(self.filepath,
                                                     'params.npz')
-        self.vision_network_data = np.load(self.vision_network_filename)
+        self.vision_network_data = np.load(self.vision_network_filename, encoding='bytes')
         self.dimensions = self.vision_network_data['Wc'].shape[0]
 
         self.weights = self.vision_network_data['weights']

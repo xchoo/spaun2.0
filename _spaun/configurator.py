@@ -1,3 +1,5 @@
+from importlib import import_module
+
 import numpy as np
 
 import nengo
@@ -6,16 +8,16 @@ from nengo.synapses import Lowpass
 from nengo.dists import Uniform, Choice, Exponential
 from nengo.networks import CircularConvolution as CConv
 
-from _spa import MemoryBlock as MB
-from _spa import SPAEnsembleArray
-from _spa.utils import get_optimal_radius
-from _networks import AssociativeMemory as AM
-from _networks import InputGatedMemory as Memory
-from _networks import Selector, Router, VectorNormalize
+from ._spa import MemoryBlock as MB
+from ._spa import SPAEnsembleArray
+from ._spa.utils import get_optimal_radius
+from ._networks import AssociativeMemory as AM
+from ._networks import InputGatedMemory as Memory
+from ._networks import Selector, Router, VectorNormalize
 # from arms import Arm3Link
 
-from vocabulator import vocab
-from loggerator import logger
+from .vocabulator import vocab
+from .loggerator import logger
 
 
 class SpaunConfig(object):
@@ -120,8 +122,9 @@ class SpaunConfig(object):
 
     @property
     def mtr_arm_class(self):
-        arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
-                                globals(), locals(), 'Arm')
+        arm_module = import_module('.arms.%s' % self.mtr_arm_type, __package__)
+        # arm_module = __import__('.arms.%s' % self.mtr_arm_type,
+                                # globals(), locals(), 'Arm')
         return arm_module.Arm
 
     def write_header(self):
