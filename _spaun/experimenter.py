@@ -53,6 +53,8 @@ class SpaunExperiment(object):
                     param_value = str(param_value[:20])[:-1] + '...'
 
                 logger.write('# - %s = %s\n' % (param_name, param_value))
+        logger.write('# ------\n')
+        logger.write('# Simulation time: %0.2fs' % self.get_est_simtime())
         logger.write('#\n')
 
     def parse_mult_seq(self, seq_str):
@@ -143,7 +145,7 @@ class SpaunExperiment(object):
                 qa_len = int(qa_opts[1])
 
                 # Generate number list
-                num_list = np.arange(len(self.num_map))
+                num_list = np.array(self.num_map.keys())
                 np.random.shuffle(num_list)
                 num_list = map(str, num_list)
 
@@ -162,6 +164,62 @@ class SpaunExperiment(object):
                 # Generate task string
                 new_task_str = 'A5[%s]%s[%s]?XX' % (''.join(num_list[:qa_len]),
                                                     qa_type, pk_opt)
+
+            elif task_str == "RVC":
+                # Format: (RVC; Q_STR; A_STR; NUM_PAIRS)
+                # Where Q_STR and A_STR is in the format:
+                # - lower case letters for constants
+                # - upper case 'X' for variable
+                # e.g. (RVC; aaXb, Xb)
+                rvc_opts = task_opts_str.split(';')
+                rvc_q_str = rvc_opts[0]
+                rvc_a_str = rvc_opts[1]
+                rvc_len = int(rvc_opts[2])
+
+                # Random digit list
+                num_list = np.array(self.num_map.keys())
+                np.random.shuffle(num_list)
+
+                # RVC string format mapping
+                rvc_const_map = dict()
+                rvc_var_map = dict()
+
+                char_cnt = 0
+                # Handle all lower case characters first
+                for char in (rvc_q_str + rvc_a_str):
+                    if char not in rvc_const_map and char.islower():
+                        rvc_const_map[char] = num_list[char_cnt]
+                        char_cnt += 1
+
+                for char in (rvc_q_str + rvc_a_str):
+                    if char not in rvc_var_map and char.isupper():
+                        var_list = []
+                        for i in range(rvc_len + 1):
+                            var_list.append(num_list[char_cnt])
+                            char_cnt = (char_cnt + 1) % len(num_list)
+                            if char_cnt == 0:
+                                np.random.shuffle(num_list)
+                        rvc_var_map[char] = var_list
+
+                # Generate task string
+                new_task_str = 'A6'
+                for i in range(rvc_len + 1):
+                    new_task_str += '['
+                    for char in rvc_q_str:
+                        if char.islower():
+                            new_task_str += str(rvc_const_map[char])
+                        if char.isupper():
+                            new_task_str += str(rvc_var_map[char][i])
+                    new_task_str += ']'
+                    if i < rvc_len:
+                        new_task_str += '['
+                        for char in rvc_a_str:
+                            if char.islower():
+                                new_task_str += str(rvc_const_map[char])
+                            if char.isupper():
+                                new_task_str += str(rvc_var_map[char][i])
+                        new_task_str += ']'
+                new_task_str += '?' + 'X' * (len(rvc_a_str) + 1)
             else:
                 raise ValueError('Custom task string "%s" ' % task_str +
                                  'not supported.')
