@@ -23,8 +23,10 @@ class TransformationSystem(Module):
     def init_module(self):
         # ----- Input and output selectors ----- #
         self.select_in_a = cfg.make_selector(3)
-        self.select_in_b = cfg.make_selector(6, represent_identity=True)
-        self.select_out = cfg.make_selector(6, represent_identity=True)
+        self.select_in_b = cfg.make_selector(6, represent_identity=True,
+                                             identity_radius=2.0)
+        self.select_out = cfg.make_selector(6, represent_identity=True,
+                                            identity_radius=2.0)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=vocab.sp_dim)

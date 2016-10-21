@@ -10,7 +10,7 @@ def WM_Averaging_Network(vocab, net=None, net_label="MBAve"):
 
     with net:
         mb = cfg.make_mem_block(vocab=vocab, label=net_label, reset_key=0,
-                                represent_identity=True)
+                                represent_identity=True, identity_radius=2.0)
 
         # Feedback from mb ave to mb ave = 1 - alpha
         nengo.Connection(mb.output, mb.input,
