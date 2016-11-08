@@ -8,6 +8,7 @@ from nengo.utils.network import with_self
 
 from ..configurator import cfg
 from ..vocabulator import vocab
+from .._networks import DetectChange
 
 from .decoding import Serial_Recall_Network, Free_Recall_Network
 from .decoding import Visual_Transform_Network, Output_Classification_Network
@@ -44,6 +45,12 @@ class InfoDecoding(Module):
         # Generic inhibition signal?
         self.dec_am_inhibit = cfg.make_thresh_ens_net(0.1)
 
+        # Inhibition signal when position vector changes
+        self.pos_change = \
+            DetectChange(dimensions=vocab.sp_dim, n_neurons=cfg.n_neurons_ens,
+                         item_magnitude=cfg.get_optimal_sp_radius())
+        nengo.Connection(self.pos_input, self.pos_change.input)
+
         # ---------- Decoding POS mem block gate signal generation ---------- #
         # Decoding POS mem block gate signal generation (from motor system)
         self.pos_mb_gate_bias = cfg.make_thresh_ens_net(n_neurons=200)
@@ -65,6 +72,7 @@ class InfoDecoding(Module):
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
                          serial_decode.inhibit, synapse=0.01)
+        nengo.Connection(self.pos_change.output, serial_decode.inhibit)
 
         # ---------------- Free recall decoding network --------------------- #
         self.free_recall_decode = Free_Recall_Network(vocab.item, vocab.pos,
@@ -95,6 +103,8 @@ class InfoDecoding(Module):
         # Inhibitory connections
         nengo.Connection(self.dec_am_task_inhibit.output,
                          self.free_recall_decode.inhibit, synapse=0.01)
+        nengo.Connection(self.pos_change.output,
+                         self.free_recall_decode.inhibit)
 
         # ------------- Visual transform decoding network ------------------- #
         if vocab.vis_dim > 0:

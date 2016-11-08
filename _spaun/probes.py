@@ -584,11 +584,13 @@ class SpaunProbeCfgDefault(SpaunProbeConfig):
             pde37 = self.probe_value(net.serial_decode.inhibit)
             pde38 = self.probe_value(net.free_recall_decode.inhibit)
 
+            pde39 = self.probe_value(net.pos_change.output, label='POS Change')
+
             self.add_graph(
                 'dec decconv', [pde28, pde29, pde1, pde4, pde21], [pde21])
             self.add_graph('dec kn unk st', [pde15, pde16, pde18])
             self.add_graph('dec am utils', [pde8, pde9, pde10, pde25])
-            self.add_graph('dec sigs', [pde6, pde26, pde11, pde27])
+            self.add_graph('dec sigs', [pde6, pde26, pde11, pde27, pde39])
             self.add_graph('dec sr', [p0, pde37, pde38])
             self.add_graph('dec fr', [pde11b, pde11, pde12, pde13, pde14])
             self.add_graph('dec sel', [pde30, pde31, pde32, pde33], [pde30])
