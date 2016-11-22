@@ -85,17 +85,8 @@ class VisionSystem(Module):
 
 
 class VisionSystemDummy(VisionSystem):
-    def __init__(self, label="Dummy Vision Sys", seed=None,
-                 add_to_container=None,
-                 vis_net=None, detect_net=None,
-                 vis_sps=None, vis_sps_scale=None,
-                 vis_net_neuron_type=None, **args):
-        super(VisionSystemDummy, self).__init__(label, seed, add_to_container,
-                                                self.dummy_lif_vis_net(),
-                                                self.dummy_detect_net(),
-                                                vocab.vis_main.vectors,
-                                                cfg.get_optimal_sp_radius(),
-                                                **args)
+    def __init__(self, label="Dummy Vision Sys", seed=None, add_to_container=None):
+        super(VisionSystemDummy, self).__init__(label, seed, add_to_container)
 
         # Indicate to the transform system that we are using a dummy vision
         # system
