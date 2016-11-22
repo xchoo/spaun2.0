@@ -21,7 +21,7 @@ def get_vocab(label=None):
     if isinstance(label, tuple):
         label = experiment.num_map[label[1]]
 
-    return vocab.vis[str(label)].v
+    return (vocab.vis_main[str(label)].v, label)
 
 
 def stim_func_vis(t):
@@ -29,7 +29,7 @@ def stim_func_vis(t):
 
 
 def stim_func_vocab(t):
-    return get_vocab(experiment.get_stimulus(t))
+    return get_vocab(experiment.get_stimulus(t))[0]
 
 
 class SpaunStimulus(Module):

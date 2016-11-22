@@ -16,9 +16,16 @@ from .vision.data import vis_data
 
 
 class VisionSystem(Module):
-    def __init__(self, label="Vision Sys", seed=None, add_to_container=None):
+    def __init__(self, label="Vision Sys", seed=None, add_to_container=None,
+                 vis_net=None, detect_net=None, vis_sps=None,
+                 vis_sps_scale=None, vis_net_neuron_type=None):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
-        self.init_module(None, None, vis_data.sps, vis_data.sps_scale, None)
+        if vis_sps is None:
+            vis_sps = vis_data.sps
+        if vis_sps_scale is None:
+            vis_sps_scale = vis_data.sps_scale
+        self.init_module(vis_net, detect_net, vis_sps, vis_sps_scale,
+                         vis_net_neuron_type)
 
     @with_self
     def init_module(self, vis_net, detect_net, vis_sps, vis_sps_scale,
