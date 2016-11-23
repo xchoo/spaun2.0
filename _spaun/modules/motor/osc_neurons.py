@@ -19,7 +19,7 @@ import numpy as np
 import importlib
 
 import nengo
-import controller
+from . import controller
 
 
 class OSControllerNengo(controller.Control):
@@ -60,8 +60,9 @@ class OSControllerNengo(controller.Control):
     def initialize_model(self):
         """Generate the Nengo model that will control the arm."""
 
-        config_file = __import__('_spaun.arms.three_link.config',
-                                 globals(), locals(), 'OSCConfig')
+        # config_file = __import__('_spaun.arms.three_link.config',
+                                 # globals(), locals(), 'OSCConfig')
+        config_file = importlib.import_module('...arms.three_link.config', __package__)
         config = config_file.OSCConfig(self.adaptation)
         # importlib.import_module('_spaun.arms.three_link.config', 'OSCConfig')
         # from ...arms.three_link.config import OSCConfig

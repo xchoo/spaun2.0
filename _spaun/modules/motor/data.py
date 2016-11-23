@@ -6,7 +6,7 @@ from ..._networks import convert_func_2_diff_func
 
 class MotorDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'motor')
+        self.filepath = os.path.dirname(__file__)
 
         canonical_paths = np.load(os.path.join(self.filepath,
                                                'canon_paths.npz'))
