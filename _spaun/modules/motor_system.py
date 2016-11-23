@@ -162,6 +162,10 @@ class MotorSystem(Module):
         nengo.Connection(self.motor_bypass.output,
                          target_diff_norm.neurons,
                          transform=[[-3.0]] * target_diff_norm.n_neurons)
+        if arm_obj is None:
+            # Disable the target_diff_norm when there is no arm object
+            nengo.Connection(bias_node, target_diff_norm.neurons,
+                             transform=[[-10.0]] * target_diff_norm.n_neurons)
 
         # ------ MOTOR PEN DOWN CONTROL ------
         pen_down = cfg.make_thresh_ens_net()
