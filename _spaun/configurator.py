@@ -120,6 +120,9 @@ class SpaunConfig(object):
 
     @property
     def mtr_arm_class(self):
+        if self.mtr_arm_type is None:
+            return lambda: None
+
         arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
                                 globals(), locals(), 'Arm')
         return arm_module.Arm

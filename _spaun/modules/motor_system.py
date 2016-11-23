@@ -208,7 +208,8 @@ class MotorSystem(Module):
             self.arm_py_node = nengo.Node(0)
 
         # Arm ee zero_centered location
-        self.zero_centered_arm_ee_loc = zero_centered_arm_ee_loc
+        if arm_obj is not None:
+            self.zero_centered_arm_ee_loc = zero_centered_arm_ee_loc
 
         # Target ee zero_centered location
         self.zero_centered_tgt_ee_loc = func_eval_net.func_output

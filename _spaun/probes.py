@@ -610,8 +610,11 @@ class SpaunProbeCfgDefault(SpaunProbeConfig):
             pmt8 = self.probe_value(net.pen_down, synapse=0.05)
             pmt11 = self.probe_value(net.motor_bypass.output)
 
-            pmt12 = self.probe_path(net.zero_centered_arm_ee_loc,
-                                    pmt8, synapse=0.05)
+            if hasattr(net, 'zero_centered_arm_ee_loc'):
+                pmt12 = self.probe_path(net.zero_centered_arm_ee_loc,
+                                        pmt8, synapse=0.05)
+            else:
+                pmt12 = self.probe_null()
 
             self.add_graph(
                 'mtr', [p0, pmt1, pmt2, pmt2b, pmt6, pmt3, pmt4, pmt5, pmt11])
