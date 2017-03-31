@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 
 
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
-supported_data_version = 5.0
+supported_data_version = 6.0
 default_filename = ''
+max_lines = 50
 
 # ----- Add current directory to system path ---
 cur_dir = os.getcwd()
@@ -143,6 +144,38 @@ def plot_legend(str_list, loc='right', labelspacing=0, max_per_row=5.0,
     lgd_text = lgd.get_texts()
     plt.setp(lgd_text, fontsize=fontsize)
 
+
+# Helper function to reshape image data
+def process_im_data(im_data, shape):
+    is_fail = False
+
+    if len(shape) > 2:
+        # Process color images
+        if shape[-1] == 3:
+            return im_data.reshape(shape)
+        elif shape[0] == 3:
+            new_shape = (shape[1], shape[2], shape[0])
+            return im_data.reshape(shape).T.reshape(new_shape).swapaxes(0, 1)
+        else:
+            is_fail = True
+    elif len(shape) == 2:
+        # Process BW images
+        return im_data.reshape(shape)
+    else:
+        is_fail = True
+
+    if is_fail:
+        raise RuntimeError('PROCESS IM DATA: Unknown image shape: %s' %
+                           str(shape))
+
+
+# Helper function to get default cmap for image data:
+def get_cmap(im_shape):
+    if len(im_shape) > 2:
+        return None
+    else:
+        return 'gray'
+
 # --------------------- DISPLAY GRAPHED DATA ---------------------
 # Get presentation interval (for image graphs)
 present_interval = probe_data['present_interval']
@@ -198,28 +231,32 @@ if show_grphs:
             if probe_opts[0] == 'V':
                 # Vector with vocabulary plots
                 vocab = vocab_dict[probe]
-                num_classes = len(vocab.keys)
+                num_classes = min(len(vocab.keys), max_lines)
+                # Note: Limit number of plots to max_lines to limit memory
+                #       usage
 
                 plt.gca().set_color_cycle([colormap(i) for i in
                                            np.linspace(0, 0.9, num_classes)])
                 for i in range(num_classes):
                     plt.plot(t_data,
                              np.dot(p_data, vocab.vectors.T)[:, i])
-                if disp_legend:
+                if len(vocab.keys) < 30 and disp_legend:
                     plot_legend(vocab.keys)
             elif probe_opts[0] == 'v':
                 # vector without vocabulary plots
-                num_classes = p_data[-1].size
-                if num_classes < 30:
+                num_dims = p_data[-1].size
+                if num_dims < 30:
                     plt.gca().set_color_cycle([colormap(i) for i in
                                                np.linspace(0, 0.9,
-                                                           num_classes)])
-                    for i in range(num_classes):
+                                                           num_dims)])
+                    for i in range(num_dims):
                         plt.plot(t_data, p_data[:, i])
                     if disp_legend:
-                        plot_legend(map(str, range(num_classes)))
+                        plot_legend(map(str, range(num_dims)))
                 else:
-                    plt.plot(t_data, p_data)
+                    # If number of dimensions > max_lines, limit to max_lines
+                    # (To avoid excessive memory usage)
+                    plt.plot(t_data, p_data[:, :max_lines])
             elif probe_opts[0] == 's':
                 # Spike display options
                 height = 0.75  # Height of 1 spike
@@ -284,8 +321,8 @@ if show_grphs:
                 for im_ind in im_timeline:
                     im_data = p_data[im_ind, :]
                     im_time = t_data[im_ind]
-                    plt.imshow(im_data.reshape(im_shape),
-                               cmap=plt.get_cmap('gray'),
+                    plt.imshow(process_im_data(im_data, im_shape),
+                               cmap=get_cmap(im_shape),
                                interpolation='nearest', aspect=args.aspect,
                                extent=(im_time, im_time + im_width,
                                        0, im_height))
@@ -385,12 +422,11 @@ if show_anim or show_io:
     print anim_config
 
 if show_io:
-    from _spaun.modules.vision.data import VisionDataObject
-
     # TODO: UPDATE TO USE NEW CODE FROM ABOVE
     vis_stim_config = anim_config[0]
     vis_stim_probe_id_str = vis_stim_config['data_func_params']['data']
     vis_stim_data = np.array(probe_data[vis_stim_probe_id_str])
+    vis_im_shape = vis_stim_config['plot_type_params']['shape']
 
     arm_data_dict = anim_config[1]['data_func_params']
     ee_probe_id_str = arm_data_dict['ee_path_data']
@@ -400,7 +436,7 @@ if show_io:
 
     arm_data_scale = anim_config[1]['plot_type_params']['xlim'][1]
 
-    A_img = VisionDataObject().get_image('A')[0]
+    A_img = vis_stim_config['data_func_params']['reset_img']
     num_cols = 0
     curr_col_ind = 0
 
@@ -459,9 +495,8 @@ if show_io:
             plt.subplot(len(plot_data), num_cols, i * num_cols + j + 1,
                         aspect=1)
             if plot_type[i][j] == 'im':
-                # Reshape to 28 * 28 (TODO: FIX for generic images?)
-                im_data = plot_data[i][j].reshape((28, 28))
-                plt.imshow(im_data, cmap=plt.get_cmap('gray'),
+                im_data = process_im_data(plot_data[i][j], vis_im_shape)
+                plt.imshow(im_data, cmap=get_cmap(vis_im_shape),
                            interpolation='nearest', aspect='equal')
                 plt.xticks([])
                 plt.yticks([])

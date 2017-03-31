@@ -38,7 +38,7 @@ class SPAEnsembleArray(EnsembleArray):
     """
 
     def __init__(self, n_neurons, dimensions=-1, n_ensembles=-1,
-                 represent_identity=False,
+                 represent_identity=False, identity_radius=1.0,
                  label=None, seed=None, add_to_container=None, **ens_kwargs):
 
         if dimensions < 0 and n_ensembles < 0:
@@ -71,6 +71,6 @@ class SPAEnsembleArray(EnsembleArray):
                                                **ens_kwargs)
 
         # If SPA ensemble array needs to represent the identity vector,
-        # modify the radius of the first element ensemble to 1
+        # modify the radius of the first element ensemble to identity_radius
         if represent_identity:
-            self.ensembles[0].radius = 1
+            self.ensembles[0].radius = identity_radius
