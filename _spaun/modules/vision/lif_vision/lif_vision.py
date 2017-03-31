@@ -3,7 +3,7 @@ import numpy as np
 import nengo
 
 
-def LIFVision(vis_data, net=None, net_neuron_type=None):
+def LIFVision(vis_data, stim_data, net=None, net_neuron_type=None):
     if net is None:
         net = nengo.Network(label="LIF Vision")
 
@@ -12,9 +12,9 @@ def LIFVision(vis_data, net=None, net_neuron_type=None):
 
     with net:
         # --- LIF vision network proper
-        input_node = nengo.Node(size_in=vis_data.images_data_dimensions,
+        input_node = nengo.Node(size_in=stim_data.images_data_dimensions,
                                 label='Input')
-        input_bias = nengo.Node(output=[1] * vis_data.images_data_dimensions)
+        input_bias = nengo.Node(output=[1] * stim_data.images_data_dimensions)
 
         net.layers = []
         for i, [W, b] in enumerate(zip(vis_data.weights, vis_data.biases)):
@@ -30,12 +30,12 @@ def LIFVision(vis_data, net=None, net_neuron_type=None):
             if i == 0:
                 nengo.Connection(
                     input_node, layer.neurons,
-                    transform=vis_data.images_data_std * W.T,
+                    transform=stim_data.images_data_std * W.T,
                     synapse=vis_data.pstc)
                 nengo.Connection(
                     input_bias, layer.neurons,
-                    transform=-np.multiply(vis_data.images_data_mean,
-                                           vis_data.images_data_std) * W.T,
+                    transform=-np.multiply(stim_data.images_data_mean,
+                                           stim_data.images_data_std) * W.T,
                     synapse=vis_data.pstc)
             else:
                 nengo.Connection(

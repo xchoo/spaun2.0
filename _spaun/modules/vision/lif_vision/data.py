@@ -3,12 +3,10 @@ import numpy as np
 
 import nengo
 
-from ..data import VisionDataObject
 
-
-class LIFVisionDataObject(VisionDataObject):
+class LIFVisionDataObject(object):
     def __init__(self):
-        super(LIFVisionDataObject, self).__init__()
+        self.filepath = os.path.join('_spaun', 'modules', 'vision')
         self.module_name = 'lif_vision'
 
         # --- LIF vision network configurations ---
@@ -36,8 +34,6 @@ class LIFVisionDataObject(VisionDataObject):
         self.neuron_type = neuron_type
 
         # --- Visual associative memory configurations ---
-        self.am_threshold = 0.5
-
         means_filename = \
             os.path.join(self.filepath, self.module_name, 'class_means.npz')
         means_data = np.matrix(1.0 / np.load(means_filename)['means'])
@@ -47,6 +43,8 @@ class LIFVisionDataObject(VisionDataObject):
         self.sps_output_scale = self.amp
 
         # --- Mandatory data object attributes ---
+        self.am_threshold = 0.5
+
         self.sps = np.array(np.multiply(weights_class.T, means_data.T))
         self.dimensions = self.vision_network_data['Wc'].shape[0]
 
