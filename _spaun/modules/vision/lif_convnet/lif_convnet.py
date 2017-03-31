@@ -4,12 +4,12 @@ import nengo
 from nengo_extras.cuda_convnet import CudaConvnetNetwork
 
 
-def LIFConvNetVision(vis_data, net=None, net_neuron_type=None):
+def LIFConvNetVision(vis_data, stim_data, net=None, net_neuron_type=None):
     if net is None:
         net = nengo.Network(label="LIF Convnet Vision")
 
     with net:
-        input_node = nengo.Node(size_in=vis_data.images_data_dimensions,
+        input_node = nengo.Node(size_in=stim_data.images_data_dimensions,
                                 label='Input')
         input_bias = nengo.Node(output=1)
 
@@ -21,9 +21,9 @@ def LIFConvNetVision(vis_data, net=None, net_neuron_type=None):
         # Input biases (subtract image mean, add positive bias of 1)
         nengo.Connection(
             input_bias, ccnet.inputs['data'], synapse=None,
-            transform=np.ones((vis_data.images_data_dimensions, 1)))
+            transform=np.ones((stim_data.images_data_dimensions, 1)))
         nengo.Connection(input_bias, ccnet.inputs['data'],
-                         transform=-vis_data.images_data_mean.T, synapse=None)
+                         transform=-stim_data.images_data_mean.T, synapse=None)
 
         # --- Gather the ccnet layers for probing
         net.layers = []

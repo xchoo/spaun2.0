@@ -2,12 +2,11 @@ import os
 import numpy as np
 
 from nengo_extras.cuda_convnet import load_model_pickle
-from ..data import VisionDataObject
 
 
-class LIFConvNetVisionDataObject(VisionDataObject):
+class LIFConvNetVisionDataObject(object):
     def __init__(self):
-        super(LIFConvNetVisionDataObject, self).__init__()
+        self.filepath = os.path.join('_spaun', 'modules', 'vision')
         self.module_name = 'lif_convnet'
 
         # --- LIF vision network weights configurations ---
@@ -20,8 +19,6 @@ class LIFConvNetVisionDataObject(VisionDataObject):
         self.classify_okey = 'fc10'
 
         # --- Visual associative memory configurations ---
-        self.am_threshold = 0.5
-
         centers_filename = \
             os.path.join(self.filepath, self.module_name, 'class_centers.npz')
 
@@ -42,6 +39,8 @@ class LIFConvNetVisionDataObject(VisionDataObject):
         # (print np.mean(norms) for sp_10)
 
         # --- Mandatory data object attributes ---
+        self.am_threshold = 0.5
+
         self.sps = sps
         self.dimensions = self.sps.shape[1]
 
