@@ -31,9 +31,8 @@ def norm_subtract_func(x, in_trfm, in_bias, out_trfm, out_bias):
 
 
 def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
-                    n_neurons_norm=50, n_neurons_norm_sub=50,
-                    n_neurons_prod=150, norm_error_per_dimension=0.0003,
-                    net=None):
+                    n_neurons_norm=50, n_neurons_prod=150,
+                    norm_error_per_dimension=0.0003, net=None):
     if net is None:
         net = nengo.Network(label="Vector Normalize")
 
@@ -52,11 +51,12 @@ def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
     prod_b_trfm = scale_trfm(prod_b_low, prod_b_high)
     prod_b_bias = scale_bias(prod_b_low, prod_b_high)
 
-    norm_sub_func = lambda x: norm_subtract_func(x, norm_sub_in_trfm,
-                                                 norm_sub_in_bias,
-                                                 prod_b_trfm, prod_b_bias)
-    prod_func = lambda x, y: prod_out_func(x, y, prod_a_trfm, 0,
-                                           prod_b_trfm, prod_b_bias)
+    def norm_sub_func(x, nsit=norm_sub_in_trfm, nsib=norm_sub_in_bias,
+                      pbt=prod_b_trfm, pbb=prod_b_bias):
+        return norm_subtract_func(x, nsit, nsib, pbt, pbb)
+
+    def prod_func(x, y, pat=prod_a_trfm, pbt=prod_b_trfm, pbb=prod_b_bias):
+        return prod_out_func(x, y, pat, 0, pbt, pbb)
 
     with net:
         net.input = nengo.Node(size_in=dimensions)
@@ -72,7 +72,8 @@ def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
 
         # Ensemble to calculate amount of magnitude to be subtracted
         # i.e. (1 - 1 / np.linalg.norm(input))
-        norm_subtract_ens = nengo.Ensemble(50, 1, n_eval_points=5000)
+        norm_subtract_ens = nengo.Ensemble(n_neurons_norm, 1,
+                                           n_eval_points=5000)
         nengo.Connection(norm_array.squared, norm_subtract_ens,
                          transform=np.ones((1, dimensions)) * norm_sub_in_trfm)
         nengo.Connection(bias_node, norm_subtract_ens,

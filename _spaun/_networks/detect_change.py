@@ -50,7 +50,8 @@ def DetectChange(net=None, dimensions=1, n_neurons=50, diff_scale=0.3,
 
         # ----- Output node -----
         net.output = nengo.Node(size_in=1)
-        nengo.Connection(change_detect, net.output, synapse=None)
+        nengo.Connection(change_detect, net.output, synapse=0.0035,
+                         transform=1.5)
         nengo.Connection(blank_detect, net.output, synapse=0.01,
                          transform=blank_output_value)
 

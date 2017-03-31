@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from warnings import warn
+from collections import OrderedDict as OD
 
 from _spaun.utils import conf_interval
 
@@ -15,9 +16,9 @@ parser.add_argument('-p', type=str, default='probe_data',
                     help='Probe data filename prefix. E.g. probe_data')
 parser.add_argument('-n', type=str, default='LIF_512',
                     help='Probe data neuron type str. E.g. LIF_512')
-parser.add_argument('-t', type=str, default=None,
+parser.add_argument('--tag', type=str, default=None, nargs="*",
                     help='Probe data tag str.')
-parser.add_argument('-s', type=str, default='',
+parser.add_argument('-s', type=str, default='', nargs="*",
                     help='Probe data stimulus str. E.g. A0[0]@XXX')
 parser.add_argument('--output_file', type=str, default=None,
                     help='Ouput data file name.')
@@ -96,7 +97,7 @@ def process_line(task_str, task_data_str):
         for i in range(len(task_info_split)):
             task_info_split[i] = \
                 mass_str_replace(task_info_split[i],
-                                 ['[', ']', 'F', 'R', 'P', 'K'], '')
+                                 ['[', ']', 'F', 'R', 'P', 'K', '-'], '')
 
         # Spaun's answer is after the question mark
         task_answer_spaun = \
@@ -166,11 +167,12 @@ def process_line(task_str, task_data_str):
             warn('A6: Invalid RVC task. No question list given.')
     elif task_str == 'A7':
         # Raven's induction task
-        # Induction task comes in two forms: changing list len, and changing
-        #                                    number relations
+        # Induction task comes in 3 forms: changing list len, and changing
+        #                                  number relations, identical lists
         col_count = 1
         induction_diff = None
         induction_len_change = None
+        induction_identity = None
 
         for i in range(1, len(task_info_split)):
             if col_count % 3 == 0:
@@ -189,13 +191,15 @@ def process_line(task_str, task_data_str):
                     warn('A7: Inconsistent change between induction items')
                     task_str = 'INVALID'
             # 2. Changing list lengths, but containing identical items
-            elif list1[0] == list2[0]:
+            elif (list1[0] == list2[0]) and (len(list1) != len(list2)):
                 len_change = len(list2) - len(list1)
                 if induction_len_change is None:
                     induction_len_change = len_change
                 if induction_len_change != len_change:
                     warn('A7: Inconsistent change between list lenghts')
                     task_str = 'INVALID'
+            elif (len(list1) == len(list2)) and (list1 == list2):
+                induction_identity = True
             else:
                 warn('A7: Unhandled induction task type')
                 task_str = 'INVALID'
@@ -207,10 +211,15 @@ def process_line(task_str, task_data_str):
             return int(c) if c.isdigit() else -1
 
         list1 = map(spaun_response_to_int, list(task_info_split[-1]))
-        if induction_diff is not None and induction_len_change is None:
+        if induction_diff is not None and induction_len_change is None and \
+           induction_identity is None:
             task_answer_ref = np.array(map(str, [list1[0] + induction_diff]))
-        elif induction_len_change is not None and induction_diff is None:
+        elif (induction_len_change is not None and induction_diff is None and
+              induction_identity is None):
             task_answer_ref = np.array(map(str, [list1[0]] * (len(list1) + 1)))
+        elif (induction_len_change is None and induction_diff is None and
+              induction_identity is not None):
+            task_answer_ref = np.array(map(str, list1))
         else:
             warn('A7: Multiple induction types encountered?')
             task_str = 'INVALID'
@@ -244,50 +253,92 @@ def process_line(task_str, task_data_str):
                 [int(np.all(task_answer == task_answer_ref))])
 
 
+# Fix dash in stimulus tag
+# Process multiple stimuli and/or tag options
+s_list = []
+t_list = []
+
+if args.tag is not None or len(args.s) > 0:
+    if args.s == '':
+        s_list = [None] * len(args.tag)
+    elif len(args.s) == 1 and args.tag is not None:
+        s_list = [args.s[0]] * len(args.tag)
+    else:
+        s_list = list(args.s)
+
+    if args.tag is None:
+        t_list = [None] * len(args.s)
+    elif len(args.tag) == 1 and args.s != '':
+        t_list = [args.tag[0]] * len(args.s)
+    else:
+        t_list = list(args.tag)
+
+print args.s == '', args.tag
+print s_list, t_list
+
+if len(s_list) != len(t_list):
+    raise RuntimeError("-s and --tag options need to have the same length")
+
 # Process probe data file
+processed_results = OD()
 probe_dir = args.data_dir
-str_prefix = '+'.join([args.p, args.n])
-if len(args.s) > 0:
-    str_prefix = '+'.join([str_prefix, args.s])
-if args.t is not None:
-    str_suffix = '(' + args.t + ')_log.txt'
-else:
-    str_suffix = '_log.txt'
 
-processed_results = {}
-num_tasks = 0
-num_null_responses = 0
+for stim_str, tag_str in zip(s_list, t_list):
+    print "OPTION: %s, %s" % (stim_str, tag_str)
 
-for filename in os.listdir(probe_dir):
-    if filename[-len(str_suffix):] == str_suffix and \
-       filename[:len(str_prefix)] == str_prefix and not args.r:
-        print "PROCESSING: " + os.path.join(probe_dir, filename)
-        probe_file = open(os.path.join(probe_dir, filename), 'r')
-        for line in probe_file.readlines():
-            if line[0] != '#' and line.strip() != '':
-                task_info_split = line.split('[', 1)
-                task_str = task_info_split[0].strip()
-                task_data = task_info_split[1].strip()
+    str_prefix = '+'.join([args.p, args.n])
+    if stim_str is not None and len(stim_str) > 0:
+        str_prefix = '+'.join([str_prefix, stim_str])
+    if tag_str is not None:
+        str_suffix = '(' + tag_str + ')_log.txt'
+    else:
+        str_suffix = '_log.txt'
 
-                task_str, task_result = process_line(task_str, task_data)
+    num_tasks = 0
+    num_null_responses = 0
 
-                if task_str is not None:
-                    if task_str not in processed_results:
-                        processed_results[task_str] = [task_result]
+    for filename in os.listdir(probe_dir):
+        if filename[-len(str_suffix):] == str_suffix and \
+           filename[:len(str_prefix)] == str_prefix and not args.r:
+            print "PROCESSING: " + os.path.join(probe_dir, filename)
+            probe_file = open(os.path.join(probe_dir, filename), 'r')
+            for line in probe_file.readlines():
+                if line[0] != '#' and line.strip() != '':
+                    task_info_split = line.split('[', 1)
+                    task_str = task_info_split[0].strip()
+                    task_data = task_info_split[1].strip()
+
+                    task_str, task_result = process_line(task_str, task_data)
+
+                    if task_str is not None:
+                        if tag_str is None:
+                            tt_str = task_str
+                        else:
+                            tt_str = "+".join([task_str, tag_str])
+
+                        if tt_str not in processed_results:
+                            processed_results[tt_str] = [task_result]
+                        else:
+                            processed_results[tt_str].append(task_result)
                     else:
-                        processed_results[task_str].append(task_result)
-                else:
-                    # Increase the count of null responses
-                    num_null_responses += 1
+                        # Increase the count of null responses
+                        num_null_responses += 1
 
-                # Keep track of the number of tasks that have been processed
-                num_tasks +=1
+                    # Keep track of the number of tasks that have been done
+                    num_tasks += 1
 
 # Convert all data structures in processed results to np arrays
 for task in processed_results:
     processed_results[task] = np.array(processed_results[task])
 
 # Write collected data to file
+if t_list[0] is None:
+    t_list = []
+if s_list[0] is None:
+    s_list = []
+str_prefix = '+'.join([args.p, args.n])
+str_prefix += '+' + '#'.join(s_list + t_list)
+str_prefix = str_prefix[:64]
 if args.output_file is None:
     output_file = '+'.join(['results', str_prefix]) + '.npz'
 else:
@@ -326,7 +377,7 @@ if not args.r:
 # Compute CI and plot data
 ci_data_filepath = output_filepath[:-4] + '_ci.npz'
 if not args.r:
-    ci_data = {}
+    ci_data = OD()
     for key in processed_results:
         results = processed_results[key]
         ci_data[key] = \
@@ -349,8 +400,14 @@ if num_tasks > 0:
     print "Percentage of null responses: ", (1.0 * num_null_responses /
                                              num_tasks)
 
+plt.figure(1, figsize=(18, 9))
+legend_list = []
+max_x = 0
+plot_jitter = 0.05
+num_plots = len(ci_data.keys())
+
 # Plot results
-for task in ci_data:
+for n, task in enumerate(ci_data.keys()):
     data = ci_data[task]
     xvals = np.arange(data.shape[0]) + 1
     means = data[:, 0]
@@ -361,5 +418,18 @@ for task in ci_data:
     plt.errorbar(xvals, means, yerr=[means - lows, highs - means])
     plt.xlim(0.5, data.shape[0] + 0.5)
     plt.ylim(0, 1)
+
+    max_x = max(max_x, data.shape[0])
+
+    plt.figure(1)
+    plt.errorbar(xvals + (n - num_plots // 2) * plot_jitter, means,
+                 yerr=[means - lows, highs - means])
+    legend_list.append(task)
+
+plt.figure(1)
+plt.xlim(0.5, max_x + 0.5)
+plt.ylim(0, 1)
+plt.legend(legend_list)
+plt.tight_layout()
 
 plt.show()

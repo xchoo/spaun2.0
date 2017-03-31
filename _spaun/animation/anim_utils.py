@@ -180,13 +180,13 @@ class DataFunctions(object):
         return data_func
 
     @staticmethod
-    def generic_single(data):
+    def generic_single(data, **args):
         def data_func(t_index, data=data):
             return data[t_index, :]
         return data_func
 
     @staticmethod
-    def generic_constant(data):
+    def generic_constant(data, **args):
         flatten_data = np.asarray(data).flatten()
         print flatten_data.shape
 

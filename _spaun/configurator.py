@@ -38,15 +38,20 @@ class SpaunConfig(object):
 
         self.sim_dt = 0.001
 
+        self.stim_module = 'mnist'
         self.vis_module = 'lif_vision'
 
+        self.vis_detect_dim = 5000
+
         self.ps_mb_gain_scale = 2.0
-        self.ps_mb_gate_scale = 1.2
+        self.ps_mb_gate_scale = 1.25
         self.ps_use_am_mb = True
         self.ps_action_am_threshold = 0.2
 
         self.enc_mb_acc_radius_scale = 2.5
         self.enc_pos_cleanup_mode = 2
+
+        self.ens_array_subdim = 1
 
         self.mb_rehearsalbuf_input_scale = 1.0  # 1.75
         self.mb_decaybuf_input_scale = 1.5  # 1.75
@@ -59,7 +64,8 @@ class SpaunConfig(object):
         self.mb_neg_attn_scale = 2.0
 
         self.trans_cconv_radius = 2
-        self.trans_ave_scale = 0.3
+        self.trans_ave_scale = 0.25  # 0.3
+        self.trans_cmp_threshold = 0.65  # 0.5
 
         self.dcconv_radius = 2
         self.dcconv_item_in_scale = 0.75  # 0.5
@@ -140,6 +146,9 @@ class SpaunConfig(object):
 
     @property
     def mtr_arm_class(self):
+        if self.mtr_arm_type is None:
+            return lambda: None
+
         arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
                                 globals(), locals(), 'Arm')
         return arm_module.Arm
@@ -258,16 +267,24 @@ class SpaunConfig(object):
 
     def make_ens_array(self, **args):
         ens_args = dict(args)
-        ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
-        n_ensembles = ens_args.pop('dimensions', vocab.sp_dim)
+        ens_args['radius'] = args.get('radius', 1)
+        ens_args['ens_dimensions'] = args.get('ens_dimensions',
+                                              self.ens_array_subdim)
+        n_ensembles = (ens_args.pop('dimensions', vocab.sp_dim) //
+                       ens_args['ens_dimensions'])
+        ens_args['n_neurons'] = (args.get('n_neurons', self.n_neurons_ens) *
+                                 ens_args['ens_dimensions'])
         ens_args['n_ensembles'] = args.get('n_ensembles', n_ensembles)
-        ens_args['radius'] = args.get('radius', self.get_optimal_sp_radius())
         return EnsembleArray(**ens_args)
 
     def make_spa_ens_array(self, **args):
         ens_args = dict(args)
-        ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
         ens_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
+        ens_dims = ens_args.pop('ens_dimensions', self.ens_array_subdim)
+        ens_args['n_neurons'] = (args.get('n_neurons', self.n_neurons_ens) *
+                                 ens_dims)
+        ens_args['n_ensembles'] = ens_args['dimensions'] // ens_dims
+
         return SPAEnsembleArray(**ens_args)
 
     def make_spa_ens_array_gate(self, threshold_gate=True, inhib_scale=3,
@@ -323,8 +340,6 @@ class SpaunConfig(object):
                                             self.get_optimal_sp_radius())
         ens_args['n_neurons_norm'] = args.get('n_neurons_norm',
                                               self.n_neurons_ens)
-        ens_args['n_neurons_norm_sub'] = args.get('n_neurons_norm_sub',
-                                                  self.n_neurons_ens)
         ens_args['n_neurons_prod'] = args.get('n_neurons_prod',
                                               self.n_neurons_cconv)
 
