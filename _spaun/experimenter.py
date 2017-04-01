@@ -38,7 +38,7 @@ class SpaunExperiment(object):
         self._num_learn_actions = self.learn_min_num_actions
 
         self.present_blanks = False
-        self.present_interval = 0.15
+        self.present_interval = 0.2
 
         self.prev_t_ind = -1
 
@@ -151,7 +151,7 @@ class SpaunExperiment(object):
                 qa_len = int(qa_opts[1])
 
                 # Generate number list
-                num_list = np.arange(len(self.num_map))
+                num_list = np.array(self.num_map.keys())
                 np.random.shuffle(num_list)
                 num_list = map(str, num_list)
 
@@ -170,6 +170,62 @@ class SpaunExperiment(object):
                 # Generate task string
                 new_task_str = 'A5[%s]%s[%s]?XX' % (''.join(num_list[:qa_len]),
                                                     qa_type, pk_opt)
+
+            elif task_str == "RVC":
+                # Format: (RVC; Q_STR; A_STR; NUM_PAIRS)
+                # Where Q_STR and A_STR is in the format:
+                # - lower case letters for constants
+                # - upper case 'X' for variable
+                # e.g. (RVC; aaXb, Xb)
+                rvc_opts = task_opts_str.split(';')
+                rvc_q_str = rvc_opts[0]
+                rvc_a_str = rvc_opts[1]
+                rvc_len = int(rvc_opts[2])
+
+                # Random digit list
+                num_list = np.array(self.num_map.keys())
+                np.random.shuffle(num_list)
+
+                # RVC string format mapping
+                rvc_const_map = dict()
+                rvc_var_map = dict()
+
+                char_cnt = 0
+                # Handle all lower case characters first
+                for char in (rvc_q_str + rvc_a_str):
+                    if char not in rvc_const_map and char.islower():
+                        rvc_const_map[char] = num_list[char_cnt]
+                        char_cnt += 1
+
+                for char in (rvc_q_str + rvc_a_str):
+                    if char not in rvc_var_map and char.isupper():
+                        var_list = []
+                        for i in range(rvc_len + 1):
+                            var_list.append(num_list[char_cnt])
+                            char_cnt = (char_cnt + 1) % len(num_list)
+                            if char_cnt == 0:
+                                np.random.shuffle(num_list)
+                        rvc_var_map[char] = var_list
+
+                # Generate task string
+                new_task_str = 'A6'
+                for i in range(rvc_len + 1):
+                    new_task_str += '['
+                    for char in rvc_q_str:
+                        if char.islower():
+                            new_task_str += str(rvc_const_map[char])
+                        if char.isupper():
+                            new_task_str += str(rvc_var_map[char][i])
+                    new_task_str += ']'
+                    if i < rvc_len:
+                        new_task_str += '['
+                        for char in rvc_a_str:
+                            if char.islower():
+                                new_task_str += str(rvc_const_map[char])
+                            if char.isupper():
+                                new_task_str += str(rvc_var_map[char][i])
+                        new_task_str += ']'
+                new_task_str += '?' + 'X' * (len(rvc_a_str) + 1)
             else:
                 raise ValueError('Custom task string "%s" ' % task_str +
                                  'not supported.')
@@ -222,6 +278,9 @@ class SpaunExperiment(object):
 
         return seq_list_new, instr_list_new
 
+    def is_valid_class_char(self, c):
+        return (c.isalnum()) or (c in ['_'])
+
     def parse_raw_seq(self, raw_seq_str, get_image_ind, get_image_label,
                       present_blanks, mtr_est_digit_response_time,
                       instruction_str, rng):
@@ -230,7 +289,7 @@ class SpaunExperiment(object):
 
         instr_dict = self.parse_instruction_str(instruction_str)
 
-        hw_num = False  # Flag to indicate to use a hand written number
+        hw_class = False  # Flag to indicate to use a hand written number
         fixed_num = False
         is_instr = False
 
@@ -241,6 +300,7 @@ class SpaunExperiment(object):
         prev_c = ''
         fixed_c = ''
         instr_c = ''
+        class_c = ''
         value_maps = {}
 
         num_n = 0
@@ -249,87 +309,138 @@ class SpaunExperiment(object):
         num_mtr_responses = 0.0
 
         for c in raw_seq:
-            if c == 'N':
-                num_n += 1
-                continue
-            else:
-                cs = np.random.choice(self.num_map.keys(), num_n,
-                                      replace=False)
-                for n in cs:
-                    raw_seq_list.append(n)
-                num_n = 0
-
-            if c == 'R':
-                num_r += 1
-                continue
-            else:
-                cs = np.random.choice(self.num_map.keys(), num_r, replace=True)
-                for r in cs:
-                    raw_seq_list.append(r)
-                num_r = 0
-
-            if c == 'A':    # Clear the value maps for each task
-                value_maps = {}
-                num_n = 0
-                num_r = 0
-
-            if c.islower():
-                if c not in value_maps:
-                    value_maps[c] = np.random.choice(self.num_map.keys(), 1,
-                                                     replace=True)[0]
-                c = value_maps[c]
-
-            if c == 'X':
-                num_mtr_responses += 1
-                continue
-            elif num_mtr_responses > 0:
+            # Process motor response before descriptor tags
+            if num_mtr_responses > 0 and c in ['%', '#', '<']:
                 self.insert_mtr_wait_sym(raw_seq_list, num_mtr_responses,
                                          self.present_interval,
                                          mtr_est_digit_response_time)
                 num_mtr_responses = 0
 
-            # 'R' Option for memory task
-            if c == 'B':
-                c = 'R'
+            # Process hardwired class descriptor tag (# ...)
+            if hw_class:
+                if (not self.is_valid_class_char(c) and len(class_c) <= 0):
+                    raise ValueError('Malformed class number string.')
+                elif self.is_valid_class_char(c):
+                    class_c += c
+                    continue
+                else:
+                    raw_seq_list.append('#' + class_c)
 
-            raw_seq_list.append(c)
-
-        # Insert trailing motor response wait symbols
-        self.insert_mtr_wait_sym(raw_seq_list, num_mtr_responses,
-                                 self.present_interval,
-                                 mtr_est_digit_response_time)
-
-        for c in raw_seq_list:
-            if c == '#':
-                hw_num = True
+                    # Since any non-alphanum character terminates class
+                    # descriptor, need to clear class_c here as well.
+                    # Also need to handle special case of '#' terminating
+                    # class decriptor
+                    class_c = ''
+                    if c != '#':
+                        hw_class = False
+                    if c not in ['[', ']', '.', '<', '>', ' %']:
+                        continue
+            elif c == '#':
+                hw_class = True
+                class_c = ''
                 continue
 
+            # Process fixed image index descriptor tags (< ... >)
             if fixed_num:
                 if (not c.isdigit() and c not in ['>']) or \
                    (c == '>' and len(fixed_c) <= 0):
                     raise ValueError('Malformed fixed index number string.')
                 elif c.isdigit():
                     fixed_c += c
-                    continue
-
-            if c == '<':
+                else:
+                    raw_seq_list.append('<' + fixed_c)
+                    fixed_num = False
+                continue
+            elif c == '<':
                 fixed_num = True
                 fixed_c = ''
                 continue
 
+            # Process instruction string tags (% ... %)
             if c == '%':
                 if not is_instr:
                     instr_c = ''
+                else:
+                    raw_seq_list.append('%' + instr_c)
                 is_instr = not is_instr
                 continue
             elif is_instr:
                 instr_c += c
                 continue
 
+            # Process non-tagged characters
+            if not (hw_class or fixed_num or is_instr):
+                if c == 'N':
+                    num_n += 1
+                    continue
+                else:
+                    cs = np.random.choice(self.num_map.keys(), num_n,
+                                          replace=False)
+                    for n in cs:
+                        raw_seq_list.append(n)
+                    num_n = 0
+
+                if c == 'R':
+                    num_r += 1
+                    continue
+                else:
+                    cs = np.random.choice(self.num_map.keys(), num_r,
+                                          replace=True)
+                    for r in cs:
+                        raw_seq_list.append(r)
+                    num_r = 0
+
+                if c == 'A':    # Clear the value maps for each task
+                    value_maps = {}
+                    num_n = 0
+                    num_r = 0
+
+                if c.islower():
+                    if c not in value_maps:
+                        value_maps[c] = np.random.choice(self.num_map.keys(),
+                                                         1, replace=True)[0]
+                    c = value_maps[c]
+
+                if c == 'X':
+                    num_mtr_responses += 1
+                    continue
+                elif num_mtr_responses > 0:
+                    self.insert_mtr_wait_sym(raw_seq_list, num_mtr_responses,
+                                             self.present_interval,
+                                             mtr_est_digit_response_time)
+                    num_mtr_responses = 0
+
+                # 'R' Option for memory task
+                if c == 'B':
+                    c = 'R'
+
+                raw_seq_list.append(c)
+
+        # Insert trailing motor response wait symbols
+        self.insert_mtr_wait_sym(raw_seq_list, num_mtr_responses,
+                                 self.present_interval,
+                                 mtr_est_digit_response_time)
+
+        # Default instruction SP is blank
+        instr_c = ''
+
+        # Process raw sequence list to get actual SP's
+        for c in raw_seq_list:
             if c in self.sym_map:
                 c = self.sym_map[c]
-            if not hw_num and c in self.num_map:
+            if c in self.num_map:
                 c = self.num_map[c]
+
+            if (c is not None) and (c[0] == '#'):
+                class_c = c[1:]
+                img_ind = get_image_ind(class_c, rng)
+                c = (img_ind, class_c)
+            elif (c is not None) and (c[0] == '<'):
+                fixed_c = c[1:]
+                c = (int(fixed_c), str(get_image_label(int(fixed_c))))
+            elif (c is not None) and (c[0] == '%'):
+                instr_c = c[1:]
+                continue
 
             # If previous character is identical to current character, insert a
             # space between them.
@@ -337,21 +448,11 @@ class SpaunExperiment(object):
                c == '.':
                 stim_seq_list.append(None)
                 instr_seq_list.append(instr_c)
+                if c == '.':
+                    continue
 
-            if c is not None and c.isdigit() and hw_num:
-                img_ind = get_image_ind(c, rng)
-                stim_seq_list.append((img_ind, c))
-                instr_seq_list.append(instr_c)
-                c = img_ind
-                hw_num = False
-            elif c is not None and c == '>' and fixed_num:
-                stim_seq_list.append(
-                    (int(fixed_c), str(get_image_label(int(fixed_c)))))
-                instr_seq_list.append(instr_c)
-                fixed_num = False
-            else:
-                stim_seq_list.append(c)
-                instr_seq_list.append(instr_c)
+            stim_seq_list.append(c)
+            instr_seq_list.append(instr_c)
 
             # Keep track of previous character (to insert spaces between)
             # duplicate characters
@@ -446,7 +547,8 @@ class SpaunExperiment(object):
         return int(self.get_t_ind_float(t))
 
     def in_learning_phase(self, t):
-        task = self.task_phase_seq_list[self.get_t_ind(t)]
+        t_ind = min(self.get_t_ind(t), len(self.task_phase_seq_list) - 1)
+        task = self.task_phase_seq_list[t_ind]
         return (len(task) > 1 and task[0] == 'L')
 
     def get_stimulus(self, t):
@@ -507,7 +609,9 @@ class SpaunExperiment(object):
 
             # In learning phase. Evaluate output and choose reward
             if out_ind >= 0 and out_ind < (len(self.num_out_list) - 1):
-                rewards = self.task_phase_seq_list[self.get_t_ind(t)][1]
+                t_ind = min(self.get_t_ind(t),
+                            len(self.task_phase_seq_list) - 1)
+                rewards = self.task_phase_seq_list[t_ind][1]
 
                 if out_ind >= 0 and out_ind < self.num_learn_actions:
                     reward_chance = rewards[out_ind]
