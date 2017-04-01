@@ -33,7 +33,7 @@ class SpaunVocabulary(object):
         # X - Task precursor
         # DEC - Decoding task (output to motor system)
         self.ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X',
-                                'DEC', 'REACT', 'INSTR']
+                                'DEC', 'REACT', 'INSTR', 'CMP']
         self.ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
                                     'V', 'W']
         # --- Task visual semantic pointer usage ---
@@ -48,7 +48,7 @@ class SpaunVocabulary(object):
         # DECI - Decoding state (output to motor system, but for inductn tasks)
         self.ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
                                  'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
-                                 'INSTRV']
+                                 'INSTRV', 'TRANSC']
         self.ps_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
 
         # --- Misc actions semantic pointers
@@ -59,15 +59,15 @@ class SpaunVocabulary(object):
         self.misc_vis_sp_strs = ['OPEN', 'CLOSE', 'SPACE', 'QM']
 
         # --- Misc state semantic pointers ---
-        self.misc_ps_sp_strs = ['MATCH', 'NO_MATCH']
+        self.misc_ps_sp_strs = ['NO_MATCH', 'MATCH']
 
         # --- 'I don't know' motor response vector
         self.mtr_sp_strs = ['UNK']
 
         # --- List of all visual semantic pointers ---
-        self.vis_sp_strs = list(self.num_sp_strs)
-        self.vis_sp_strs.extend(self.misc_vis_sp_strs)
-        self.vis_sp_strs.extend(self.ps_task_vis_sp_strs)
+        # self.vis_sp_strs = list(self.num_sp_strs)
+        # self.vis_sp_strs.extend(self.misc_vis_sp_strs)
+        # self.vis_sp_strs.extend(self.ps_task_vis_sp_strs)
 
         # --- Position (enumerated) semantic pointers ---
         self.pos_sp_strs = None
@@ -96,7 +96,7 @@ class SpaunVocabulary(object):
                 logger.write('# - %s = %s\n' % (param_name, param_value))
         logger.write('\n')
 
-    def initialize(self, num_learn_actions=3, rng=0):
+    def initialize(self, stim_SP_labels, num_learn_actions=3, rng=0):
         if rng == 0:
             rng = np.random.RandomState(int(time.time()))
 
@@ -119,7 +119,15 @@ class SpaunVocabulary(object):
         # #################### Vocabulary definitions #########################
         # --- Primary vocabulary ---
         self.main = Vocabulary(self.sp_dim, unitary=self.unitary_sp_strs,
-                               rng=rng)
+                               max_similarity=0.2, rng=rng)
+
+        # --- Add in visual sp's ---
+        self.main.parse('+'.join(self.misc_vis_sp_strs))
+        self.main.parse('+'.join(self.ps_task_vis_sp_strs))
+        for sp_str in list(stim_SP_labels):
+            if sp_str not in self.num_sp_strs and \
+               sp_str not in self.pos_sp_strs:
+                self.main.parse(sp_str)
 
         # --- Add numerical sp's ---
         self.main.parse('%s+%s' % (self.ops_sp_strs[0], self.num_sp_strs[0]))
@@ -141,10 +149,6 @@ class SpaunVocabulary(object):
 
         self.inc_sp = inc_sp
 
-        # --- Add other visual sp's ---
-        self.main.parse('+'.join(self.misc_vis_sp_strs))
-        self.main.parse('+'.join(self.ps_task_vis_sp_strs))
-
         # --- Add production system sp's ---
         self.main.parse('+'.join(self.ps_task_sp_strs))
         self.main.parse('+'.join(self.ps_state_sp_strs))
@@ -155,6 +159,23 @@ class SpaunVocabulary(object):
 
         # --- Add instruction processing system sp's ---
         self.main.parse('+'.join(self.instr_tag_strs))
+
+        # ################### Visual Vocabulary definitions ###################
+        self.vis_sp_strs = list(stim_SP_labels)
+
+        # Visual sp str vocab check
+        if (not all(x in self.vis_sp_strs for x in self.num_sp_strs)):
+            raise RuntimeError("Vocabulator - Stimulus vocabulary does not " +
+                               "contain necessary Spaun NUM semantic pointer" +
+                               " definitions.")
+        if (not all(x in self.vis_sp_strs for x in self.misc_vis_sp_strs)):
+            raise RuntimeError("Vocabulator - Stimulus vocabulary does not " +
+                               "contain necessary Spaun MISC semantic " +
+                               "pointer definitions.")
+        if (not all(x in self.vis_sp_strs for x in self.ps_task_vis_sp_strs)):
+            raise RuntimeError("Vocabulator - Stimulus vocabulary does not " +
+                               "contain necessary Spaun PS semantic " +
+                               "pointer definitions.")
 
         # ################# Sub-vocabulary definitions ########################
         self.vis_main = self.main.create_subset(self.vis_sp_strs)
@@ -217,6 +238,11 @@ class SpaunVocabulary(object):
                           self.mtr_unk[self.mtr_sp_strs[0]].v)
 
     def initialize_vis_vocab(self, vis_dim, vis_sps):
+        if vis_sps.shape[0] != len(self.vis_sp_strs):
+            raise RuntimeError('Vocabulatory.initialize_vis_vocab: ' +
+                               'Mismatch in shape of raw vision SPs and ' +
+                               'number of vision SP labels.')
+
         self.vis_dim = vis_dim
 
         self.vis = Vocabulary(self.vis_dim)

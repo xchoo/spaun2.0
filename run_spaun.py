@@ -38,6 +38,23 @@ def_seq = 'A3[123]?XXXX'
 # def_seq = '{A3[{R:7}]?{X:8}:5}'
 # def_seq = '{A3[{R:7}]?{X:8}:160}'
 # def_seq = 'A3[{R:7}]?{X:8}'
+# def_seq = '{AC[#BOX_TURTLE][#BOX_TURTLE]?XAC[#SEWING_MACHINE][#SEWING_MACHINE]?XAC[#GUENON][#GUENON]?XAC[#TIBETAN_TERRIER][#TIBETAN_TERRIER]?XAC[#PERSIAN_CAT][#PERSIAN_CAT]?X:5}'
+# def_seq = '{AC[#BOX_TURTLE][#SEWING_MACHINE]?XAC[#BOX_TURTLE][#GUENON]?XAC[#BOX_TURTLE][#TIBETAN_TERRIER]?XAC[#BOX_TURTLE][#PERSIAN_CAT]?X:5}'
+# def_seq = '{AC[#SEWING_MACHINE][#BOX_TURTLE]?XAC[#SEWING_MACHINE][#GUENON]?XAC[#SEWING_MACHINE][#TIBETAN_TERRIER]?XAC[#SEWING_MACHINE][#PERSIAN_CAT]?X:5}'
+# def_seq = '{AC[#GUENON][#BOX_TURTLE]?XAC[#GUENON][#SEWING_MACHINE]?XAC[#GUENON][#TIBETAN_TERRIER]?XAC[#GUENON][#PERSIAN_CAT]?X:5}'
+# def_seq = '{AC[#TIBETAN_TERRIER][#BOX_TURTLE]?XAC[#TIBETAN_TERRIER][#SEWING_MACHINE]?XAC[#TIBETAN_TERRIER][#GUENON]?XAC[#TIBETAN_TERRIER][#PERSIAN_CAT]?X:5}'
+# def_seq = '{AC[#PERSIAN_CAT][#BOX_TURTLE]?XAC[#PERSIAN_CAT][#SEWING_MACHINE]?XAC[#PERSIAN_CAT][#GUENON]?XAC[#PERSIAN_CAT][#TIBETAN_TERRIER]?X:5}'
+# def_seq = '%I1+I2%A9{?1X?2X:5}%I3+I4%A9{?4X?3X:5}'
+def_seq = '%I1+I2+I3%A9{?1X?2X?3X:5}%I4+I5+I6%A9{?6X?5X?4X:5}'
+# def_seq = '%I1+I2+I3+I4%A9{?1X?2X?3X?4X:5}%I0+I9+I8+I7%A9{?0X?9X?8X?7X:5}'
+
+def_i = ''
+def_i = 'I1: VIS*ONE, DATA*POS1*FIV;I2: VIS*TWO, DATA*POS1*SIX;I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*EIG;I5: VIS*FIV, DATA*POS1*NIN;I6: VIS*SIX, DATA*POS1*ZER'
+# def_i = 'I1: VIS*ONE, DATA*POS1*NIN;I2: VIS*TWO, DATA*POS1*EIG;' + \
+#         'I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*SIX;' + \
+#         'I5: VIS*FIV, DATA*POS1*FIV;I6: VIS*SIX, DATA*POS1*FOR;' + \
+#         'I7: VIS*SEV, DATA*POS1*THR;I8: VIS*EIG, DATA*POS1*TWO;' + \
+#         'I9: VIS*NIN, DATA*POS1*ONE;I0: VIS*ZER, DATA*POS1*ZER'
 
 def_mpi_p = 128
 
@@ -66,8 +83,21 @@ parser.add_argument(
          '"#" to a digit to use handwritten digits, a "[" for the open ' +
          'bracket, a "]" for the close bracket, and a "X" for each expected ' +
          'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
+# Stimulus formats:
+# Special characters - A [ ] ?
+# To denote Spaun stereotypical numbers: 0 1 2 3 4 5 6 7 8 9
+# To denote spaces for possible answers: X
+# To denote specific image classes: #0 or #100, (either a # or non-digit will
+#                                                partition numbers)
+# To denote a image chosen using an array index: <1000>
+# To denote random numbers chosen without replacement: N
+# To denote random numbers chosen with replacement: R
+# To denote 'reverse' option for memory task: B
+# To denote matched random digits (with replacement): a - z (lowercase char)
+# To denote forced blanks: .
+# To denote changes in given instructions (see below): %INSTR_STR%
 parser.add_argument(
-    '-i', type=str, default='',
+    '-i', type=str, default=def_i,
     help='Instructions event sequence. Use the following format to provide ' +
          'customized instructions to spaun (which can then be put into the ' +
          'stimulus string using %%INSTR_KEYN+INSTR_KEYM%%": ' +
@@ -233,6 +263,7 @@ for n in range(args.n):
     from _spaun.utils import get_total_n_neurons
     from _spaun.spaun_main import Spaun
 
+    from _spaun.modules.stim import stim_data
     from _spaun.modules.vision import vis_data
     from _spaun.modules.motor import mtr_data
 
@@ -241,10 +272,11 @@ for n in range(args.n):
         nengo.log('debug')
 
     # ----- Experiment and vocabulary initialization -----
-    experiment.initialize(args.s, vis_data.get_image_ind,
-                          vis_data.get_image_label,
+    experiment.initialize(args.s, stim_data.get_image_ind,
+                          stim_data.get_image_label,
                           cfg.mtr_est_digit_response_time, args.i, cfg.rng)
-    vocab.initialize(experiment.num_learn_actions, cfg.rng)
+    vocab.initialize(stim_data.stim_SP_labels, experiment.num_learn_actions,
+                     cfg.rng)
     vocab.initialize_mtr_vocab(mtr_data.dimensions, mtr_data.sps)
     vocab.initialize_vis_vocab(vis_data.dimensions, vis_data.sps)
 
@@ -481,19 +513,20 @@ for n in range(args.n):
         print "WRITING PROBE DATA TO FILE"
         probe_cfg.write_simdata_to_file(sim, experiment)
 
+        # Assemble graphing subprocess call string
+        subprocess_call_list = ["python",
+                                os.path.join(cur_dir,
+                                             'disp_probe_data.py'),
+                                '"' + cfg.probe_data_filename + '"',
+                                '--data_dir', '"' + cfg.data_dir + '"',
+                                '--showgrph']
+
+        # Log subprocess call
+        logger.write("\n# " + " ".join(subprocess_call_list))
+
         if args.showgrph:
-            subprocess_call_list = ["python",
-                                    os.path.join(cur_dir,
-                                                 'disp_probe_data.py'),
-                                    '"' + cfg.probe_data_filename + '"',
-                                    '--data_dir', '"' + cfg.data_dir + '"',
-                                    '--showgrph']
-
-            # Log subprocess call
-            logger.write("\n# " + " ".join(subprocess_call_list))
-
             # Open subprocess
-            print "CALLING: %s" % (" ".join(subprocess_call_list))
+            print "CALLING: \n%s" % (" ".join(subprocess_call_list))
             import subprocess
             subprocess.Popen(subprocess_call_list)
 
@@ -501,22 +534,23 @@ for n in range(args.n):
         print "WRITING ANIMATION PROBE DATA TO FILE"
         probe_anim_cfg.write_simdata_to_file(sim, experiment)
 
+        # Assemble graphing subprocess call string
+        subprocess_call_list = ["python",
+                                os.path.join(cur_dir,
+                                             'disp_probe_data.py'),
+                                '"' + anim_probe_data_filename + '"',
+                                '--data_dir', '"' + cfg.data_dir + '"']
+        if args.showanim:
+            subprocess_call_list += ['--showanim']
+        if args.showiofig:
+            subprocess_call_list += ['--showiofig']
+
+        # Log subprocess call
+        logger.write("\n# " + " ".join(subprocess_call_list))
+
         if args.showanim or args.showiofig:
-            subprocess_call_list = ["python",
-                                    os.path.join(cur_dir,
-                                                 'disp_probe_data.py'),
-                                    '"' + anim_probe_data_filename + '"',
-                                    '--data_dir', '"' + cfg.data_dir + '"']
-            if args.showanim:
-                subprocess_call_list += ['--showanim']
-            if args.showiofig:
-                subprocess_call_list += ['--showiofig']
-
-            # Log subprocess call
-            logger.write("\n# " + " ".join(subprocess_call_list))
-
             # Open subprocess
-            print "CALLING: %s" % (" ".join(subprocess_call_list))
+            print "CALLING: \n%s" % (" ".join(subprocess_call_list))
             import subprocess
             subprocess.Popen(subprocess_call_list)
 
