@@ -17,6 +17,7 @@ class ImagenetDataObject(object):
         sym_fileobj = np.load(os.path.join(self.filepath, spaun_sym_filename))
 
         # --- Imagenet data ---
+        # retrieve from https://figshare.com/s/cdde71007405eb11a88f
         data_filename = 'ilsvrc-2012-batches-test3.tar.gz'
 
         images_data, images_labels, images_data_mean, class_labels = \

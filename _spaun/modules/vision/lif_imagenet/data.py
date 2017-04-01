@@ -10,6 +10,7 @@ class LIFImagenetVisionDataObject(object):
         self.module_name = 'lif_imagenet'
 
         # --- LIF vision network weights configurations ---
+        # retrieve from https://figshare.com/s/f343c68df647e675af28
         self.vision_network_filename = \
             os.path.join(self.filepath, self.module_name, 'params.pkl')
 
