@@ -5,9 +5,11 @@ import bisect as bs
 import mnist
 
 
-class VisionDataObject(object):
+class MNISTDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'vision')
+        self.module_name = 'mnist'
+        self.filepath = os.path.join('_spaun', 'modules', 'stim',
+                                     self.module_name)
 
         # --- Mnist data ---
         _, _, [images_data, images_labels] = \
@@ -46,6 +48,27 @@ class VisionDataObject(object):
 
         self.images_data = images_data
         self.images_labels = images_labels
+        self.stim_SP_labels = symbol_labels
+        self.stim_SP_labels_full = (map(str, self.images_labels_unique) +
+                                    symbol_labels)
+
+        self.image_shape = (28, 28)
+        self.max_pixel_value = 1.0
+
+        self.probe_subsample = 1
+        self.probe_image_shape = (self.image_shape[0] / self.probe_subsample,
+                                  self.image_shape[1] / self.probe_subsample)
+
+        subsample_trfm = np.arange(np.cumprod(self.image_shape)[-1])
+        subsample_inds = \
+            np.array(subsample_trfm.reshape(self.image_shape)
+                     [::self.probe_subsample,
+                      ::self.probe_subsample].flatten())
+        self.probe_subsample_inds = subsample_inds
+
+        self.probe_image_dimensions = subsample_inds.flatten().shape[0]
+        self.probe_reset_img = (self.get_image('A')[0] /
+                                (1.0 * self.max_pixel_value))[subsample_inds]
 
     def get_image(self, label=None, rng=None):
         if rng is None:
@@ -68,7 +91,7 @@ class VisionDataObject(object):
     def get_image_label(self, index):
         for label, indicies in enumerate(self.images_labels_inds):
             if index in indicies:
-                return label
+                return self.stim_SP_labels_full[label]
         return -1
 
     def get_image_ind(self, label, rng):
@@ -77,5 +100,7 @@ class VisionDataObject(object):
             image_ind = rng.choice(
                 self.images_labels_inds[label_ind[0][0]])
         else:
-            image_ind = rng.choice(len(self.images_labels_inds))
+            raise RuntimeError('MNIST TEST - Unable to find label matching ' +
+                               '[%s] in label set.' % label)
+            # image_ind = rng.choice(len(self.images_labels_inds))
         return image_ind

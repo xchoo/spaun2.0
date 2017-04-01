@@ -5,6 +5,7 @@ import nengo
 from nengo.spa import Vocabulary
 
 from configurator import cfg
+from .modules.stim import stim_data
 from .modules.transform_system import TransformationSystemDummy
 from .modules.motor import mtr_data
 
@@ -20,7 +21,7 @@ class SpaunProbeConfig(object):
     def __init__(self, spaun_model, spaun_vocab, dt, probe_data_dir,
                  probe_data_filename):
         # Probe config version number
-        self.version = 5.0
+        self.version = 6.0
 
         # File data names and locations
         self.data_dir = probe_data_dir
@@ -203,7 +204,8 @@ class SpaunProbeConfig(object):
 
 class ProbeCfgVisOnly(SpaunProbeConfig):
     def initialize_probes(self):
-        p0 = self.probe_image(self.m.stim.output, synapse=None, shape=(28, 28))
+        p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                              shape=stim_data.probe_image_shape)
 
         pvs1 = self.probe_value(self.m.vis.output, vocab=self.v.vis_main)
         pvs2 = self.probe_value(self.m.vis.neg_attention)
@@ -218,15 +220,18 @@ class ProbeCfgVisOnly(SpaunProbeConfig):
 
 class ProbeCfgAnimDefault(SpaunProbeConfig):
     def initialize_probes(self):
-        if hasattr(self.m, 'vis') and hasattr(self.m, 'mtr'):
+        if hasattr(self.m, 'stim') and hasattr(self.m, 'mtr'):
             # -------------------- VISION STIMULI PROBES ----------------------
-            p0 = self.probe_value(self.m.stim.output, synapse=None)
+            p0 = self.probe_value(self.m.stim.probe_output, synapse=None)
 
             self.add_animation(key='vis',
                                data_func_name='generic_single',
-                               data_func_params={'data': p0},
+                               data_func_params={
+                                   'data': p0,
+                                   'reset_img': stim_data.probe_reset_img},
                                plot_type_name='imshow',
-                               plot_type_params={'shape': (28, 28)})
+                               plot_type_params={'shape':
+                                                 stim_data.probe_image_shape})
 
             # --------------------- MOTOR OUTPUT PROBES -----------------------
             pmt1 = self.probe_value(self.m.mtr.pen_down, synapse=0.05)
@@ -262,7 +267,7 @@ class ProbeCfgAnimDefault(SpaunProbeConfig):
                  'generator_func_params': {'t_index_step': 10}})
         else:
             raise RuntimeError('Unable to setup animation probes. Spaun ' +
-                               '`vis` and `mtr` modules are required.')
+                               '`stim` and `mtr` modules are required.')
 
 
 class ProbeCfgDefault(SpaunProbeConfig):
@@ -315,15 +320,24 @@ class ProbeCfgDefault(SpaunProbeConfig):
             p1_str = 'POS1*%s' % sp_str
             vocab_pos1.add(p1_str, self.v.main.parse(p1_str))
 
+        vocab_mem1 = self.v.main.create_subset([])
+        vocab_mem1.readonly = False
+        for sp_str in ['POS1*ONE', 'POS1*CLUMBER', 'POS1*BRITTANY_SPANIEL',
+                       'POS1*GUENON', 'POS1*RED_FOX', 'POS1*KIT_FOX']:
+            vocab_mem1.add(sp_str, self.v.main.parse(sp_str))
+
         # ----------- Default vocabs ------------------
         # mem_vocab = vocab_seq_list
-        mem_vocab = vocab_pos1
+        # mem_vocab = vocab_pos1
+        # mem_vocab = sub_vocab1
+        mem_vocab = vocab_mem1
         # vocab_seq_list = vocab_rpm
 
         # ========================= MAKE PROBES ===============================
         if hasattr(self.m, 'stim'):
-            p0 = self.probe_image(self.m.stim.output, synapse=None,
-                                  shape=(28, 28), label='Stim')
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Stim')
         else:
             with self.m:
                 self.m.null_node = nengo.Node(0)
@@ -336,6 +350,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pvs2 = self.probe_value(net.neg_attention, label='Neg Attn')
             pvs3 = self.probe_value(net.vis_classify_utilities,
                                     label='Vis Utils')
+            pvs3i = self.probe_value(net.vis_classify.inhibit,
+                                     label='Vis AM Inhibit')
             pvs4 = self.probe_value(net.mb_output, label='Vis MB')
             pvs4b = self.probe_value(net.mb_output, label='Vis MB',
                                      vocab=self.v.vis)
@@ -345,6 +361,11 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pvs6b = self.probe_value(net.vis_main_mem.input,
                                      vocab=self.v.vis_main)
             pvs6g = self.probe_value(net.vis_main_mem.gate)
+            pvs6d = self.probe_value(net.vis_main_mem.diff.output,
+                                     vocab=self.v.vis_main)
+            pvs6m = self.probe_value(net.vis_main_mem.mem.output,
+                                     vocab=self.v.vis_main)
+            pvs7 = self.probe_value(net.vis_net.to_classify_output, synapse=0.03)
 
             # pvsdb1 = self.probe_value(net.rmse_node)
             # pvsdb2 = self.probe_value(net.cleanup_node)
@@ -352,8 +373,9 @@ class ProbeCfgDefault(SpaunProbeConfig):
             # pvsdb4 = self.probe_value(net.vis_main_mem.output,
             #                           vocab=self.v.vis_main)
 
-            self.add_graph('vis', [p0, pvs1, pvs2, pvs3, pvs6, pvs6b, pvs6g])
-            self.add_graph('vis net', [pvs4, pvs4b, pvs5])
+            self.add_graph('vis', [p0, pvs7, pvs1, pvs2, pvs3, pvs3i, pvs6, pvs6b, pvs6g])
+            # self.add_graph('vis net', [pvs4, pvs4b, pvs5])  ##
+            # self.add_graph('vis mem', [pvs6, pvs6b, pvs6d, pvs6m])  ##
             # self.add_graph('vis dbg',
             #                [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
 
@@ -440,10 +462,11 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pen10 = self.probe_value(net.pos_inc.dir_sel.output,
                                      vocab=self.v.pos)
             pen11 = self.probe_value(net.pos_inc_rev_gate_bias.output)
+            pen12 = self.probe_value(net.pos_gate.output)
 
             self.add_graph(
                 'enc',
-                [p0, pen1, pen11, pen9, pen10, pen4, pen7, pen7a, pen6],
+                [p0, pen1, pen12, pen11, pen9, pen10, pen4, pen7, pen7a, pen6],
                 [pen4])
 
         if hasattr(self.m, 'mem') and True:
@@ -459,10 +482,11 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pmm7 = self.probe_value(net.mb3, vocab=mem_vocab)
             pmm8 = self.probe_value(net.mb3_net.gate)
             pmm9 = self.probe_value(net.mb3_net.reset)
+            pmm10 = self.probe_value(net.wm_gate.output)
 
-            self.add_graph('mb1', [p0, pmm1, pmm1a, pmm1b, pmm2, pmm3])
-            self.add_graph('mb2', [p0, pmm4, pmm5, pmm6])
-            self.add_graph('mb3', [p0, pmm7, pmm8, pmm9])
+            self.add_graph('mb1', [p0, pmm1, pmm10, pmm1a, pmm1b, pmm2, pmm3], [pmm1])
+            self.add_graph('mb2', [p0, pmm4, pmm5, pmm6])  ##
+            self.add_graph('mb3', [p0, pmm7, pmm8, pmm9])  ##
 
         if hasattr(self.m, 'mem') and True:
             net = self.m.mem
@@ -533,24 +557,43 @@ class ProbeCfgDefault(SpaunProbeConfig):
             # ptf3d = self.probe_value(ptf3)
             ptf4 = self.probe_value(net.output, vocab=mem_vocab)
             # ptf4b = self.probe_value(ptf4)
-            ptf5 = self.probe_value(net.compare.output, vocab=self.v.ps_cmp)
-            ptf6 = self.probe_value(net.norm_a.output, vocab=sub_vocab1)
-            ptf7 = self.probe_value(net.norm_b.output, vocab=sub_vocab1)
-            ptf8 = self.probe_value(net.norm_a.input, vocab=sub_vocab1)
-            ptf9 = self.probe_value(net.norm_b.input, vocab=sub_vocab1)
-            ptf10 = self.probe_value(net.compare.dot_prod)
+            ptf5 = self.probe_value(net.compare.output, vocab=self.v.ps_cmp,
+                                    label="Cmp Out")
+            # ptf6 = self.probe_value(net.norm_a.output, vocab=sub_vocab1)
+            # ptf7 = self.probe_value(net.norm_b.output, vocab=sub_vocab1)
+            # ptf8 = self.probe_value(net.norm_a.input, vocab=sub_vocab1)
+            # ptf9 = self.probe_value(net.norm_b.input, vocab=sub_vocab1)
+            ptf6 = self.probe_value(net.norm_a.output, vocab=self.v.pos1,
+                                    label='NormA Out')
+            ptf7 = self.probe_value(net.norm_b.output, vocab=self.v.pos1,
+                                    label='NormB Out')
+            ptf8 = self.probe_value(net.norm_a.input, vocab=self.v.pos1,
+                                    label='NormA In')
+            ptf9 = self.probe_value(net.norm_b.input, vocab=self.v.pos1,
+                                    label='NormB In')
+            # ptf6 = self.probe_value(net.norm_a.output, vocab=vocab_mem1,
+            #                         label='NormA Out')
+            # ptf7 = self.probe_value(net.norm_b.output, vocab=vocab_mem1,
+            #                         label='NormB Out')
+            # ptf8 = self.probe_value(net.norm_a.input, vocab=vocab_mem1,
+            #                         label='NormA In')
+            # ptf9 = self.probe_value(net.norm_b.input, vocab=vocab_mem1,
+            #                         label='NormB In')
+            ptf10 = self.probe_value(net.compare.dot_prod,
+                                     label='Cmp DP')
             ptf11a = self.probe_value(net.cconv1.A, vocab=vocab_rpm)
             ptf11b = self.probe_value(net.cconv1.B, vocab=vocab_rpm)
             ptf12 = self.probe_value(net.select_out.input6, vocab=self.v.pos1)
             ptf13 = self.probe_value(net.compare_gate_sig, label='cmp gate')
+            ptf13a = self.probe_value(net.norm_a.disable, label='norm dis')
 
+            # self.add_graph(
+            #     'trfm io', [p0, ptf1, ptf2, ptf4, ptf12], [ptf1, ptf4])  ##
+            # self.add_graph(
+            #     'trfm cc', [p0, pmm11, ptf3, ptf3b, ptf11a, ptf11b])  ##
             self.add_graph(
-                'trfm io', [p0, ptf1, ptf2, ptf4, ptf12], [ptf1, ptf4])
-            self.add_graph(
-                'trfm cc', [p0, pmm11, ptf3, ptf3b, ptf11a, ptf11b])
-            self.add_graph(
-                'trfm cmp', [ptf5, ptf8, ptf6, ptf9, ptf7, ptf10, ptf13],
-                [ptf6, ptf7])
+                'trfm cmp', [ptf5, ptf8, ptf6, ptf9, ptf7, ptf10, ptf13, ptf13a],  # noqa
+                [ptf6, ptf7])  ##
 
         if hasattr(self.m, 'trfm') and \
            not isinstance(self.m.trfm, TransformationSystemDummy):
@@ -559,9 +602,13 @@ class ProbeCfgDefault(SpaunProbeConfig):
             ptf6 = self.probe_value(nt.am_trfms.pos1_to_num, vocab=self.v.item)
             ptf7 = self.probe_value(nt.am_trfms.num_to_pos1, vocab=self.v.pos1)
             ptf8 = self.probe_value(nt.am_trfms.pos_to_pos1, vocab=self.v.pos1)
+            ptf14 = self.probe_value(nt.am_trfms.frm_compare,
+                                     vocab=self.v.ps_cmp, label='Frm Cmp')
+            ptf15 = self.probe_value(nt.am_trfms.compare_out,
+                                     vocab=self.v.pos1, label='Cmp Out')
 
-            self.add_graph('trfm ams', [p0, ptf5, ptf6, ptf7, ptf8],
-                           [ptf5, ptf6, ptf7, ptf8])
+            # self.add_graph('trfm ams', [p0, ptf5, ptf6, ptf7, ptf8, ptf14, ptf15],  # noqa
+            #                [ptf5, ptf6, ptf7, ptf8])  ##
 
         if hasattr(self.m, 'bg') and True:
             pbg1 = self.probe_value(self.m.bg.input)
@@ -776,8 +823,9 @@ class ProbeCfgDefault(SpaunProbeConfig):
 class ProbeCfgDarpaDebug(SpaunProbeConfig):
     def initialize_probes(self):
         if hasattr(self.m, 'stim'):
-            p0 = self.probe_image(self.m.stim.output, synapse=None,
-                                  shape=(28, 28), label='Vis Input')
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
         else:
             p0 = self.probe_null()
 
@@ -789,8 +837,8 @@ class ProbeCfgDarpaDebug(SpaunProbeConfig):
             pvs1 = self.probe_value(self.m.vis.output, vocab=vis_vocab,
                                     label='Vis SP')
             # pvs1a = self.probe_image(self.m.vis.vis_net.raw_output,
-            #                          shape=(28, 28), label='Vis Raw Input',
-            #                          synapse=None)
+            #                          shape=stim_data.probe_image_shape,
+            #                          label='Vis Raw Input', synapse=None)
             # pvs1b = self.probe_value(self.m.vis.vis_net.output,
             #                          vocab=self.v.vis, label='Vis SP 1')
             pvs1c = self.probe_value(self.m.vis.vis_mem.output,
@@ -816,18 +864,23 @@ class ProbeCfgDarpaDebug(SpaunProbeConfig):
             pmm1 = self.probe_null()
 
         if hasattr(self.m, 'mtr'):
-            pmtr1 = self.probe_path(
-                self.m.mtr.zero_centered_arm_ee_loc,
-                self.m.mtr.pen_down, synapse=0.05,
-                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
-                              mtr_data.sp_scaling_factor * 0.6],
-                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
-                              mtr_data.sp_scaling_factor * 0.6],
-                label='Arm Output')
+            if hasattr(self.m, 'zero_centered_arm_ee_loc'):
+                pmtr1 = self.probe_path(
+                    self.m.mtr.zero_centered_arm_ee_loc,
+                    self.m.mtr.pen_down, synapse=0.05,
+                    path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                                  mtr_data.sp_scaling_factor * 0.6],
+                    path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                                  mtr_data.sp_scaling_factor * 0.6],
+                    label='Arm Output')
+                pmtr3 = self.probe_value(self.m.mtr.zero_centered_arm_ee_loc,
+                                         label='Arm EE Pos', synapse=None)
+            else:
+                pmtr1 = self.probe_null()
+                pmtr3 = self.probe_null()
+
             pmtr2 = self.probe_value(self.m.mtr.ramp,
                                      label='Mtr Ramp')
-            pmtr3 = self.probe_value(self.m.mtr.zero_centered_arm_ee_loc,
-                                     label='Arm EE Pos', synapse=None)
 
             if hasattr(self.m.mtr, 'adapt_conn_debug'):
                 pmtr4 = self.probe_value(self.m.mtr.adapt_conn,
@@ -864,8 +917,9 @@ class ProbeCfgDarpaDebug(SpaunProbeConfig):
 class ProbeCfgDarpaVision(SpaunProbeConfig):
     def initialize_probes(self):
         if hasattr(self.m, 'stim'):
-            p0 = self.probe_image(self.m.stim.output, synapse=None,
-                                  shape=(28, 28), label='Vis Input')
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
         else:
             p0 = self.probe_null()
 
@@ -915,11 +969,80 @@ class ProbeCfgDarpaVision(SpaunProbeConfig):
                        [pvs1, pmm1])
 
 
+class ProbeCfgDarpaVisionImagenet(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
+        else:
+            p0 = self.probe_null()
+
+        vis_vocab = self.v.vis_main.create_subset(['A', 'OPEN', 'CLOSE', 'QM',
+                                                   'ZER', 'ONE', 'TWO', 'THR',
+                                                   'FOR', 'FIV', 'SIX', 'SEV',
+                                                   'EIG', 'NIN', 'KIT_FOX',
+                                                   'GUENON'])
+        if hasattr(self.m, 'vis'):
+            pvsp1 = self.probe_spike(self.m.vis.vis_net.layers[0],
+                                     label='Vis L1')
+            # pvsp2 = self.probe_spike(self.m.vis.vis_net.layers[1],
+            #                          label='Vis Net L2')
+            pvsp3 = self.probe_spike(self.m.vis.vis_net.layers[2],
+                                     label='Vis L3')
+            # pvsp4 = self.probe_spike(self.m.vis.vis_net.layers[3],
+            #                          label='Vis Net L4')
+            pvsp5 = self.probe_spike(self.m.vis.vis_net.layers[4],
+                                     label='Vis L5')
+
+            pvs1 = self.probe_value(self.m.vis.output, vocab=vis_vocab,
+                                    label='Vis SP')
+        else:
+            pvsp1 = self.probe_null()
+            # pvsp2 = self.probe_null()
+            pvsp3 = self.probe_null()
+            # pvsp4 = self.probe_null()
+            pvsp5 = self.probe_null()
+            pvs1 = self.probe_null()
+
+        if hasattr(self.m, 'mem'):
+            mem_vocab = self.v.main.create_subset([])
+            mem_vocab.readonly = False
+            for sp_str in ['POS1*KIT_FOX', 'POS1*GUENON']:
+                mem_vocab.add(sp_str, self.v.main.parse(sp_str))
+            pmm1 = self.probe_value(self.m.mem.mb2, vocab=mem_vocab,
+                                    label='WM 1')
+            pmm2 = self.probe_value(self.m.mem.mb3, vocab=mem_vocab,
+                                    label='WM 2')
+        else:
+            pmm1 = self.probe_null()
+            pmm2 = self.probe_null()
+
+        if hasattr(self.m, 'mtr'):
+            pmtr1 = self.probe_path(
+                self.m.mtr.zero_centered_arm_ee_loc,
+                self.m.mtr.pen_down, synapse=0.05,
+                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                label='Arm Output')
+            pmtr2 = self.probe_value(self.m.mtr.ramp,
+                                     label='Mtr Ramp')
+        else:
+            pmtr1 = self.probe_null()
+            pmtr2 = self.probe_null()
+        self.add_graph('Spiking Vision Network',
+                       [p0, pvsp1, pvsp3, pvsp5, pvs1, pmm1, pmm2, pmtr2, pmtr1],
+                       [pvs1, pmm1, pmm2])
+
+
 class ProbeCfgDarpaMotor(SpaunProbeConfig):
     def initialize_probes(self):
         if hasattr(self.m, 'stim'):
-            p0 = self.probe_image(self.m.stim.output, synapse=None,
-                                  shape=(28, 28), label='Vis Input')
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
         else:
             p0 = self.probe_null()
 

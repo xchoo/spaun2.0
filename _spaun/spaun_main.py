@@ -14,6 +14,7 @@ from _spaun.modules import InstrStimulus, InstrProcess
 # from _spaun.modules.vision_system import VisionSystemDummy as Vision  # noqa
 # from _spaun.modules.working_memory import WorkingMemoryDummy as Memory  # noqa
 # from _spaun.modules.transform_system import TransformationSystemDummy as TrfmSys  # noqa
+# from _spaun.modules.motor_system import MotorSystemDummy as Motor
 
 
 def Spaun():
@@ -43,12 +44,15 @@ def Spaun():
             copy_draw_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, ZER)) --> ps_task = W, ps_state = TRANS0, ps_dec = FWD',  # noqa
                  'dot(ps_task, W-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
+            # Copy drawing task format: A0[r]?X
             recog_action = \
                 ['0.5 * (dot(ps_task, X) + dot(vis, ONE)) --> ps_task = R, ps_state = TRANS0, ps_dec = FWD',  # noqa
                  'dot(ps_task, R-DEC) - dot(vis, QM) --> ps_state = ps_state']  # noqa
+            # Digit recognition task format: A1[r]?X
 
             learn_state_action = ['0.5 * (dot(ps_task, X) + dot(vis, TWO)) - dot(vis, QM) --> ps_task = L, ps_state = LEARN, ps_dec = FWD']  # noqa
                                   # '0.5 * (dot(ps_task, L) + dot(vis, {:s} + {:s})) --> ps_state = LEARN'.format(*vocab.reward_sp_strs)]  # noqa
+            # Learning task format: A2?X<REWARD>?X<REWARD>?X<REWARD>?X<REWARD>?X<REWARD>    # noqa
             if hasattr(model, 'reward'):
                 learn_action = ['0.5 * dot(ps_task, L) - dot(vis, QM) --> ps_action = %s, ps_state = LEARN, ps_dec = NONE' %  # noqa
                                 s for s in vocab.ps_action_learn_sp_strs]
@@ -60,6 +64,8 @@ def Spaun():
                  'dot(ps_task, M-DEC) - dot(vis, F + R + QM) --> ps_state = ps_state',  # noqa
                  '0.5 * (dot(ps_task, M-DEC) + dot(vis, F)) - dot(vis, QM) --> ps_dec = FWD',  # noqa
                  '0.5 * (dot(ps_task, M-DEC) + dot(vis, R)) - dot(vis, QM) --> ps_dec = REV']  # noqa
+            # Working memory task format: A3[rr..rr]?XXX
+            # Reverse recall task format: A3[rr..rr]R?XXX
 
             if hasattr(model, 'trfm'):
                 count_action = \
@@ -68,32 +74,47 @@ def Spaun():
                      '0.5 * (dot(ps_task, C-DEC) + dot(ps_state, CNT0)) - dot(vis, QM) --> ps_state = CNT1',  # noqa
                      '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = CNT, ps_state = CNT1',  # noqa
                      '(0.25 * (dot(ps_task, DEC) + dot(ps_state, CNT1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(ps_dec, CNT) - 1) - dot(vis, QM) --> ps_dec = FWD, ps_state = TRANS0']  # noqa
+                # Counting task format: A4[START_NUM][NUM_COUNT]?X..X
                 qa_action = \
                     ['0.5 * (dot(ps_task, X) + dot(vis, FIV)) --> ps_task = A, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      'dot(ps_task, A-DEC) - dot(vis, K + P + QM) --> ps_state = ps_state',  # noqa
                      '0.5 * (dot(ps_task, A-DEC) + dot(vis, K)) - dot(vis, QM) --> ps_state = QAK',  # noqa
                      '0.5 * (dot(ps_task, A-DEC) + dot(vis, P)) - dot(vis, QM) --> ps_state = QAP']  # noqa
+                # Question answering task format: A5[rr..rr]P[r]?X (probing item in position)           # noqa
+                #                                 A5[rr..rr]K[r]?X (probing position of item (kind))    # noqa
                 rvc_action = \
                     ['0.5 * (dot(ps_task, X) + dot(vis, SIX)) --> ps_task = V, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
                      '0.5 * (dot(ps_task, V-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
+                # Rapid variable creation task format: A6{[rr..rr][rr..rr]:NUM_EXAMPLES}?XX..XX     # noqa
                 fi_action = \
                     ['0.5 * (dot(ps_task, X) + dot(vis, SEV)) --> ps_task = F, ps_state = TRANS0, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS0)) - dot(vis, QM) --> ps_state = TRANS1',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS2',  # noqa
                      '0.5 * (dot(ps_task, F-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_state = TRANS0']  # noqa
+                # Fluid intelligence task format: A7[CELL1_1][CELL1_2][CELL1_3][CELL2_1][CELL2_2][CELL2_3][CELL3_1][CELL3_2]?XX..XX     # noqa
 
                 # Reaction task
                 react_action = \
                     ['0.5 * (dot(ps_task, X) + dot(vis, EIG)) --> ps_task = REACT, ps_state = DIRECT, ps_dec = FWD',  # noqa
                      '0.5 * (dot(ps_task, REACT) + dot(vis_mem, ONE)) --> trfm_input = POS1*THR',  # noqa
                      '0.5 * (dot(ps_task, REACT) + dot(vis_mem, TWO)) --> trfm_input = POS1*FOR']  # noqa
+                # Stimulus response (hardcoded reaction) task format: A8?1X<expected 3>?2X<expected 4>    # noqa
+
+                # Compare task -- See two items, check if their class matches each other # noqa
+                match_action = \
+                    ['0.5 * (dot(ps_task, X) + dot(vis, C)) --> ps_task = CMP, ps_state = TRANS1, ps_dec = FWD',  # noqa
+                     '0.5 * (dot(ps_task, CMP-DEC) + dot(ps_state, TRANS1)) - dot(vis, QM) --> ps_state = TRANS2',  # noqa
+                     '0.5 * (dot(ps_task, CMP-DEC) + dot(ps_state, TRANS2)) - dot(vis, QM) --> ps_state = TRANSC']  # noqa
+                # List / item matching task format: AC[r][r]?X<expected 1 if match, 0 if not>                                                      # noqa
+                #                                   AC[rr..rr][rr..rr]?X<expected 1 if any item in first list appears in second list, 0 if not>    # noqa
             else:
                 count_action = []
                 qa_action = []
                 rvc_action = []
                 fi_action = []
                 react_action = []
+                match_action = []
 
             if hasattr(model, 'trfm') and hasattr(model, 'instr'):
                 instr_action = \
@@ -106,6 +127,12 @@ def Spaun():
                      '0.5 * (dot(ps_task, INSTR) + dot(ps_state, INSTRP)) --> ps_task = INSTR, ps_state = TRANS0',   # noqa
                      # 'dot(instr_util, INSTR) - dot(ps_task, INSTR) --> instr_en = ENABLE, ps_task = instr_task, ps_state = instr_state, ps_dec = instr_dec, trfm_input = instr_data',  # noqa
                      ]  # noqa
+                # Instructed tasks task formats:
+                # Instructed stimulus response task format: A9?rX<expected answer from instruction>?rX<expected answer from instruction>    # noqa
+                # Instructed custom task format: M<0-9>[INSTRUCTED TASK FORMAT]?XX..XX                                                      # noqa
+                # Instructed positional task formats: MP<0-9>[INSTRUCTED TASK FORMAT]?XX..XX V[INSTRUCTED TASK FORMAT]?XX..XX               # noqa
+                #     - P<0-9> selects appropriate instruction from list of instructions                                                    # noqa
+                #     - V increments instruction position by 1
             else:
                 instr_action = []
 
@@ -127,7 +154,7 @@ def Spaun():
                            copy_draw_action + recog_action + mem_action +
                            count_action + qa_action + rvc_action + fi_action +
                            decode_action + default_action + react_action +
-                           instr_action)
+                           instr_action + match_action)
 
             actions = spa.Actions(*all_actions)
             model.bg = spa.BasalGanglia(actions=actions, input_synapse=0.008,
