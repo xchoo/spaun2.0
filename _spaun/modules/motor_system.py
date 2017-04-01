@@ -228,6 +228,10 @@ class MotorSystem(Module):
         nengo.Connection(self.motor_bypass.output,
                          target_diff_norm.neurons,
                          transform=[[-10.0]] * target_diff_norm.n_neurons)
+        if arm_obj is None:
+            # Disable the target_diff_norm when there is no arm object
+            nengo.Connection(bias_node, target_diff_norm.neurons,
+                             transform=[[-10.0]] * target_diff_norm.n_neurons)
 
         # ------ MOTOR PEN DOWN CONTROL ------
         pen_down = cfg.make_thresh_ens_net()
@@ -274,7 +278,8 @@ class MotorSystem(Module):
             self.arm_py_node = nengo.Node(0)
 
         # Arm ee zero_centered location
-        self.zero_centered_arm_ee_loc = zero_centered_arm_ee_loc
+        if arm_obj is not None:
+            self.zero_centered_arm_ee_loc = zero_centered_arm_ee_loc
 
         # Target ee zero_centered location
         self.zero_centered_tgt_ee_loc = func_eval_net.func_output
@@ -380,4 +385,189 @@ class MotorSystemDummy(Module):
 
     @with_self
     def init_module(self):
-        pass
+        # ---------------------- Inputs and outputs ------------------------- #
+        # Motor SP input node
+        self.motor_sp_in = nengo.Node(size_in=vocab.mtr_dim)
+
+        # Motor bypass signal (runs the ramp, but doesn't output to the arm)
+        self.motor_bypass = cfg.make_thresh_ens_net()
+
+        # Motor init signal
+        self.motor_init_vis = cfg.make_thresh_ens_net(0.75)
+        self.motor_init_ps_task = cfg.make_thresh_ens_net(0.75)
+        self.motor_init_ps_dec = cfg.make_thresh_ens_net(0.75)
+
+        # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
+        # Motor go signal
+        self.motor_go = nengo.Node(0)
+
+        # Motor stop signal
+        self.motor_stop_input = cfg.make_thresh_ens_net()
+
+        # --------------- MOTOR SIGNALLING SYSTEM (RAMP SIG) --------------
+        self.ramp_sig = Ramp_Signal_Network()
+
+        # Signal used to drive the ramp (the constant input signal)
+        nengo.Connection(self.motor_go, self.ramp_sig.ramp,
+                         transform=cfg.mtr_ramp_synapse * cfg.mtr_ramp_scale,
+                         synapse=cfg.mtr_ramp_synapse)
+
+        # Signal to hold the ramp reset as long as the motor system is still
+        # initializing (e.g. arm is still going to INIT target)
+        # nengo.Connection(self.motor_init.output, self.ramp_sig.init,
+        #                  transform=1.75, synapse=0.015)
+        nengo.Connection(self.motor_init_vis.output, self.ramp_sig.init,
+                         transform=3, synapse=0.008)
+        # nengo.Connection(self.motor_init_vis.output, self.ramp_sig.init,
+        #                  transform=-6, synapse=0.05)
+        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+                         transform=5, synapse=0.008)
+        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+                         transform=-6, synapse=0.05)
+        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+                         transform=5, synapse=0.008)
+        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+                         transform=-6, synapse=0.05)
+
+        # Stop the ramp from starting if the stop command has been given
+        nengo.Connection(self.motor_stop_input.output, self.ramp_sig.go,
+                         transform=-1)
+
+        # --------------- FUNCTION REPLICATOR SYSTEM --------------
+
+        # --------------- MOTOR ARM CONTROL -----------------
+        arm_obj = cfg.mtr_arm_class()
+
+        if arm_obj is not None:
+            self.ff_node = nengo.Node(0)
+
+            # ------ ARM ZERO-CENTERED END EFFECTOR POSITION ------
+            # ## Note: ctrl_net already has an internal node that gets info
+            #          from arm_obj (i.e. state information). So an external
+            #          connection is not required
+
+            zero_centered_arm_ee_loc = \
+                nengo.Node(output=lambda t,
+                           bias=np.array([cfg.mtr_arm_rest_x_bias,
+                                          cfg.mtr_arm_rest_y_bias]),
+                           arm=arm_obj: arm.x - bias, label='Centered Arm EE')
+
+        # ------ MOTOR ARM CONTROL SIGNAL FEEDBACK ------
+
+        # ------ MOTOR PEN DOWN CONTROL ------
+
+        # --------------- For external probes ---------------
+        self.ramp_int_stop = self.ramp_sig.stop
+
+        # Motor target output
+        self.mtr_path_func_out = nengo.Node(output=[0, 0])
+
+        # Arm segments joint locations
+        if arm_obj is not None:
+            self.arm_px_node = \
+                nengo.Node(output=lambda t, arm=arm_obj: arm.position()[0])
+            self.arm_py_node = \
+                nengo.Node(output=lambda t, arm=arm_obj: arm.position()[1])
+        else:
+            self.arm_px_node = nengo.Node(0)
+            self.arm_py_node = nengo.Node(0)
+
+        # Arm ee zero_centered location
+        if arm_obj is not None:
+            self.zero_centered_arm_ee_loc = zero_centered_arm_ee_loc
+
+        # Target ee zero_centered location
+        self.zero_centered_tgt_ee_loc = nengo.Node([0, 0])
+
+        # Pen down status
+        self.pen_down = nengo.Node(0)
+
+        # Ramp signal outputs
+        self.ramp = self.ramp_sig.ramp
+        self.ramp_reset_hold = self.ramp_sig.reset_hold
+        self.ramp_50_75 = self.ramp_sig.ramp_50_75
+
+        # Decode index (number) bypass to monitor module
+        self.dec_ind = nengo.Node(size_in=len(vocab.mtr.keys) + 1)
+
+        # Target diff norm
+        # self.target_diff_norm_out = nengo.Node(size_in=1)
+        # nengo.Connection(target_diff_norm, self.target_diff_norm_out,
+        #                  transform=-6,
+        #                  function=lambda x:
+        #                  (np.sqrt(x[0] ** 2 + x[1] ** 2)) > 0,
+        #                  synapse=0.01)
+        self.target_diff_norm_out = nengo.Node(0)
+
+        # motor_init signal
+        self.motor_init = nengo.Node(size_in=1)
+        nengo.Connection(self.motor_init_vis.output, self.motor_init)
+        nengo.Connection(self.motor_init_ps_task.output, self.motor_init)
+        nengo.Connection(self.motor_init_ps_dec.output, self.motor_init)
+
+        # ################ DEBUG CODE ###################
+        self.arm_state = nengo.Node(output=lambda t, arm=arm_obj:
+                                    np.hstack([arm.q, arm.dq]))
+        self.arm_dq = nengo.Node(output=lambda t, arm=arm_obj: arm.dq)
+
+    def setup_connections(self, parent_net):
+        # Set up connections from vision system module
+        if hasattr(parent_net, 'vis'):
+            # Initialize the motor ramp signal when QM is presented
+            mtr_init_vis_sp_vecs = vocab.main.parse('QM').v
+            nengo.Connection(parent_net.vis.output, self.motor_init_vis.input,
+                             transform=[1.25 * mtr_init_vis_sp_vecs])
+        else:
+            warn("MotorSystem Module - Cannot connect from 'vis'")
+
+        # Set up connections from production system module
+        if hasattr(parent_net, 'ps'):
+            # Motor init signal generation - generates a pulse when ps.task
+            # changes to DEC vectors. Also generates a pulse when ps.dec
+            # changes to FWD or REV.
+            mtr_init_task_sp_vecs = vocab.main.parse('DEC + FWD + REV').v
+
+            nengo.Connection(parent_net.ps.task, self.motor_init_ps_task.input,
+                             transform=[1.25 * mtr_init_task_sp_vecs])
+            nengo.Connection(parent_net.ps.dec, self.motor_init_ps_dec.input,
+                             transform=[1.25 * mtr_init_task_sp_vecs])
+
+            # Motor stop signal - stop the motor output when ps.task
+            # is not one of the DEC vectors.
+            nengo.Connection(parent_net.ps.task, self.motor_stop_input.input,
+                             transform=[mtr_init_task_sp_vecs * -1.0])
+
+            # Motor stop signal - stop the motor output when ps.state
+            # is not in the LEARN state.
+            mtr_learn_sp_vecs = vocab.main.parse('LEARN').v
+            nengo.Connection(parent_net.ps.state, self.motor_stop_input.input,
+                             transform=[mtr_learn_sp_vecs * -1.0])
+
+            # Motor bypass signal, also disable target_diff_norm
+            # calculation
+            mtr_bypass_task_sp_vecs = vocab.main.parse('CNT').v
+            nengo.Connection(parent_net.ps.dec, self.motor_bypass.input,
+                             transform=[mtr_bypass_task_sp_vecs * 1.0])
+        else:
+            warn("MotorSystem Module - Cannot connect from 'ps'")
+
+        # Set up connections from decoding system module
+        if hasattr(parent_net, 'dec'):
+            nengo.Connection(parent_net.dec.output,
+                             self.motor_sp_in)
+
+            nengo.Connection(parent_net.dec.output_stop,
+                             self.motor_stop_input.input, transform=2)
+
+            # Stop the ramp from going
+            nengo.Connection(parent_net.dec.output_stop,
+                             self.ramp_sig.go, transform=-2)
+            # Stop the ramp reset signal from starting up the ramp again
+            nengo.Connection(parent_net.dec.output_stop,
+                             self.ramp_sig.reset, transform=-2)
+
+            # Decode index bypass connection
+            nengo.Connection(parent_net.dec.dec_ind_output,
+                             self.dec_ind, synapse=None)
+        else:
+            warn("MotorSystem Module - Cannot connect from 'dec'")

@@ -41,8 +41,8 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
 
         # --------------------- Motor SP Transformation -----------------------
         if len(mtr_vocab.keys) != copy_draw_trfms_x.shape[0]:
-            raise ValueError('Transform System - Number of motor pointers',
-                             ' does not match number of given copydraw',
+            raise ValueError('Transform System - Number of motor pointers' +
+                             ' does not match number of given copydraw' +
                              ' transforms.')
 
         # ------------------ Motor SP Transform ensembles ---------------------
