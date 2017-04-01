@@ -23,8 +23,10 @@ class TransformationSystem(Module):
     def init_module(self):
         # ----- Input and output selectors ----- #
         self.select_in_a = cfg.make_selector(3)
-        self.select_in_b = cfg.make_selector(6, represent_identity=True)
-        self.select_out = cfg.make_selector(7, represent_identity=True)
+        self.select_in_b = cfg.make_selector(6, represent_identity=True,
+                                             identity_radius=2.0)
+        self.select_out = cfg.make_selector(8, represent_identity=True,
+                                            identity_radius=2.0)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=vocab.sp_dim)
@@ -47,11 +49,14 @@ class TransformationSystem(Module):
         nengo.Connection(self.frm_mb1, self.select_out.input2)
 
         # ----- Normalization networks for inputs to CConv and Compare ----- #
-        self.norm_a = cfg.make_norm_net()  # Note: Normalization is disabled
-        self.norm_b = cfg.make_norm_net()  # for certain dec phases - see below
+        self.norm_a = cfg.make_norm_net(norm_error_per_dimension=0.00075)
+        self.norm_b = cfg.make_norm_net(norm_error_per_dimension=0.00075)
+        # Note: Normalization is disabled for certain dec phases - see below
 
         nengo.Connection(self.select_in_a.output, self.norm_a.input)
         nengo.Connection(self.select_in_b.output, self.norm_b.input)
+        # TODO: Add an input scaling factor to norm_a and norm_b to account for
+        #       over unity values from WM?
 
         # ----- Cir conv 1 ----- #
         self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius)
@@ -66,7 +71,8 @@ class TransformationSystem(Module):
         self.am_trfms = Assoc_Mem_Transforms_Network(vocab.item,
                                                      vocab.pos, vocab.pos1,
                                                      vocab.max_enum_list_pos,
-                                                     vocab.ps_action_learn)
+                                                     vocab.ps_action_learn,
+                                                     vocab.ps_cmp)
 
         nengo.Connection(self.frm_mb1, self.am_trfms.frm_mb1, synapse=None)
         nengo.Connection(self.frm_mb2, self.am_trfms.frm_mb2, synapse=None)
@@ -89,14 +95,19 @@ class TransformationSystem(Module):
         bias_node = nengo.Node(1)
 
         self.compare = \
-            Compare(vocab.main, output_no_match=True, threshold_outputs=0.5,
+            Compare(vocab.main, output_no_match=True,
+                    threshold_outputs=cfg.trans_cmp_threshold,
                     dot_product_input_magnitude=cfg.get_optimal_sp_radius(),
                     label="Compare")
 
+        # nengo.Connection(self.norm_a.output, self.compare.inputA,
+        #                  transform=1.5)
+        # nengo.Connection(self.norm_b.output, self.compare.inputB,
+        #                  transform=1.5)
         nengo.Connection(self.norm_a.output, self.compare.inputA,
-                         transform=1.5)
+                         transform=1.0)
         nengo.Connection(self.norm_b.output, self.compare.inputB,
-                         transform=1.5)
+                         transform=1.0)
 
         self.compare_match_thresh = cfg.make_thresh_ens_net()
         nengo.Connection(self.compare.output, self.compare_match_thresh.input,
@@ -112,6 +123,10 @@ class TransformationSystem(Module):
         nengo.Connection(bias_node, self.compare_gate_sig_gen.input,
                          transform=-1)
         self.compare_gate_sig = self.compare_gate_sig_gen.output
+
+        # Connection from compare network to compare AM transform
+        nengo.Connection(self.compare.output, self.am_trfms.frm_compare)
+        nengo.Connection(self.am_trfms.compare_out, self.select_out.input7)
 
         # ----- Output node -----
         self.output = nengo.Node(size_in=vocab.sp_dim)
@@ -131,13 +146,13 @@ class TransformationSystem(Module):
 
             # Select IN A
             # - sel0 (MB1): State = QAP + QAK + TRANS1
-            # - sel1 (MB2): State = TRANS2, CNT1
+            # - sel1 (MB2): State = TRANS2 + CNT1 + TRANSC
             # - sel2 (MB3): State = TRANS0
             in_a_sel0_sp_vecs = vocab.main.parse('QAP+QAK+TRANS1').v
             nengo.Connection(p_net.ps.state, self.select_in_a.sel0,
                              transform=[in_a_sel0_sp_vecs])
 
-            in_a_sel1_sp_vecs = vocab.main.parse('TRANS2+CNT1').v
+            in_a_sel1_sp_vecs = vocab.main.parse('TRANS2+CNT1+TRANSC').v
             nengo.Connection(p_net.ps.state, self.select_in_a.sel1,
                              transform=[in_a_sel1_sp_vecs])
 
@@ -151,7 +166,7 @@ class TransformationSystem(Module):
             # - sel2 (~MB1): State = TRANS1 & Dec = -DECI
             # - sel3 (~MB2): State = TRANS2 & Dec = -DECI
             # - sel4 (MBAve): Dec = DECI
-            # - sel5 (MB3): State = CNT1
+            # - sel5 (MB3): State = CNT1 + TRANSC
             in_b_sel0_sp_vecs = vocab.main.parse('QAP').v
             nengo.Connection(p_net.ps.state, self.select_in_b.sel0,
                              transform=[in_b_sel0_sp_vecs])
@@ -176,7 +191,7 @@ class TransformationSystem(Module):
             nengo.Connection(p_net.ps.dec, self.select_in_b.sel4,
                              transform=[in_b_sel4_sp_vecs])
 
-            in_b_sel5_sp_vecs = vocab.main.parse('CNT1').v
+            in_b_sel5_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
             nengo.Connection(p_net.ps.state, self.select_in_b.sel5,
                              transform=[in_b_sel5_sp_vecs])
 
@@ -188,6 +203,7 @@ class TransformationSystem(Module):
             # - sel4 (CC1 Out): Dec = DECI
             # - sel5 (ACT LEARN Out): State = LEARN & Dec = -NONE
             # - sel6 (TRFM IN DIRECT): Task = REACT + INSTR
+            # - sel7 (COMPARE Out): State = TRANSC
             out_sel0_sp_vecs = vocab.main.parse('QAP').v
             nengo.Connection(p_net.ps.state, self.select_out.sel0,
                              transform=[out_sel0_sp_vecs])
@@ -221,6 +237,10 @@ class TransformationSystem(Module):
             out_sel6_sp_vecs = vocab.main.parse('DIRECT').v
             nengo.Connection(p_net.ps.state, self.select_out.sel6,
                              transform=[out_sel6_sp_vecs])
+
+            out_sel7_sp_vecs = vocab.main.parse('TRANSC').v
+            nengo.Connection(p_net.ps.state, self.select_out.sel7,
+                             transform=[out_sel7_sp_vecs])
 
             # Disable input normalization for Dec == DECI + FWD + REV
             dis_norm_sp_vecs = vocab.main.parse('FWD+REV+DECI').v

@@ -5,7 +5,8 @@ from ...configurator import cfg
 
 def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
                                  max_enum_list_pos, action_learn_vocab,
-                                 net=None, net_label='AM TRANSFORMS'):
+                                 cmp_vocab, net=None,
+                                 net_label='AM TRANSFORMS'):
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -23,6 +24,9 @@ def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
 
         net.frm_action = nengo.Node(size_in=action_learn_vocab.dimensions)
         net.action_out = nengo.Node(size_in=action_learn_vocab.dimensions)
+
+        net.frm_compare = nengo.Node(size_in=cmp_vocab.dimensions)
+        net.compare_out = nengo.Node(size_in=pos1_vocab.dimensions)
 
         # ---------------- Associative Memories for Q & A ---------------------
         net.am_p1 = cfg.make_assoc_mem(
@@ -49,6 +53,17 @@ def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
         nengo.Connection(net.frm_action, net.am_action_learn.input,
                          synapse=None)
         nengo.Connection(net.am_action_learn.output, net.action_out,
+                         synapse=None)
+
+        # ------------- Associative Memories for compare task -----------------
+        net.am_compare = cfg.make_assoc_mem(
+            cmp_vocab.vectors,
+            pos1_vocab.vectors[:len(cmp_vocab.keys), :],
+            threshold=0.25)
+
+        nengo.Connection(net.frm_compare, net.am_compare.input,
+                         synapse=None)
+        nengo.Connection(net.am_compare.output, net.compare_out,
                          synapse=None)
 
         # ----------------------- Inputs and Outputs --------------------------

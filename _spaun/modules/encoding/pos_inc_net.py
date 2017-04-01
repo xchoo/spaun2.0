@@ -21,7 +21,7 @@ def Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, reversable=False,
                              transform=inc_sp.get_convolution_matrix())
         else:
             dir_sel = cfg.make_selector(2, default_sel=0,
-                                        make_ens_func=cfg.make_ens_array)
+                                        make_ens_func=cfg.make_spa_ens_array)
             nengo.Connection(net.pos_mb.output, dir_sel.input0,
                              transform=inc_sp.get_convolution_matrix())
             nengo.Connection(net.pos_mb.output, dir_sel.input1,

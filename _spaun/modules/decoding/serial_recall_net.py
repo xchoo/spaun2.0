@@ -53,9 +53,9 @@ def Serial_Recall_Network(item_vocab, mtr_vocab,
         # am2 utils is greater than cfg.dec_am_min_diff
         util_diff = cfg.make_thresh_ens_net(cfg.dec_am_min_diff)
         nengo.Connection(net.dec_am1.linear_output, util_diff.input,
-                         transform=[[1] * len(item_vocab.keys)], synapse=0.01)
+                         transform=[[1] * len(item_vocab.keys)], synapse=0.02)
         nengo.Connection(net.dec_am2.linear_output, util_diff.input,
-                         transform=[[-1] * len(item_vocab.keys)], synapse=0.01)
+                         transform=[[-1] * len(item_vocab.keys)], synapse=0.02)
 
         util_diff_neg = cfg.make_thresh_ens_net(1 - cfg.dec_am_min_diff)
         nengo.Connection(bias_node, util_diff_neg.input)

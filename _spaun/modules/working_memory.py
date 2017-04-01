@@ -18,9 +18,15 @@ class WorkingMemory(Module):
 
     @with_self
     def init_module(self):
+        self.bias_node = nengo.Node(1)
+
+        # Common gate signal
+        self.wm_gate = cfg.make_thresh_ens_net(0.25)
+        nengo.Connection(self.bias_node, self.wm_gate.input, transform=1.2)
+
         # Memory input selector
         self.select_in = cfg.make_selector(
-            2, default_sel=0, make_ens_func=cfg.make_ens_array)
+            2, default_sel=0, make_ens_func=cfg.make_spa_ens_array)
 
         # Gate signal selector
         self.select_gate = Selector(cfg.n_neurons_ens, dimensions=1,
@@ -97,7 +103,9 @@ class WorkingMemory(Module):
         self.input = self.select_in.input0
         self.data_input = self.select_in.input1
 
-        self.gate_in = self.select_gate.input0
+        self.gate_in = self.wm_gate.input
+        nengo.Connection(self.wm_gate.output, self.select_gate.input0)
+
         self.data_gate_in = self.select_gate.input1
 
         # ----- Set up module vocab inputs and outputs -----
@@ -124,28 +132,37 @@ class WorkingMemory(Module):
 
         # Set up connections from vision module
         if hasattr(p_net, 'vis'):
-            item_mb_gate_sp_vecs = \
-                vocab.main.parse('+'.join(vocab.num_sp_strs)).v
+            # item_mb_gate_sp_vecs = \
+            #     vocab.main.parse('+'.join(vocab.num_sp_strs)).v
+            item_mb_no_gate_sp_vecs = \
+                vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+                                          vocab.misc_vis_sp_strs)).v
             item_mb_rst_sp_vecs = vocab.main.parse('A+OPEN').v
 
             # ###### Common Gate Input Signal ######
+            # nengo.Connection(p_net.vis.output, self.gate_in,
+            #                  transform=[cfg.mb_gate_scale *
+            #                             item_mb_gate_sp_vecs])
             nengo.Connection(p_net.vis.output, self.gate_in,
-                             transform=[cfg.mb_gate_scale *
-                                        item_mb_gate_sp_vecs])
+                             transform=[-cfg.mb_gate_scale *
+                                        item_mb_no_gate_sp_vecs])
+            nengo.Connection(p_net.vis.neg_attention, self.gate_in,
+                             transform=-cfg.mb_neg_attn_scale * 2.0,
+                             synapse=0.02)
 
             # ### DEBUG ###
-            nengo.Connection(p_net.vis.output, self.gate_in_vis_dbg,
-                             transform=[cfg.mb_gate_scale *
-                                        item_mb_gate_sp_vecs])
-            nengo.Connection(p_net.vis.neg_attention,
-                             self.gate_in_neg_att_dbg, transform=-2.0,
-                             synapse=0.01)
-            nengo.Connection(p_net.vis.output, self.gate_in_2,
-                             transform=[cfg.mb_gate_scale *
-                                        item_mb_gate_sp_vecs])
-            nengo.Connection(p_net.vis.neg_attention,
-                             self.gate_in_2,
-                             transform=-cfg.mb_neg_attn_scale, synapse=0.01)
+            # nengo.Connection(p_net.vis.output, self.gate_in_vis_dbg,
+            #                  transform=[cfg.mb_gate_scale *
+            #                             item_mb_gate_sp_vecs])
+            # nengo.Connection(p_net.vis.neg_attention,
+            #                  self.gate_in_neg_att_dbg, transform=-2.0,
+            #                  synapse=0.01)
+            # nengo.Connection(p_net.vis.output, self.gate_in_2,
+            #                  transform=[cfg.mb_gate_scale *
+            #                             item_mb_gate_sp_vecs])
+            # nengo.Connection(p_net.vis.neg_attention,
+            #                  self.gate_in_2,
+            #                  transform=-cfg.mb_neg_attn_scale, synapse=0.01)
             # ### DEBUG ###
 
             # ###### MB1 ########
@@ -238,7 +255,9 @@ class WorkingMemory(Module):
                                         mb2_no_gate_sp_vecs])
 
             mb2_no_reset_sp_vecs = \
-                vocab.main.parse('QAP+QAK+TRANS1+TRANS2+CNT1').v
+                vocab.main.parse('QAP+QAK+TRANS2+CNT1+TRANSC').v
+            #    vocab.main.parse('QAP+QAK+TRANS1+TRANS2+CNT1+TRANSC').v
+            # Why is there a no reset for the TRANS1 state???
             nengo.Connection(p_net.ps.state, self.mb2_net.reset,
                              transform=[cfg.mb_neg_gate_scale *
                                         mb2_no_reset_sp_vecs])
@@ -264,7 +283,7 @@ class WorkingMemory(Module):
                              transform=[cfg.mb_neg_gate_scale *
                                         mb3_no_gate_sp_vecs])
 
-            mb3_no_reset_sp_vecs = vocab.main.parse('CNT1').v
+            mb3_no_reset_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
             nengo.Connection(p_net.ps.state, self.mb3_net.reset,
                              transform=[cfg.mb_neg_gate_scale *
                                         mb3_no_reset_sp_vecs])
