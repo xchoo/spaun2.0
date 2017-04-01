@@ -18,11 +18,16 @@ class ImagenetDataObject(object):
 
         # --- Imagenet data ---
         # retrieve from https://figshare.com/s/cdde71007405eb11a88f
-        data_filename = 'ilsvrc-2012-batches-test3.tar.gz'
+        data_filename = os.path.join(self.filepath,
+                                     'ilsvrc-2012-batches-test3.tar.gz')
+
+        # Try alternate params filename if can't locate default file
+        if not os.path.exists(data_filename):
+            data_filename = \
+                os.path.join(self.filepath, 'ilsvrc2012batchestest3.tar.gz')
 
         images_data, images_labels, images_data_mean, class_labels = \
-            load_ilsvrc2012(os.path.join(self.filepath, data_filename),
-                            n_files=1)
+            load_ilsvrc2012(data_filename, n_files=5)
 
         # --- Mean data ---
         data_mean_filename = 'image_data_mean.npz'
