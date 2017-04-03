@@ -56,8 +56,14 @@ class SpaunExperiment(object):
                    or (isinstance(param_value, np.ndarray) and
                        param_value.shape[0] > 20):
                     param_value = str(param_value[:20])[:-1] + '...'
-
-                logger.write('# - %s = %s\n' % (param_name, param_value))
+                if param_name == 'instr_dict':
+                    logger.write('# - %s =: \n' % param_name)
+                    for key in param_value.keys():
+                        logger.write('#     > %s: %s -> %s\n' %
+                                     (key, param_value[key][0],
+                                      param_value[key][1]))
+                else:
+                    logger.write('# - %s = %s\n' % (param_name, param_value))
         logger.write('# ------\n')
         logger.write('# Simulation time: %0.2fs' % self.get_est_simtime())
         logger.write('#\n')
@@ -520,7 +526,9 @@ class SpaunExperiment(object):
         # Parse Instruction character key list into instruction sem pointer
         # list
         instr_sp_list = []
-        for key in instr_seq_list:
+        instr_change_inds = {}
+        prev_instr_sp = ''
+        for i, key in enumerate(instr_seq_list):
             if key == '':
                 instr_sp_list.append(None)
             else:
@@ -534,8 +542,14 @@ class SpaunExperiment(object):
                                          'in provided instruction options.')
                 instr_sp_list.append(instr_sp_sublist)
 
+            # Record down when the instruction sp changes: for logging purposes
+            if key != prev_instr_sp:
+                instr_change_inds[i] = key
+                prev_instr_sp = key
+
         return (raw_seq_list, stim_seq_list, task_phase_seq_list,
-                instr_sp_list, instr_dict, num_learn_actions)
+                instr_sp_list, instr_dict, instr_change_inds,
+                num_learn_actions)
 
     def get_est_simtime(self):
         return (len(self.stim_seq_list) * self.present_interval)
@@ -561,12 +575,16 @@ class SpaunExperiment(object):
         if t_ind != self.prev_t_ind:
             # Write the stimulus to file
             if t_ind < len(self.stim_seq_list):
+                # Log instruction sp changes
+                if t_ind in self.instr_change_inds.keys():
+                    logger.write('\n>%s' % self.instr_change_inds[t_ind])
+
                 stim_char = self.stim_seq_list[t_ind]
                 if (stim_char == '.'):
                     # logger.write('_')
                     logger.write('')  # Ignore the . blank character
-                elif stim_char == 'A' and self.prev_t_ind >= 0:
-                    logger.write('\nA')
+                elif stim_char in ['A', 'M']:  # and self.prev_t_ind >= 0:
+                    logger.write('\n' + stim_char)
                 elif isinstance(stim_char, int):
                     logger.write('<%s>' % stim_char)
                 elif stim_char in self.num_rev_map:
@@ -632,7 +650,8 @@ class SpaunExperiment(object):
         self.raw_instr_str = instruction_str.replace(' ', '')
 
         (self.raw_seq_list, self.stim_seq_list, self.task_phase_seq_list,
-         self.instr_sps_list, self.instr_dict, self._num_learn_actions) = \
+         self.instr_sps_list, self.instr_dict, self.instr_change_inds,
+         self._num_learn_actions) = \
             self.parse_raw_seq(self.raw_seq_str, get_image_ind,
                                get_image_label, self.present_blanks,
                                mtr_est_digit_response_time,
