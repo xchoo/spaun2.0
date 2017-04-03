@@ -170,6 +170,9 @@ def Spaun():
             model.ps.setup_connections(model)
         if hasattr(model, 'bg'):
             if hasattr(model, 'reward'):
+                # Clear learning transforms
+                del cfg.learn_init_transforms[:]
+
                 with model.bg:
                     # Generate random biases for each learn action, so that
                     # there is some randomness to the initial action choice

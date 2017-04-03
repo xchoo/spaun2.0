@@ -303,7 +303,7 @@ for stim_str, tag_str in zip(s_list, t_list):
             print "PROCESSING: " + os.path.join(probe_dir, filename)
             probe_file = open(os.path.join(probe_dir, filename), 'r')
             for line in probe_file.readlines():
-                if line[0] != '#' and line.strip() != '':
+                if line[0] not in ['#', '>'] and line.strip() != '':
                     task_info_split = line.split('[', 1)
                     task_str = task_info_split[0].strip()
                     task_data = task_info_split[1].strip()
