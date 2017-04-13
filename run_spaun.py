@@ -15,10 +15,13 @@ from _spaun.utils import get_probe_data_filename
 def_dim = 512
 def_seq = 'A'
 def_i = ''
+def_mpi_p = 128
 
+# ----- Spaun (character & instruction) presets -----
 stim_presets = {}
 
 # Standard Spaun stimulus presets
+# TODO: Add in configuration options into presets as well?
 stim_presets['copy_draw'] = ('A0[#1]?X', '')
 stim_presets['copy_draw_mult'] = ('A0[#1#2#3]?XXX', '')
 stim_presets['digit_recog'] = ('A1[#1]?XXX', '')
@@ -144,8 +147,9 @@ stim_presets['darpa_instr_seq_task_6'] = \
      'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
 
 stim_presets['darpa_instr_stim_resp_demo1'] = \
-    ('%I1+I2%A9?4X?9X',
-     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR')
+    ('%I1+I2%A9?4X?9X%I1+I2+I3%A9?5XXX',
+     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR;' +
+     'I3: VIS*FIV, DATA*(POS1*FOR + POS2*TWO + POS3*THR)')
 stim_presets['darpa_instr_stim_resp_demo2'] = \
     ('%I1+I2%A9?4X?9X%I3+I4%A9?4X?9X',
      'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR;' +
@@ -171,7 +175,38 @@ stim_presets['darpa_instr_seq_task_demo'] = \
 # def_i = 'I1: 0.5*POS1 + 0.5*VIS*FOR, TASK*M + DEC*FWD;' + \
 #         'I2: 0.5*POS1 + 0.5*VIS*EIG, TASK*M + DEC*REV'
 
-def_mpi_p = 128
+# Darpa instruction following + imagenet + adaptive motor presets
+stim_presets['darpa_combined1'] = \
+    ('{A3[#4#2#7#5]?XXXX:8}',
+     'I1: VIS*GUENON, DATA*POS*FIV; I2: VIS*')
+
+# ----- Configuration presets -----
+cfg_presets = {}
+cfg_presets['mtr_adapt_qvelff'] = ["mtr_dyn_adaptation=True",
+                                   "mtr_forcefield='QVelForcefield'"]
+cfg_presets['mtr_adapt_constff'] = ["mtr_dyn_adaptation=True",
+                                    "mtr_forcefield='ConstForcefield'"]
+
+cfg_presets['vis_imagenet'] = ["stim_module='imagenet'",
+                               "vis_module='lif_imagenet'"]
+cfg_presets['vis_imagenet_wta'] = ["stim_module='imagenet'",
+                                   "vis_module='lif_imagenet_wta'"]
+
+# Darpa adaptive motor demo configs
+cfg_presets['darpa_adapt_qvelff_demo'] = \
+    ["mtr_dyn_adaptation=True", "mtr_forcefield='QVelForcefield'",
+     "probe_graph_config='ProbeCfgDarpaMotor'"]
+cfg_presets['darpa_adapt_constff_demo'] = \
+    ["mtr_dyn_adaptation=True", "mtr_forcefield='ConstForcefield'",
+     "probe_graph_config='ProbeCfgDarpaMotor'"]
+
+# Darpa imagenet demo configs
+cfg_presets['darpa_vis_imagenet'] = \
+    ["stim_module='imagenet'", "vis_module='lif_imagenet'",
+     "probe_graph_config='ProbeCfgDarpaVisionImagenet'"]
+cfg_presets['darpa_vis_imagenet_wta'] = \
+    ["stim_module='imagenet'", "vis_module='lif_imagenet_wta'",
+     "probe_graph_config='ProbeCfgDarpaVisionImagenet'"]
 
 # ----- Definite maximum probe time (if est_sim_time > max_probe_time,
 #       disable probing)
@@ -192,6 +227,7 @@ parser.add_argument(
 parser.add_argument(
     '-n', type=int, default=1,
     help='Number of batches to run (each batch is a new model).')
+
 parser.add_argument(
     '-s', type=str, default=def_seq,
     help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
@@ -226,6 +262,7 @@ parser.add_argument(
     help='Stimulus (stimulus sequence and instruction sequence pairing) to ' +
          'use for Spaun stimulus. Overrides -s and -i command line options ' +
          'if they are provided.')
+
 parser.add_argument(
     '-b', type=str, default='ref',
     help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
@@ -312,6 +349,11 @@ parser.add_argument(
          " options (i.e. --seed, --d, --s)" +
          '\nNOTE: Use quotes (") to encapsulate strings if you encounter' +
          ' problems.')
+parser.add_argument(
+    '--config_presets', type=str, nargs='*',
+    help="Use to provide preset configuration options (which can be " +
+         "individually provided using --config). Appends to list of " +
+         "configuration options provided through --config.")
 
 parser.add_argument(
     '--debug', action='store_true',
@@ -347,6 +389,16 @@ else:
     stim_seq_str = args.s
     instr_seq_str = args.i
 
+# ----- Gather configuration (from --config and --config_presets) settings ----
+config_list = []
+if args.config is not None:
+    config_list += args.config
+
+if args.config_presets is not None:
+    for preset_name in args.config_presets:
+        if preset_name in cfg_presets:
+            config_list += cfg_presets[preset_name]
+
 # ----- Batch runs -----
 for n in range(args.n):
     print ("\n======================== RUN %i OF %i ========================" %
@@ -366,9 +418,9 @@ for n in range(args.n):
     cfg.data_dir = args.data_dir
 
     # Parse --config options
-    if args.config is not None:
+    if len(config_list) > 0:
         print "USING CONFIGURATION OPTIONS: "
-        for cfg_options in args.config:
+        for cfg_options in config_list:
             cfg_opts = cfg_options.split('=')
             cfg_param = cfg_opts[0]
             cfg_value = cfg_opts[1]
