@@ -14,49 +14,162 @@ from _spaun.utils import get_probe_data_filename
 # ----- Defaults -----
 def_dim = 512
 def_seq = 'A'
-# def_seq = 'A0[#1]?X'
-# def_seq = 'A0[#1#2#3]?XXX'
-# def_seq = 'A1[#1]?XXX'
-# def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-# def_seq = 'A3[1234]?XXXX'
-def_seq = 'A3[123]?XXXX'
-# def_seq = 'A3[222]?XXXX'
-# def_seq = 'A3[2567589]?XXXXXXXXX'
-# def_seq = 'A4[5][3]?XXXXXX'
-# def_seq = 'A4[321][3]?XXXXXXX'
-# def_seq = 'A4[0][9]?XXXXXXXXXXX'
-# def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
-# def_seq = 'A5[123]K[3]?X'
-# def_seq = 'A5[123]P[1]?X'
-# def_seq = 'A6[12][2][82][2][42]?XXXXX'
-# def_seq = 'A6[8812][12][8842][42][8862][62][8832]?XXXXX'
-# def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
-# def_seq = 'A7[1][2][3][2]?XX'
-# def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
+def_i = ''
+
+stim_presets = {}
+
+# Standard Spaun stimulus presets
+stim_presets['copy_draw'] = ('A0[#1]?X', '')
+stim_presets['copy_draw_mult'] = ('A0[#1#2#3]?XXX', '')
+stim_presets['digit_recog'] = ('A1[#1]?XXX', '')
+stim_presets['learning'] = ('A2?{X:30}', '')
+stim_presets['memory_3'] = ('A3[123]?XXXX', '')
+stim_presets['memory_4'] = ('A3[1234]?XXXX', '')
+stim_presets['memory_7'] = ('A3[2567589]?XXXXXXXXX', '')
+stim_presets['count_3'] = ('A4[5][3]?XXXXXX', '')
+stim_presets['count_9'] = ('A4[0][9]?XXXXXXXXXXX', '')
+stim_presets['count_3_list'] = ('A4[321][3]?XXXXXXX', '')
+stim_presets['qa_kind'] = ('A5[123]K[3]?X', '')
+stim_presets['qa_pos'] = ('A5[123]P[1]?X', '')
+stim_presets['rvc_simple'] = ('A6[12][2][82][2][42]?XXXXX', '')
+stim_presets['rvc_complex'] = ('A6[8812][12][8842][42][8862][62][8832]?XXXXX',
+                               '')
+stim_presets['induction_simple'] = ('A7[1][2][3][2][3][4][3][4]?X', '')
+stim_presets['induction_incomplete'] = ('A7[1][2][3][2]?XX', '')
+stim_presets['induction_ravens'] = ('A7[1][11][111][2][22][222][3][33]?XXXXX',
+                                    '')
+
+# Darpa adaptive motor presets
+stim_presets['darpa_adapt_motor1'] = ('{A3[#4#2#7#5]?XXXX:8}', '')
+
+# Darpa imagenet presets
+stim_presets['darpa_imagenet1'] = ('{AC[#BOX_TURTLE][#BOX_TURTLE]?X' +
+                                   'AC[#SEWING_MACHINE][#SEWING_MACHINE]?X' +
+                                   'AC[#GUENON][#GUENON]?X' +
+                                   'AC[#TIBETAN_TERRIER][#TIBETAN_TERRIER]?X' +
+                                   'AC[#PERSIAN_CAT][#PERSIAN_CAT]?X:5}', '')
+stim_presets['darpa_imagenet2'] = ('{AC[#BOX_TURTLE][#SEWING_MACHINE]?X' +
+                                   'AC[#BOX_TURTLE][#GUENON]?X' +
+                                   'AC[#BOX_TURTLE][#TIBETAN_TERRIER]?X' +
+                                   'AC[#BOX_TURTLE][#PERSIAN_CAT]?X:5}', '')
+stim_presets['darpa_imagenet3'] = ('{AC[#SEWING_MACHINE][#BOX_TURTLE]?X' +
+                                   'AC[#SEWING_MACHINE][#GUENON]?X' +
+                                   'AC[#SEWING_MACHINE][#TIBETAN_TERRIER]?X' +
+                                   'AC[#SEWING_MACHINE][#PERSIAN_CAT]?X:5}',
+                                   '')
+stim_presets['darpa_imagenet4'] = ('{AC[#GUENON][#BOX_TURTLE]?X' +
+                                   'AC[#GUENON][#SEWING_MACHINE]?X' +
+                                   'AC[#GUENON][#TIBETAN_TERRIER]?X' +
+                                   'AC[#GUENON][#PERSIAN_CAT]?X:5}', '')
+stim_presets['darpa_imagenet5'] = ('{AC[#TIBETAN_TERRIER][#BOX_TURTLE]?X' +
+                                   'AC[#TIBETAN_TERRIER][#SEWING_MACHINE]?X' +
+                                   'AC[#TIBETAN_TERRIER][#GUENON]?X' +
+                                   'AC[#TIBETAN_TERRIER][#PERSIAN_CAT]?X:5}',
+                                   '')
+stim_presets['darpa_imagenet6'] = ('{AC[#PERSIAN_CAT][#BOX_TURTLE]?X' +
+                                   'AC[#PERSIAN_CAT][#SEWING_MACHINE]?X' +
+                                   'AC[#PERSIAN_CAT][#GUENON]?X' +
+                                   'AC[#PERSIAN_CAT][#TIBETAN_TERRIER]?X:5}',
+                                   '')
+
+# Darpa instruction following presets
+stim_resp_i = 'I1: VIS*ONE, DATA*POS1*NIN;I2: VIS*TWO, DATA*POS1*EIG;' + \
+              'I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*SIX;' + \
+              'I5: VIS*FIV, DATA*POS1*FIV;I6: VIS*SIX, DATA*POS1*FOR;' + \
+              'I7: VIS*SEV, DATA*POS1*THR;I8: VIS*EIG, DATA*POS1*TWO;' + \
+              'I9: VIS*NIN, DATA*POS1*ONE;I0: VIS*ZER, DATA*POS1*ZER'
+stim_presets['darpa_instr_stim_resp_2'] = \
+    ('%I1+I2%A9{?1X?2X:5}%I3+I4%A9{?4X?3X:5}', stim_resp_i)
+stim_presets['darpa_instr_stim_resp_3'] = \
+    ('%I1+I2+I3%A9{?1X?2X?3X:5}%I4+I5+I6%A9{?6X?5X?4X:5}', stim_resp_i)
+stim_presets['darpa_instr_stim_resp_4'] = \
+    ('%I1+I2+I3+I4%A9{?1X?2X?3X?4X:5}%I0+I9+I8+I7%A9{?0X?9X?8X?7X:5}',
+     stim_resp_i)
+stim_presets['darpa_instr_stim_resp_5'] = \
+    ('%I1+I2+I3+I4+I5%A9{?1X?2X?3X?4X?5X:5}' +
+     '%I0+I9+I8+I7+I6%A9{?0X?9X?8X?7X?6X:5}', stim_resp_i)
+stim_presets['darpa_instr_stim_resp_6'] = \
+    ('%I1+I2+I3+I4+I5+I6%A9{?1X?2X?3X?4X?5X?6X:5}' +
+     '%I0+I9+I8+I7+I6+I5%A9{?0X?9X?8X?7X?6X?5X:5}', stim_resp_i)
+
+stim_task_i = 'I1: VIS*ONE, TASK*F;I2: VIS*TWO, TASK*C;' + \
+              'I3: VIS*THR, TASK*M + DEC*REV; I4: VIS*FOR, TASK*W;' + \
+              'I5: VIS*FIV, TASK*M; I6: VIS*SIX, TASK*V;' + \
+              'I7: VIS*SEV, TASK*A;I8: VIS*EIG, TASK*REACT+STATE*DIRECT'
+stim_presets['darpa_instr_stim_task_2'] = \
+    ('%I1+I2%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX:5}' +
+     '%I3+I4%{M3.[321]?XXXM4.[0]?X:5}', stim_task_i)
+stim_presets['darpa_instr_stim_task_3'] = \
+    ('%I1+I2+I3%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXXM3.[321]?XXX:5}' +
+     '%I4+I5+I6%{M4.[0]?XM5.[123]?XXXM6.[13][3][12][2][11]?X:5}', stim_task_i)
+stim_presets['darpa_instr_stim_task_4'] = \
+    ('%I1+I2+I3+I4%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
+     'M3.[321]?XXXM4.[9]?X:5}%I3+I4+I5+I6%{M3.[987]?XXXM4[0]?X' +
+     'M5.[123]?XXXM6.[13][3][12][2][11]?X:5}', stim_task_i)
+stim_presets['darpa_instr_stim_task_5'] = \
+    ('%I1+I2+I3+I4+I5%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
+     'M3.[321]?XXXM4.[9]?XM5.[123]?XXX:5}%I4+I5+I6+I7+I8%{M4[0]?X' +
+     'M5.[123]?XXXM6.[13][3][12][2][11]?XM7.[123]P[3]?XM8.?1X?2X:5}',
+     stim_task_i)
+stim_presets['darpa_instr_stim_task_6'] = \
+    ('%I1+I2+I3+I4+I5+I6%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
+     'M3.[321]?XXXM4.[9]?XM5.[123]?XXXM6.[39][9][38][8][37]?X:5}' +
+     '%I3+I4+I5+I6+I7+I8%{M3.[876]?XXXM4[0]?XM5.[456]?XXX' +
+     'M6.[13][3][12][2][11]?XM7.[123]P[3]?XM8.?1X?2X:5}', stim_task_i)
+
+seq_task_i = 'I1: POS1, TASK*F;I2: POS2, TASK*C;' + \
+             'I3: POS3, TASK*M + DEC*REV; I4: POS4, TASK*W;' + \
+             'I5: POS5, TASK*M; I6: POS6, TASK*V;' + \
+             'I7: POS7, TASK*A;I8: POS8, TASK*REACT+STATE*DIRECT'
+stim_presets['darpa_instr_seq_task_2'] = \
+    ('%I1+I2%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX:5}' +
+     '%I3+I4%{MP3.[321]?XXXMP4.[0]?X:5}', seq_task_i)
+stim_presets['darpa_instr_seq_task_3'] = \
+    ('%I1+I2+I5%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
+     'MP5.[123]?XXX:5}%I3+I4+I6%{MP6.[21][1][24][4][26][6][28]?' +
+     'XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
+stim_presets['darpa_instr_seq_task_4'] = \
+    ('%I1+I2+I5+I7%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
+     'MP5.[123]?XXXMP7.[123]K[3]?X:5}%I3+I4+I6+I8%{MP8.?1X?2X' +
+     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
+stim_presets['darpa_instr_seq_task_5'] = \
+    ('%I1+I2+I5+I7+I3%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
+     'MP5.[123]?XXXMP7.[123]K[3]?XMP3.[456]?XXX:5}' +
+     '%I3+I4+I6+I8+I2%{MP2.[0][1]?XXMP8.?1X?2X' +
+     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
+stim_presets['darpa_instr_seq_task_6'] = \
+    ('%I1+I2+I5+I7+I3+I4%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
+     'MP5.[123]?XXXMP7.[123]K[3]?XMP3.[456]?XXXMP4.[5]?X:5}' +
+     '%I3+I4+I6+I8+I2+I5%{MP5.[456]?XXXMP2.[0][1]?XXMP8.?1X?2X' +
+     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
+
+stim_presets['darpa_instr_stim_resp_demo1'] = \
+    ('%I1+I2%A9?4X?9X',
+     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR')
+stim_presets['darpa_instr_stim_resp_demo2'] = \
+    ('%I1+I2%A9?4X?9X%I3+I4%A9?4X?9X',
+     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR;' +
+     'I3: VIS*FOR, DATA*POS1*ONE; I4: VIS*NIN, DATA*POS1*EIG')
+stim_presets['darpa_instr_stim_task_demo1'] = \
+    ('%I1+I4%M1[#2]?XM2[427]?XXX',
+     'I1: VIS*ONE, TASK*W; I2: VIS*TWO, TASK*R;' +
+     'I3: VIS*ONE, TASK*M + DEC*FWD; I4: VIS*TWO, TASK*M + DEC*REV')
+stim_presets['darpa_instr_stim_task_demo2'] = \
+    ('%I1+I2%M1[<3725>]?XM2[<3725>]?X%I3+I4%M2[427]?XXX',
+     'I1: VIS*ONE, TASK*W; I2: VIS*TWO, TASK*R;' +
+     'I3: VIS*ONE, TASK*M + DEC*FWD; I4: VIS*TWO, TASK*M + DEC*REV')
+stim_presets['darpa_instr_seq_task_demo'] = \
+    ('%I1+I2+I3%MP3[<3725>]?XMP1[427]?XXXV[<3725>]?X',
+     'I1: POS3, TASK*W; I2: POS2, TASK*R;I3: POS1, TASK*M + DEC*FWD')
+
 # def_seq = 'A1[1]?XXA1[22]?XX'
 # def_seq = '{A1[R]?X:5}'
 # def_seq = '{A3[{R:7}]?{X:8}:5}'
 # def_seq = '{A3[{R:7}]?{X:8}:160}'
 # def_seq = 'A3[{R:7}]?{X:8}'
-# def_seq = '{AC[#BOX_TURTLE][#BOX_TURTLE]?XAC[#SEWING_MACHINE][#SEWING_MACHINE]?XAC[#GUENON][#GUENON]?XAC[#TIBETAN_TERRIER][#TIBETAN_TERRIER]?XAC[#PERSIAN_CAT][#PERSIAN_CAT]?X:5}'
-# def_seq = '{AC[#BOX_TURTLE][#SEWING_MACHINE]?XAC[#BOX_TURTLE][#GUENON]?XAC[#BOX_TURTLE][#TIBETAN_TERRIER]?XAC[#BOX_TURTLE][#PERSIAN_CAT]?X:5}'
-# def_seq = '{AC[#SEWING_MACHINE][#BOX_TURTLE]?XAC[#SEWING_MACHINE][#GUENON]?XAC[#SEWING_MACHINE][#TIBETAN_TERRIER]?XAC[#SEWING_MACHINE][#PERSIAN_CAT]?X:5}'
-# def_seq = '{AC[#GUENON][#BOX_TURTLE]?XAC[#GUENON][#SEWING_MACHINE]?XAC[#GUENON][#TIBETAN_TERRIER]?XAC[#GUENON][#PERSIAN_CAT]?X:5}'
-# def_seq = '{AC[#TIBETAN_TERRIER][#BOX_TURTLE]?XAC[#TIBETAN_TERRIER][#SEWING_MACHINE]?XAC[#TIBETAN_TERRIER][#GUENON]?XAC[#TIBETAN_TERRIER][#PERSIAN_CAT]?X:5}'
-# def_seq = '{AC[#PERSIAN_CAT][#BOX_TURTLE]?XAC[#PERSIAN_CAT][#SEWING_MACHINE]?XAC[#PERSIAN_CAT][#GUENON]?XAC[#PERSIAN_CAT][#TIBETAN_TERRIER]?X:5}'
-# def_seq = '%I1+I2%A9{?1X?2X:5}%I3+I4%A9{?4X?3X:5}'
-# def_seq = '%I1+I2+I3%A9{?1X?2X?3X:5}%I4+I5+I6%A9{?6X?5X?4X:5}'
-# def_seq = '%I1+I2+I3+I4%A9{?1X?2X?3X?4X:5}%I0+I9+I8+I7%A9{?0X?9X?8X?7X:5}'
-# def_seq = '%I1+I2+I3+I4+I5%A9{?1X?2X?3X?4X?5X:5}%I0+I9+I8+I7+I6%A9{?0X?9X?8X?7X?6X:5}'
-def_seq = '%I1+I2+I3+I4+I5+I6%A9{?1X?2X?3X?4X?5X?6X:5}%I0+I9+I8+I7+I6+I5%A9{?0X?9X?8X?7X?6X?5X:5}'
-
-def_i = ''
-# def_i = 'I1: VIS*ONE, DATA*POS1*FIV;I2: VIS*TWO, DATA*POS1*SIX;I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*EIG;I5: VIS*FIV, DATA*POS1*NIN;I6: VIS*SIX, DATA*POS1*ZER'
-def_i = 'I1: VIS*ONE, DATA*POS1*NIN;I2: VIS*TWO, DATA*POS1*EIG;' + \
-        'I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*SIX;' + \
-        'I5: VIS*FIV, DATA*POS1*FIV;I6: VIS*SIX, DATA*POS1*FOR;' + \
-        'I7: VIS*SEV, DATA*POS1*THR;I8: VIS*EIG, DATA*POS1*TWO;' + \
-        'I9: VIS*NIN, DATA*POS1*ONE;I0: VIS*ZER, DATA*POS1*ZER'
+# def_seq = '%I1+I2%MP1.5[123]?XXXMP1.8[123]?XXX'
+# def_i = 'I1: 0.5*POS1 + 0.5*VIS*FOR, TASK*M + DEC*FWD;' + \
+#         'I2: 0.5*POS1 + 0.5*VIS*EIG, TASK*M + DEC*REV'
 
 def_mpi_p = 128
 
@@ -106,6 +219,13 @@ parser.add_argument(
          '"INSTR_KEY: ANTECEDENT_SP_STR, CONSEQUENCE_SP_STR; ..."' +
          'e.g. "I1: TASK*INSTR + VIS*ONE, TRFM*POS1*THR", and the stimulus ' +
          'string: "%%I1+I2%%A0[0]?XX"')
+# Note: For sequential position instructions, instruction must be encoded with
+#       POS sp. E.g. I1: POS1+VIS*ONE, TASK*C
+parser.add_argument(
+    '--stim_preset', type=str, default='',
+    help='Stimulus (stimulus sequence and instruction sequence pairing) to ' +
+         'use for Spaun stimulus. Overrides -s and -i command line options ' +
+         'if they are provided.')
 parser.add_argument(
     '-b', type=str, default='ref',
     help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
@@ -220,6 +340,13 @@ if args.spinn:
 
 print "BACKEND: %s" % cfg.backend.upper()
 
+# ----- Stimulus sequence settings -----
+if args.stim_preset in stim_presets:
+    stim_seq_str, instr_seq_str = stim_presets[args.stim_preset]
+else:
+    stim_seq_str = args.s
+    instr_seq_str = args.i
+
 # ----- Batch runs -----
 for n in range(args.n):
     print ("\n======================== RUN %i OF %i ========================" %
@@ -274,9 +401,10 @@ for n in range(args.n):
         nengo.log('debug')
 
     # ----- Experiment and vocabulary initialization -----
-    experiment.initialize(args.s, stim_data.get_image_ind,
+    experiment.initialize(stim_seq_str, stim_data.get_image_ind,
                           stim_data.get_image_label,
-                          cfg.mtr_est_digit_response_time, args.i, cfg.rng)
+                          cfg.mtr_est_digit_response_time, instr_seq_str,
+                          cfg.rng)
     vocab.initialize(stim_data.stim_SP_labels, experiment.num_learn_actions,
                      cfg.rng)
     vocab.initialize_mtr_vocab(mtr_data.dimensions, mtr_data.sps)

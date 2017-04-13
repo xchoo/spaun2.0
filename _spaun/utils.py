@@ -57,6 +57,6 @@ def get_probe_data_filename(label='probe_data', suffix='', ext='npz'):
     return "+".join([label,
                      "_".join([str(type(cfg.neuron_type).__name__),
                                str(vocab.sp_dim)]),
-                     raw_seq,
+                     raw_seq[:150],
                      str(cfg.seed)]) + \
            ("" if suffix is '' else '(' + suffix + ')') + "." + ext

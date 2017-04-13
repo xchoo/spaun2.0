@@ -67,8 +67,13 @@ class MNISTDataObject(object):
         self.probe_subsample_inds = subsample_inds
 
         self.probe_image_dimensions = subsample_inds.flatten().shape[0]
-        self.probe_reset_img = (self.get_image('A')[0] /
-                                (1.0 * self.max_pixel_value))[subsample_inds]
+        self.probe_reset_imgs = \
+            [(self.get_image('A')[0] /
+             (1.0 * self.max_pixel_value))[subsample_inds],
+             (self.get_image('M')[0] /
+             (1.0 * self.max_pixel_value))[subsample_inds],
+             (self.get_image('V')[0] /
+             (1.0 * self.max_pixel_value))[subsample_inds]]
 
     def get_image(self, label=None, rng=None):
         if rng is None:
@@ -100,7 +105,7 @@ class MNISTDataObject(object):
             image_ind = rng.choice(
                 self.images_labels_inds[label_ind[0][0]])
         else:
-            raise RuntimeError('MNIST TEST - Unable to find label matching ' +
+            raise RuntimeError('MNIST - Unable to find label matching ' +
                                '[%s] in label set.' % label)
             # image_ind = rng.choice(len(self.images_labels_inds))
         return image_ind

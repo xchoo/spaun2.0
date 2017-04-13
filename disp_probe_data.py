@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
-supported_data_version = 6.0
+supported_data_version = 6.1
 default_filename = ''
 max_lines = 50
 
@@ -436,7 +436,7 @@ if show_io:
 
     arm_data_scale = anim_config[1]['plot_type_params']['xlim'][1]
 
-    A_img = vis_stim_config['data_func_params']['reset_img']
+    reset_imgs = vis_stim_config['data_func_params']['reset_imgs']
     num_cols = 0
     curr_col_ind = 0
 
@@ -469,8 +469,12 @@ if show_io:
                 plot_type[-1].append("path")
 
         if rmse(prev_img, img) > 0.1:
-            # Img data is an 'A', so reset things
-            if rmse(img, A_img) < 0.1:
+            # Img data is a reset image, so reset things
+            reset_img_shown = False
+            for reset_img in reset_imgs:
+                reset_img_shown = (reset_img_shown or
+                                   rmse(img, reset_img) < 0.1)
+            if reset_img_shown:
                 if len(plot_data) > 0:
                     num_cols = max(num_cols, len(plot_data[-1]))
                 plot_data.append([])

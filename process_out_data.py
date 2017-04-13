@@ -288,7 +288,7 @@ for stim_str, tag_str in zip(s_list, t_list):
 
     str_prefix = '+'.join([args.p, args.n])
     if stim_str is not None and len(stim_str) > 0:
-        str_prefix = '+'.join([str_prefix, stim_str])
+        str_prefix = '+'.join([str_prefix, stim_str])[:150]
     if tag_str is not None:
         str_suffix = '(' + tag_str + ')_log.txt'
     else:
