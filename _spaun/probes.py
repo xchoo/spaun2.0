@@ -21,7 +21,7 @@ class SpaunProbeConfig(object):
     def __init__(self, spaun_model, spaun_vocab, dt, probe_data_dir,
                  probe_data_filename):
         # Probe config version number
-        self.version = 6.0
+        self.version = 6.1
 
         # File data names and locations
         self.data_dir = probe_data_dir
@@ -228,7 +228,7 @@ class ProbeCfgAnimDefault(SpaunProbeConfig):
                                data_func_name='generic_single',
                                data_func_params={
                                    'data': p0,
-                                   'reset_img': stim_data.probe_reset_img},
+                                   'reset_imgs': stim_data.probe_reset_imgs},
                                plot_type_name='imshow',
                                plot_type_params={'shape':
                                                  stim_data.probe_image_shape})
@@ -328,9 +328,9 @@ class ProbeCfgDefault(SpaunProbeConfig):
 
         # ----------- Default vocabs ------------------
         # mem_vocab = vocab_seq_list
-        # mem_vocab = vocab_pos1
+        mem_vocab = vocab_pos1
         # mem_vocab = sub_vocab1
-        mem_vocab = vocab_mem1
+        # mem_vocab = vocab_mem1
         # vocab_seq_list = vocab_rpm
 
         # ========================= MAKE PROBES ===============================
@@ -367,6 +367,16 @@ class ProbeCfgDefault(SpaunProbeConfig):
                                      vocab=self.v.vis_main)
             pvs7 = self.probe_value(net.vis_net.to_classify_output, synapse=0.03)
 
+            pvs8 = self.probe_value(net.vis_mem.output,
+                                    vocab=self.v.vis)
+            pvs8b = self.probe_value(net.vis_mem.input,
+                                     vocab=self.v.vis)
+            pvs8g = self.probe_value(net.vis_mem.gate)
+            pvs8d = self.probe_value(net.vis_mem.diff.output,
+                                     vocab=self.v.vis)
+            pvs8m = self.probe_value(net.vis_mem.mem.output,
+                                     vocab=self.v.vis)
+
             # pvsdb1 = self.probe_value(net.rmse_node)
             # pvsdb2 = self.probe_value(net.cleanup_node)
             # pvsdb3 = self.probe_value(net.diff_node)
@@ -375,7 +385,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
 
             self.add_graph('vis', [p0, pvs7, pvs1, pvs2, pvs3, pvs3i, pvs6, pvs6b, pvs6g])
             # self.add_graph('vis net', [pvs4, pvs4b, pvs5])  ##
-            # self.add_graph('vis mem', [pvs6, pvs6b, pvs6d, pvs6m])  ##
+            # self.add_graph('vis main mem', [pvs6, pvs6b, pvs6d, pvs6m])  ##
+            self.add_graph('vis mem', [pvs8, pvs8b, pvs8g, pvs8d, pvs8m])  ##
             # self.add_graph('vis dbg',
             #                [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
 
@@ -1086,3 +1097,254 @@ class ProbeCfgDarpaMotor(SpaunProbeConfig):
         self.add_graph('Adaptive Motor Network',
                        [p0, pmm1, pmtr1, pmtr2, pmtr5, pmtr6, pmtr3, pmtr4],
                        [pmm1])
+
+
+class ProbeCfgDarpaInstr1(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
+        else:
+            p0 = self.probe_null()
+
+        if hasattr(self.m, 'instr'):
+            instr_in_vocab = self.v.main.create_subset([])
+            instr_in_vocab.readonly = False
+            instr_map = {'I1: 4 -> 2': [1, ['VIS*FOR', 'DATA*POS1*TWO']],
+                         'I2: 9 -> 3': [2, ['VIS*NIN', 'DATA*POS1*THR']],
+                         'I3: 4 -> 1': [1, ['VIS*FOR', 'DATA*POS1*ONE']],
+                         'I4: 9 -> 8': [2, ['VIS*NIN', 'DATA*POS1*EIG']]}
+            for sp_str in sorted(instr_map.keys()):
+                instr_in_vocab.add(
+                    sp_str, (self.v.main.parse('POS%i' %
+                                               instr_map[sp_str][0]) *
+                             self.v.parse_instr_sps(*instr_map[sp_str][1])))
+            pins1 = self.probe_value(self.m.instr.instr_input,
+                                     vocab=instr_in_vocab, label='Instr In')
+            pins2 = self.probe_spike(self.m.instr.instr_ea.all_ensembles[0],
+                                     label='Instr In')
+
+            pins3 = self.probe_spike(
+                self.m.instr.instr_pos_cconv.product.all_ensembles[0],
+                label='Instr L1')
+
+            pins4 = self.probe_spike(
+                self.m.instr.instr_cons_cconv.product.all_ensembles[0],
+                label='Instr L2')
+
+            data_out_vocab = self.v.main.create_subset([])
+            data_out_vocab.readonly = False
+            for sp_str in ['POS1*FOR', 'POS1*TWO', 'POS1*THR', 'POS1*EIG']:
+                data_out_vocab.add(sp_str, self.v.main.parse(sp_str))
+            pins5 = self.probe_value(self.m.instr.data_sig_gen.output,
+                                     vocab=data_out_vocab, label='Data Out')
+        else:
+            pins1 = self.probe_null()
+            pins2 = self.probe_null()
+            pins3 = self.probe_null()
+            pins4 = self.probe_null()
+            pins5 = self.probe_null()
+
+        if hasattr(self.m, 'mtr'):
+            pmtr3 = self.probe_value(self.m.mtr.ramp,
+                                     label='Mtr Ramp')
+            pmtr4 = self.probe_path(
+                self.m.mtr.zero_centered_arm_ee_loc,
+                self.m.mtr.pen_down, synapse=0.05,
+                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                label='Arm Output')
+        else:
+            pmtr3 = self.probe_null()
+            pmtr4 = self.probe_null()
+
+        self.add_graph('Instruction Processing Network',
+                       [p0, pins1, pins2, pins3, pins4, pins5, pmtr3, pmtr4],
+                       [pins1, pins5])
+
+
+class ProbeCfgDarpaInstr2(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
+        else:
+            p0 = self.probe_null()
+
+        if hasattr(self.m, 'instr'):
+            instr_in_vocab = self.v.main.create_subset([])
+            instr_in_vocab.readonly = False
+            instr_map = {'I1: 1 -> Copy Draw': [1, ['VIS*ONE', 'TASK*W']],
+                         'I2: 2 -> Digit Recog': [2, ['VIS*TWO', 'TASK*R']],
+                         'I3: 1 -> Memory (Fwd)': [1, ['VIS*ONE',
+                                                       'TASK*M + DEC*FWD']],
+                         'I4: 2 -> Memory (Rev)': [2, ['VIS*TWO',
+                                                       'TASK*M + DEC*REV']]}
+            for sp_str in sorted(instr_map.keys()):
+                instr_in_vocab.add(
+                    sp_str, (self.v.main.parse('POS%i' %
+                                               instr_map[sp_str][0]) *
+                             self.v.parse_instr_sps(*instr_map[sp_str][1])))
+            pins1 = self.probe_value(self.m.instr.instr_input,
+                                     vocab=instr_in_vocab, label='Instr In')
+            pins2 = self.probe_spike(self.m.instr.instr_ea.all_ensembles[0],
+                                     label='Instr In')
+
+            pins3 = self.probe_spike(
+                self.m.instr.instr_pos_cconv.product.all_ensembles[0],
+                label='Instr L1')
+
+            pins4 = self.probe_spike(
+                self.m.instr.instr_cons_cconv.product.all_ensembles[0],
+                label='Instr L2')
+
+            task_out_vocab = self.v.main.create_subset([])
+            task_out_vocab.readonly = False
+            task_map = {'Copy Draw': 'W',
+                        'Digit Recg': 'R',
+                        'Memory': 'M'}
+            for sp_str in task_map:
+                task_out_vocab.add(sp_str, self.v.main.parse(task_map[sp_str]))
+            pins5 = self.probe_value(self.m.instr.task_sig_gen.output,
+                                     vocab=task_out_vocab, label='Task Out')
+
+            dec_out_vocab = self.v.main.create_subset([])
+            dec_out_vocab.readonly = False
+            dec_map = {'Forward': 'FWD',
+                       'Reverse': 'REV'}
+            for sp_str in dec_map:
+                dec_out_vocab.add(sp_str, self.v.main.parse(dec_map[sp_str]))
+            pins6 = self.probe_value(self.m.instr.dec_sig_gen.output,
+                                     vocab=dec_out_vocab, label='Dec Out')
+        else:
+            pins1 = self.probe_null()
+            pins2 = self.probe_null()
+            pins3 = self.probe_null()
+            pins4 = self.probe_null()
+            pins5 = self.probe_null()
+            pins6 = self.probe_null()
+
+        if hasattr(self.m, 'mem'):
+            mem_vocab = self.v.main.create_subset([])
+            mem_vocab.readonly = False
+            for sp_str in ['POS1*FOR', 'POS1*THR', 'POS2*TWO', 'POS3*SEV']:
+                mem_vocab.add(sp_str, self.v.main.parse(sp_str))
+            pmm1 = self.probe_value(self.m.mem.mb1, vocab=mem_vocab,
+                                    label='Working Mem')
+        else:
+            pmm1 = self.probe_null()
+
+        if hasattr(self.m, 'mtr'):
+            pmtr3 = self.probe_value(self.m.mtr.ramp,
+                                     label='Mtr Ramp')
+            pmtr4 = self.probe_path(
+                self.m.mtr.zero_centered_arm_ee_loc,
+                self.m.mtr.pen_down, synapse=0.05,
+                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                label='Arm Output')
+        else:
+            pmtr3 = self.probe_null()
+            pmtr4 = self.probe_null()
+
+        self.add_graph('Instruction Processing Network',
+                       [p0, pins1, pins2, pins3, pins4, pins5, pins6, pmm1,
+                        pmtr3, pmtr4],
+                       [pmm1, pins1, pins5, pins6])
+
+
+class ProbeCfgDarpaInstr3(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
+        else:
+            p0 = self.probe_null()
+
+        if hasattr(self.m, 'instr'):
+            instr_in_vocab = self.v.main.create_subset([])
+            instr_in_vocab.readonly = False
+            instr_map = {'I1: #3 -> Copy Draw': [1, ['POS3', 'TASK*W']],
+                         'I2: #2 -> Digit Recog': [2, ['POS2', 'TASK*R']],
+                         'I3: #1 -> Memory (Fwd)': [3, ['POS1',
+                                                        'TASK*M + DEC*FWD']]}
+            for sp_str in sorted(instr_map.keys()):
+                instr_in_vocab.add(
+                    sp_str, (self.v.main.parse('POS%i' %
+                                               instr_map[sp_str][0]) *
+                             self.v.parse_instr_sps(*instr_map[sp_str][1])))
+            pins1 = self.probe_value(self.m.instr.instr_input,
+                                     vocab=instr_in_vocab, label='Instr In')
+            pins2 = self.probe_spike(self.m.instr.instr_ea.all_ensembles[0],
+                                     label='Instr In')
+
+            pins3 = self.probe_spike(
+                self.m.instr.instr_pos_cconv.product.all_ensembles[0],
+                label='Instr L1')
+
+            pins4 = self.probe_spike(
+                self.m.instr.instr_cons_cconv.product.all_ensembles[0],
+                label='Instr L2')
+
+            task_out_vocab = self.v.main.create_subset([])
+            task_out_vocab.readonly = False
+            task_map = {'Copy Draw': 'W',
+                        'Digit Recg': 'R',
+                        'Memory': 'M'}
+            for sp_str in task_map:
+                task_out_vocab.add(sp_str, self.v.main.parse(task_map[sp_str]))
+            pins5 = self.probe_value(self.m.instr.task_sig_gen.output,
+                                     vocab=task_out_vocab, label='Task Out')
+
+            dec_out_vocab = self.v.main.create_subset([])
+            dec_out_vocab.readonly = False
+            dec_map = {'Forward': 'FWD',
+                       'Reverse': 'REV'}
+            for sp_str in dec_map:
+                dec_out_vocab.add(sp_str, self.v.main.parse(dec_map[sp_str]))
+            pins6 = self.probe_value(self.m.instr.dec_sig_gen.output,
+                                     vocab=dec_out_vocab, label='Dec Out')
+        else:
+            pins1 = self.probe_null()
+            pins2 = self.probe_null()
+            pins3 = self.probe_null()
+            pins4 = self.probe_null()
+            pins5 = self.probe_null()
+            pins6 = self.probe_null()
+
+        if hasattr(self.m, 'mem'):
+            mem_vocab = self.v.main.create_subset([])
+            mem_vocab.readonly = False
+            for sp_str in ['POS1*FOR', 'POS1*THR', 'POS2*TWO', 'POS3*SEV']:
+                mem_vocab.add(sp_str, self.v.main.parse(sp_str))
+            pmm1 = self.probe_value(self.m.mem.mb1, vocab=mem_vocab,
+                                    label='Working Mem')
+        else:
+            pmm1 = self.probe_null()
+
+        if hasattr(self.m, 'mtr'):
+            pmtr3 = self.probe_value(self.m.mtr.ramp,
+                                     label='Mtr Ramp')
+            pmtr4 = self.probe_path(
+                self.m.mtr.zero_centered_arm_ee_loc,
+                self.m.mtr.pen_down, synapse=0.05,
+                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                label='Arm Output')
+        else:
+            pmtr3 = self.probe_null()
+            pmtr4 = self.probe_null()
+
+        self.add_graph('Instruction Processing Network',
+                       [p0, pins1, pins2, pins3, pins4, pins5, pins6, pmm1,
+                        pmtr3, pmtr4],
+                       [pmm1, pins1, pins5, pins6])

@@ -92,7 +92,7 @@ class VisionSystem(Module):
         # <vis_mem_no_gate_sp_vecs>).
 
         nengo.Connection(self.detect_change_net.output, self.vis_mem.gate,
-                         transform=5)
+                         transform=5, synapse=0.02)
 
         # Visual memory (for the visual concept semantic pointers - out
         #                of the AM)

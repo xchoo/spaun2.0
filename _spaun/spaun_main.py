@@ -121,9 +121,9 @@ def Spaun():
                     ['0.5 * (dot(ps_task, X) + dot(vis, NIN)) --> ps_task = INSTR, ps_state = DIRECT, ps_dec = FWD',  # noqa
                      # 'dot(ps_task, INSTR) - dot(vis, QM + A) --> trfm_input = instr_data',  # noqa - Note: this is the bg 'instr' rule in it's simplified form
                      'dot(ps_task, INSTR) - dot(vis, QM + A + M + P + CLOSE) - dot(ps_state, INSTRP) --> instr_en = ENABLE, ps_task = instr_task, ps_state = instr_state, ps_dec = instr_dec, trfm_input = instr_data',  # noqa
-                     '1.5 * dot(vis, M) --> ps_task = INSTR, ps_state = TRANS0, ps_dec = FWD',   # noqa
+                     '1.5 * dot(vis, M + V) --> ps_task = INSTR, ps_state = TRANS0, ps_dec = FWD',   # noqa - Note: V no longer keeps state, dec information from before. Need to set in instruction
                      '0.5 * (dot(ps_task, INSTR) + dot(vis, P)) --> ps_task = INSTR, ps_state = INSTRP',   # noqa
-                     '1.5 * dot(vis, V) --> ps_task = INSTR, ps_state = INSTRV',   # noqa
+                     # '1.5 * dot(vis, V) --> ps_task = INSTR',  # , ps_state = INSTRV',  # Note: INSTRV state never used? # noqa
                      '0.5 * (dot(ps_task, INSTR) + dot(ps_state, INSTRP)) --> ps_task = INSTR, ps_state = TRANS0',   # noqa
                      # 'dot(instr_util, INSTR) - dot(ps_task, INSTR) --> instr_en = ENABLE, ps_task = instr_task, ps_state = instr_state, ps_dec = instr_dec, trfm_input = instr_data',  # noqa
                      ]  # noqa

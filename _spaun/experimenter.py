@@ -583,7 +583,7 @@ class SpaunExperiment(object):
                 if (stim_char == '.'):
                     # logger.write('_')
                     logger.write('')  # Ignore the . blank character
-                elif stim_char in ['A', 'M']:  # and self.prev_t_ind >= 0:
+                elif stim_char in ['A', 'M', 'V']:  # and self.prev_t_ind >= 0:
                     logger.write('\n' + stim_char)
                 elif isinstance(stim_char, int):
                     logger.write('<%s>' % stim_char)

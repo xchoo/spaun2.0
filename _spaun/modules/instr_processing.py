@@ -62,7 +62,7 @@ class InstructionProcessingSystem(Module):
         nengo.Connection(self.vis_input, vis_am.input)
 
         # Ignore some visual inputs
-        ignored_vis_sp = vocab.vis_main.parse('A+M+QM').v
+        ignored_vis_sp = vocab.vis_main.parse('A+M+V+QM').v
         nengo.Connection(bias_node, vis_am.input,
                          transform=-ignored_vis_sp[:, None])
 
@@ -113,7 +113,14 @@ class InstructionProcessingSystem(Module):
 
         # ----------- SEQUENTIAL INSTRUCTION POSITION INC NETWORK -------------
         # Position increment network for sequential instructions
-        # Note; There is no position 0 instruction. Starts at position 1.
+        # Note: There is no position 0 instruction. Starts at position 1.
+        # Note: Instruction position must be encoded into each instruction to
+        #       work. Sequential instruction position differs from POS tag for
+        #       individual instructions. I.e. you can have out of order
+        #       sequential instruction. E.g.
+        #       1. First instruction ...
+        #       2. Third instruction ...
+        #       3. Second instruction ...
         self.pos_inc = Set_Pos_Inc_Net(vocab.pos, vocab.main.parse('0').v,
                                        vocab.inc_sp, vocab.item_1_index,
                                        threshold_gate_in=True)
@@ -264,6 +271,14 @@ class InstructionProcessingSystem(Module):
 
         self.pos_instr = instr_cons_cconv.B
         # self.pos_given = pos_given
+
+        self.instr_pos_cconv = instr_pos_cconv
+        self.instr_cons_cconv = instr_cons_cconv
+
+        self.data_sig_gen = data_sig_gen
+        self.task_sig_gen = task_sig_gen
+        self.state_sig_gen = state_sig_gen
+        self.dec_sig_gen = dec_sig_gen
         # ## DEBUG ## #
 
     def setup_connections(self, parent_net):

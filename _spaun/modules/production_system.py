@@ -126,7 +126,7 @@ class ProductionSystem(Module):
                                         task_mb_rst_sp_vecs])
 
             # ###### State MB ########
-            state_mb_gate_sp_vecs = vocab.main.parse('CLOSE+K+P+QM').v
+            state_mb_gate_sp_vecs = vocab.main.parse('CLOSE+M+V+K+P+QM').v
             state_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.state_mb.gate,
@@ -140,7 +140,7 @@ class ProductionSystem(Module):
                                         state_mb_rst_sp_vecs])
 
             # ###### Dec MB ########
-            dec_mb_gate_sp_vecs = vocab.main.parse('F+R+QM').v
+            dec_mb_gate_sp_vecs = vocab.main.parse('M+V+F+R+QM').v
             dec_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.dec_mb.gate,
