@@ -1,0 +1,223 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+  
+  <!-- Licensed under the Apache 2.0 License -->
+  <link rel="stylesheet" type="text/css" href="_static/fonts/open-sans/stylesheet.css" />
+  <!-- Licensed under the SIL Open Font License -->
+  <link rel="stylesheet" type="text/css" href="_static/fonts/source-serif-pro/source-serif-pro.css" />
+  <link rel="stylesheet" type="text/css" href="_static/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="_static/css/bootstrap-theme.min.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+    <title>Spaun &#8212; Spaun 2017-07-05 documentation</title>
+    
+    <link rel="stylesheet" href="_static/guzzle.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2017-07-05',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Videos" href="videos.html" />
+<link rel="stylesheet" type="text/css" href="_static/custom.css">
+
+
+  
+   
+
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="videos.html" title="Videos"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Spaun 2017-07-05 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="container-wrapper">
+
+      <div id="mobile-toggle">
+        <a href="#"><span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span></a>
+      </div>
+  <div id="left-column">
+    <div class="sphinxsidebar">
+        <a href="
+    #" class="text-logo">Spaun</a>
+        
+<div class="sidebar-block">
+  <div class="sidebar-wrapper">
+    <h2>Table Of Contents</h2>
+  </div>
+  <div class="sidebar-toc">
+    
+    
+      <ul>
+<li class="toctree-l1"><a class="reference internal" href="videos.html">Videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="press.html">Popular press</a></li>
+</ul>
+
+    
+  </div>
+</div>
+        
+<div class="sidebar-block">
+  <div class="sidebar-wrapper">
+    <div id="main-search">
+      <form class="form-inline" action="search.html" method="GET" role="form">
+        <div class="input-group">
+          <input name="q" type="text" class="form-control" placeholder="Search...">
+        </div>
+        <input type="hidden" name="check_keywords" value="yes" />
+        <input type="hidden" name="area" value="default" />
+      </form>
+    </div>
+  </div>
+</div>
+    </div>
+  </div>
+        <div id="right-column">
+          
+          <div role="navigation" aria-label="breadcrumbs navigation">
+            <ol class="breadcrumb">
+              <li><a href="#">Docs</a></li>
+              
+              <li>Spaun</li>
+            </ol>
+          </div>
+          
+          <div class="document clearer body">
+            
+  <div class="section" id="spaun">
+<h1>Spaun<a class="headerlink" href="#spaun" title="Permalink to this headline">¶</a></h1>
+<p>Spaun is currently the world’s largest functional brain model.
+It is the main focus of Chapter 7 of <a class="reference external" href="http://www.amazon.com/How-Build-Brain-Architecture-Architectures/dp/0199794545/">How to Build a Brain</a>
+by Chris Eliasmith.
+Spaun first appeared in Science;
+these documents also serve as a home
+to supporting material for the original paper.</p>
+<p>The Spaun model consists of about 2.5 million spiking neurons.
+It has a single eye and an arm.
+All input is raw images shown to the eye,
+and all output is arm movements,
+controlled directly by the brain.</p>
+<div class="topic">
+<p class="topic-title first">Spaun performing several tasks</p>
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/RrxmlbZa7C4" frameborder="0" allowfullscreen></iframe></div>
+<p>This project contains the Spaun <a class="footnote-reference" href="#id2" id="id1">[1]</a> model,
+updated for Nengo 2.0.</p>
+<table class="docutils footnote" frame="void" id="id2" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Chris Eliasmith, Terrence C. Stewart, Xuan Choo, Trevor Bekolay,
+Travis DeWolf, Yichuan Tang, and Daniel Rasmussen. A large-scale model
+of the functioning brain. Science, 338:1202-1205, 2012.
+doi:10.1126/science.1225266.</td></tr>
+</tbody>
+</table>
+<div class="section" id="running-with-nengo-ocl">
+<h2>Running with Nengo OCL<a class="headerlink" href="#running-with-nengo-ocl" title="Permalink to this headline">¶</a></h2>
+<p>If you want to run with <code class="docutils literal"><span class="pre">nengo_ocl</span></code>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">run_spaun</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">d</span> <span class="mi">512</span> <span class="o">--</span><span class="n">ocl</span> <span class="o">--</span><span class="n">ocl_platform</span><span class="o">=</span><span class="mi">1</span> <span class="o">--</span><span class="n">ocl_device</span><span class="o">=</span><span class="mi">3</span>
+</pre></div>
+</div>
+<p>where:</p>
+<ul class="simple">
+<li>the <code class="docutils literal"><span class="pre">-d</span></code> flag sets the dimensionality of Spaun,</li>
+<li>the <code class="docutils literal"><span class="pre">--ocl</span></code> flag tells the run script to use <code class="docutils literal"><span class="pre">nengo_ocl</span></code></li>
+<li>the –ocl_platform flag tells it what OCL platform to use</li>
+<li>the –ocl_device flag tells it what ocl device to use on said platform
+(this flag is optional, it’s used in the context creation for pyopencl)</li>
+</ul>
+<p>To determine the <code class="docutils literal"><span class="pre">ocl_platform</span></code> and <code class="docutils literal"><span class="pre">ocl_device</span></code> of the device you want to
+use, see <code class="docutils literal"><span class="pre">pyopencl.create_some_context()</span></code>.</p>
+<p>To enable OCL profiling, find where the <code class="docutils literal"><span class="pre">nengo_ocl.Simulator</span></code> is created
+in <code class="docutils literal"><span class="pre">run_spaun.py</span></code>, and uncomment the version that has provifiling enabled.
+Also uncomment the line to print profiling.</p>
+</div>
+<div class="section" id="resources">
+<h2>Resources<a class="headerlink" href="#resources" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="videos.html">Videos</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="videos.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="videos.html#tasks">Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="press.html">Popular press</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+            
+  <div class="footer-relations">
+    
+      <div class="pull-right">
+        <a class="btn btn-default" href="videos.html" title="next chapter (use the right arrow)">Videos</a>
+      </div>
+    </div>
+    <div class="clearer"></div>
+  
+        </div>
+        <div class="clearfix"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="videos.html" title="Videos"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Spaun 2017-07-05 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $(".toggle > *").hide();
+      $(".toggle .header").show();
+      $(".toggle .header").click(function() {
+        $(this).parent().children().not(".header").toggle(400);
+        $(this).parent().children(".header").toggleClass("open");
+      });
+    });
+  </script>
+
+<script type="text/javascript">
+  $("#mobile-toggle a").click(function () {
+    $("#left-column").toggle();
+  });
+</script>
+<script type="text/javascript" src="_static/js/bootstrap.js"></script>
+  <div class="footer">
+    &copy; Copyright 2015-2017, Applied Brain Research. Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  </body>
+</html>
