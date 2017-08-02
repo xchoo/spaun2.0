@@ -1,0 +1,17 @@
+language: python
+python: 3.6
+
+install:
+  - pip install -r docs/requirements.txt
+
+script:
+  - sphinx-build -W docs docs/_build
+
+after_success:
+  - if [[ $TRAVIS_BRANCH == 'master' ]]; then
+      export DATE=$(date '+%Y-%m-%d %T');
+      git config --global user.email "travis@travis-ci.org";
+      git config --global user.name "TravisCI";
+      ghp-import -m "Last update at $DATE" -b gh-pages docs/_build;
+      git push -fq "https://$GH_TOKEN@github.com/xchoo/spaun2.0.git" gh-pages;
+    fi

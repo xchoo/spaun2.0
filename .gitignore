@@ -3,5 +3,6 @@
 *.pkc
 .DS_Store
 
+_build/
 data/
 reference_code/
