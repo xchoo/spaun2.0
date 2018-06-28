@@ -13,177 +13,185 @@ from _spaun.modules.vision.data import vis_data
 from _spaun.modules.motor.data import mtr_data
 from _spaun.utils import get_probe_data_filename
 
+# ----- Spaun imports -----
+from _spaun.utils import get_total_n_neurons
+from _spaun.probes import default_probe_config, default_anim_config
+from _spaun.spaun_main import Spaun
+
 # ----- Defaults -----
-def_dim = 512
-def_seq = 'A'
-# def_seq = 'A0[#1]?X'
-# def_seq = 'A0[#1#2#3]?XXX'
-# def_seq = 'A1[#1]?XXX'
-# def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-# def_seq = 'A3[1234]?XXXX'
-def_seq = 'A3[123]?XXXX'
-# def_seq = 'A3[222]?XXXX'
-# def_seq = 'A3[2567589]?XXXXXXXXX'
-# def_seq = 'A4[5][3]?XXXXXX'
-# def_seq = 'A4[321][3]?XXXXXXX'
-# def_seq = 'A4[0][9]?XXXXXXXXXXX'
-# def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
-# def_seq = 'A5[123]K[3]?X'
-# def_seq = 'A5[123]P[1]?X'
-# def_seq = 'A6[12][2][82][2][42]?XXXXX'
-# def_seq = 'A6[8812][12][8842][42][8862][62][8832]?XXXXX'
-# def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
-# def_seq = 'A7[1][2][3][2]?XX'
-# def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
-# def_seq = 'A1[1]?XXA1[22]?XX'
-# def_seq = '{A1[R]?X:5}'
-# def_seq = '{A3[{R:7}]?{X:8}:5}'
-# def_seq = '{A3[{R:7}]?{X:8}:160}'
-# def_seq = 'A3[{R:7}]?{X:8}'
+def set_defaults():
+    def_dim = 512
+    def_seq = 'A'
+    # def_seq = 'A0[#1]?X'
+    # def_seq = 'A0[#1#2#3]?XXX'
+    # def_seq = 'A1[#1]?XXX'
+    # def_seq = 'A2?XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+    # def_seq = 'A3[1234]?XXXX'
+    def_seq = 'A3[123]?XXXX'
+    # def_seq = 'A3[222]?XXXX'
+    # def_seq = 'A3[2567589]?XXXXXXXXX'
+    # def_seq = 'A4[5][3]?XXXXXX'
+    # def_seq = 'A4[321][3]?XXXXXXX'
+    # def_seq = 'A4[0][9]?XXXXXXXXXXX'
+    # def_seq = 'A4[0][9]?XXXXXXXXXXXA3[1234321]?XXXXXXXX'
+    # def_seq = 'A5[123]K[3]?X'
+    # def_seq = 'A5[123]P[1]?X'
+    # def_seq = 'A6[12][2][82][2][42]?XXXXX'
+    # def_seq = 'A6[8812][12][8842][42][8862][62][8832]?XXXXX'
+    # def_seq = 'A7[1][2][3][2][3][4][3][4]?XXX'
+    # def_seq = 'A7[1][2][3][2]?XX'
+    # def_seq = 'A7[1][11][111][2][22][222][3][33]?XXXXX'
+    # def_seq = 'A1[1]?XXA1[22]?XX'
+    # def_seq = '{A1[R]?X:5}'
+    # def_seq = '{A3[{R:7}]?{X:8}:5}'
+    # def_seq = '{A3[{R:7}]?{X:8}:160}'
+    # def_seq = 'A3[{R:7}]?{X:8}'
 
-def_mpi_p = 128
+    def_mpi_p = 128
 
-# ----- Definite maximum probe time (if est_sim_time > max_probe_time,
-#       disable probing)
-max_probe_time = 60
+    # ----- Definite maximum probe time (if est_sim_time > max_probe_time,
+    #       disable probing)
+    max_probe_time = 60
 
-# ----- Add current directory to system path ---
-cur_dir = os.getcwd()
+    # ----- Add current directory to system path ---
+    cur_dir = os.path.dirname(__file__)
 
-# ----- Parse arguments -----
-parser = argparse.ArgumentParser(description='Script for running Spaun.')
-parser.add_argument(
-    '-d', type=int, default=def_dim,
-    help='Number of dimensions to use for the semantic pointers.')
-parser.add_argument(
-    '-t', type=float, default=-1,
-    help=('Simulation run time in seconds. If undefined, will be estimated' +
-          ' from the stimulus sequence.'))
-parser.add_argument(
-    '-n', type=int, default=1,
-    help='Number of batches to run (each batch is a new model).')
-parser.add_argument(
-    '-s', type=str, default=def_seq,
-    help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
-         '"#" to a digit to use handwritten digits, a "[" for the open ' +
-         'bracket, a "]" for the close bracket, and a "X" for each expected ' +
-         'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
-parser.add_argument(
-    '-b', type=str, default='ref',
-    help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
-parser.add_argument(
-    '--data_dir', type=str, default=os.path.join(cur_dir, 'data'),
-    help='Directory to store output data.')
-parser.add_argument(
-    '--noprobes', action='store_true',
-    help='Supply to disable probes.')
-parser.add_argument(
-    '--probeio', action='store_true',
-    help='Supply to generate probe data for spaun inputs and outputs.' +
-         '(recorded in a separate probe data file)')
-parser.add_argument(
-    '--seed', type=int, default=-1,
-    help='Random seed to use.')
-parser.add_argument(
-    '--showgrph', action='store_true',
-    help='Supply to show graphing of probe data.')
-parser.add_argument(
-    '--showanim', action='store_true',
-    help='Supply to show animation of probe data.')
-parser.add_argument(
-    '--showiofig', action='store_true',
-    help='Supply to show Spaun input/output figure.')
-parser.add_argument(
-    '--tag', type=str, default="",
-    help='Tag string to apply to probe data file name.')
-parser.add_argument(
-    '--enable_cache', action='store_true',
-    help='Supply to use nengo caching system when building the nengo model.')
+    # ----- Parse arguments -----
+    parser = argparse.ArgumentParser(description='Script for running Spaun.')
+    parser.add_argument(
+        '-d', type=int, default=def_dim,
+        help='Number of dimensions to use for the semantic pointers.')
+    parser.add_argument(
+        '-t', type=float, default=-1,
+        help=('Simulation run time in seconds. If undefined, will be estimated' +
+              ' from the stimulus sequence.'))
+    parser.add_argument(
+        '-n', type=int, default=1,
+        help='Number of batches to run (each batch is a new model).')
+    parser.add_argument(
+        '-s', type=str, default=def_seq,
+        help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
+             '"#" to a digit to use handwritten digits, a "[" for the open ' +
+             'bracket, a "]" for the close bracket, and a "X" for each expected ' +
+             'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
+    parser.add_argument(
+        '-b', type=str, default='ref',
+        help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
+    parser.add_argument(
+        '--data_dir', type=str, default=os.path.join(cur_dir, 'data'),
+        help='Directory to store output data.')
+    parser.add_argument(
+        '--noprobes', action='store_true',
+        help='Supply to disable probes.')
+    parser.add_argument(
+        '--probeio', action='store_true',
+        help='Supply to generate probe data for spaun inputs and outputs.' +
+             '(recorded in a separate probe data file)')
+    parser.add_argument(
+        '--seed', type=int, default=-1,
+        help='Random seed to use.')
+    parser.add_argument(
+        '--showgrph', action='store_true',
+        help='Supply to show graphing of probe data.')
+    parser.add_argument(
+        '--showanim', action='store_true',
+        help='Supply to show animation of probe data.')
+    parser.add_argument(
+        '--showiofig', action='store_true',
+        help='Supply to show Spaun input/output figure.')
+    parser.add_argument(
+        '--tag', type=str, default="",
+        help='Tag string to apply to probe data file name.')
+    parser.add_argument(
+        '--enable_cache', action='store_true',
+        help='Supply to use nengo caching system when building the nengo model.')
 
-parser.add_argument(
-    '--ocl', action='store_true',
-    help='Supply to use the OpenCL backend (will override -b).')
-parser.add_argument(
-    '--ocl_platform', type=int, default=0,
-    help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
-          ' backend can be listed using "pyopencl.get_platforms()"'))
-parser.add_argument(
-    '--ocl_device', type=int, default=-1,
-    help=('OCL Only: List index of the device on the OpenCL platform to use.' +
-          ' OpenCL devices can be listed using ' +
-          '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
-          'of the plaform to use.'))
-parser.add_argument(
-    '--ocl_profile', action='store_true',
-    help='Supply to use NengoOCL profiler.')
+    parser.add_argument(
+        '--ocl', action='store_true',
+        help='Supply to use the OpenCL backend (will override -b).')
+    parser.add_argument(
+        '--ocl_platform', type=int, default=0,
+        help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
+              ' backend can be listed using "pyopencl.get_platforms()"'))
+    parser.add_argument(
+        '--ocl_device', type=int, default=-1,
+        help=('OCL Only: List index of the device on the OpenCL platform to use.' +
+              ' OpenCL devices can be listed using ' +
+              '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
+              'of the plaform to use.'))
+    parser.add_argument(
+        '--ocl_profile', action='store_true',
+        help='Supply to use NengoOCL profiler.')
 
-parser.add_argument(
-    '--mpi', action='store_true',
-    help='Supply to use the MPI backend (will override -b).')
-parser.add_argument(
-    '--mpi_save', type=str, default='spaun.net',
-    help=('MPI Only: Filename to use to write the generated Spaun network ' +
-          'to. Defaults to "spaun.net". *Note: Final filename includes ' +
-          'neuron type, dimensionality, and stimulus information.'))
-parser.add_argument(
-    '--mpi_p', type=int, default=def_mpi_p,
-    help='MPI Only: Number of processors to use.')
-parser.add_argument(
-    '--mpi_p_auto', action='store_true',
-    help='MPI Only: Use the automatic partitioner')
-parser.add_argument(
-    '--mpi_compress_save', action='store_true',
-    help='Supply to compress the saved net file with gzip.')
+    parser.add_argument(
+        '--mpi', action='store_true',
+        help='Supply to use the MPI backend (will override -b).')
+    parser.add_argument(
+        '--mpi_save', type=str, default='spaun.net',
+        help=('MPI Only: Filename to use to write the generated Spaun network ' +
+              'to. Defaults to "spaun.net". *Note: Final filename includes ' +
+              'neuron type, dimensionality, and stimulus information.'))
+    parser.add_argument(
+        '--mpi_p', type=int, default=def_mpi_p,
+        help='MPI Only: Number of processors to use.')
+    parser.add_argument(
+        '--mpi_p_auto', action='store_true',
+        help='MPI Only: Use the automatic partitioner')
+    parser.add_argument(
+        '--mpi_compress_save', action='store_true',
+        help='Supply to compress the saved net file with gzip.')
 
-parser.add_argument(
-    '--spinn', action='store_true',
-    help='Supply to use the SpiNNaker backend (will override -b).')
+    parser.add_argument(
+        '--spinn', action='store_true',
+        help='Supply to use the SpiNNaker backend (will override -b).')
 
-parser.add_argument(
-    '--nengo_gui', action='store_true',
-    help='Supply to use the nengo_viz vizualizer to run Spaun.')
+    parser.add_argument(
+        '--nengo_gui', action='store_true',
+        help='Supply to use the nengo_viz vizualizer to run Spaun.')
 
-parser.add_argument(
-    '--config', type=str, nargs='*',
-    help="Use to set the various parameters in Spaun's configuration. Takes" +
-         " arguments in list format. Each argument should be in the format" +
-         " ARG_NAME=ARG_VALUE. " +
-         "\nE.g. --config sim_dt=0.002 mb_gate_scale=0.8 " +
-         "\"raw_seq_str='A1[123]?XX'\"" +
-         "\nNOTE: Will override all other options that set configuration" +
-         " options (i.e. --seed, --d, --s)" +
-         '\nNOTE: Use quotes (") to encapsulate strings if you encounter' +
-         ' problems.')
+    parser.add_argument(
+        '--config', type=str, nargs='*',
+        help="Use to set the various parameters in Spaun's configuration. Takes" +
+             " arguments in list format. Each argument should be in the format" +
+             " ARG_NAME=ARG_VALUE. " +
+             "\nE.g. --config sim_dt=0.002 mb_gate_scale=0.8 " +
+             "\"raw_seq_str='A1[123]?XX'\"" +
+             "\nNOTE: Will override all other options that set configuration" +
+             " options (i.e. --seed, --d, --s)" +
+             '\nNOTE: Use quotes (") to encapsulate strings if you encounter' +
+             ' problems.')
 
-parser.add_argument(
-    '--debug', action='store_true',
-    help='Supply to output debug stuff.')
+    parser.add_argument(
+        '--debug', action='store_true',
+        help='Supply to output debug stuff.')
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-# ----- Nengo RC Cache settings -----
-# Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
-# option is given
-if args.seed > 0 or args.enable_cache:
-    print "USING CACHE"
-    nengo.rc.set("decoder_cache", "enabled", "True")
-else:
-    print "NOT USING CACHE"
-    nengo.rc.set("decoder_cache", "enabled", "False")
+    # ----- Nengo RC Cache settings -----
+    # Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
+    # option is given
+    if args.seed > 0 or args.enable_cache:
+        print "USING CACHE"
+        nengo.rc.set("decoder_cache", "enabled", "True")
+    else:
+        print "NOT USING CACHE"
+        nengo.rc.set("decoder_cache", "enabled", "False")
 
-# ----- Backend Configurations -----
-cfg.backend = args.b
-if args.ocl:
-    cfg.backend = 'ocl'
-if args.mpi:
-    cfg.backend = 'mpi'
-if args.spinn:
-    cfg.backend = 'spinn'
+    # ----- Backend Configurations -----
+    cfg.backend = args.b
+    if args.ocl:
+        cfg.backend = 'ocl'
+    if args.mpi:
+        cfg.backend = 'mpi'
+    if args.spinn:
+        cfg.backend = 'spinn'
 
-print "BACKEND: %s" % cfg.backend.upper()
+    print "BACKEND: %s" % cfg.backend.upper()
 
-# ----- Batch runs -----
-for n in range(args.n):
+    return args, max_probe_time, cur_dir
+
+
+def create_spaun_model(n, args, max_probe_time):
     print ("\n======================== RUN %i OF %i ========================" %
            (n + 1, args.n))
 
@@ -223,11 +231,6 @@ for n in range(args.n):
                            ' does not exist. Please ensure the correct path' +
                            ' has been specified.')
 
-    # ----- Spaun imports -----
-    from _spaun.utils import get_total_n_neurons
-    from _spaun.probes import default_probe_config, default_anim_config
-    from _spaun.spaun_main import Spaun
-
     # ----- Enable debug logging -----
     if args.debug:
         nengo.log('debug')
@@ -241,6 +244,11 @@ for n in range(args.n):
     vocab.initialize_vis_vocab(vis_data.dimensions, vis_data.sps)
 
     # ----- Configure output log files -----
+    mpi_savename = None
+    mpi_saveext = None
+    probe_cfg = None
+    probe_anim_cfg = None
+    anim_probe_data_filename = None
     if cfg.use_mpi:
         sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
 
@@ -320,6 +328,13 @@ for n in range(args.n):
     # ----- Connections count debug -----
     print "MODEL N_CONNECTIONS: %i" % (len(model.all_connections))
 
+    return (model, mpi_savename, mpi_saveext, runtime, make_probes,
+            probe_cfg, probe_anim_cfg, anim_probe_data_filename)
+
+
+def run_model(
+        model, mpi_savename, mpi_saveext, runtime, make_probes,
+        probe_cfg, cur_dir, probe_anim_cfg, anim_probe_data_filename):
     # ----- Spaun simulation build -----
     print "START BUILD"
     timestamp = time.time()
@@ -515,3 +530,14 @@ for n in range(args.n):
     model = None
     sim = None
     probe_data = None
+
+
+if __name__ == "__main__":
+    args, max_probe_time, cur_dir = set_defaults()
+    for n in range(args.n):
+        (model, mpi_savename, mpi_saveext, runtime, make_probes,
+         probe_cfg, probe_anim_cfg, anim_probe_data_filename) = \
+              create_spaun_model(n, args, max_probe_time)
+        run_model(
+            model, mpi_savename, mpi_saveext, runtime, make_probes,
+            probe_cfg, cur_dir, probe_anim_cfg, anim_probe_data_filename)
