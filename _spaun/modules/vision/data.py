@@ -10,7 +10,7 @@ from .utils import load_image_data
 
 class VisionDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'vision')
+        self.filepath = os.path.dirname(__file__)
 
         # --- LIF vision network configurations ---
         self.max_rate = 63.04
