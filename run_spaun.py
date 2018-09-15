@@ -94,6 +94,12 @@ stim_presets['darpa_instr_stim_resp_5'] = \
 stim_presets['darpa_instr_stim_resp_6'] = \
     ('%I1+I2+I3+I4+I5+I6%A9{?1X?2X?3X?4X?5X?6X:5}' +
      '%I0+I9+I8+I7+I6+I5%A9{?0X?9X?8X?7X?6X?5X:5}', stim_resp_i)
+stim_presets['darpa_instr_stim_resp_7'] = \
+    ('%I1+I2+I3+I4+I5+I6+I7%A9{?1X?2X?3X?4X?5X?6X?7X:5}' +
+     '%I0+I9+I8+I7+I6+I5+I4%A9{?0X?9X?8X?7X?6X?5X?4X:5}', stim_resp_i)
+stim_presets['darpa_instr_stim_resp_8'] = \
+    ('%I1+I2+I3+I4+I5+I6+I7+I8%A9{?1X?2X?3X?4X?5X?6X?7X?8X:5}' +
+     '%I0+I9+I8+I7+I6+I5+I4+I3%A9{?0X?9X?8X?7X?6X?5X?4X?3X:5}', stim_resp_i)
 
 stim_task_i = 'I1: VIS*ONE, TASK*F;I2: VIS*TWO, TASK*C;' + \
               'I3: VIS*THR, TASK*M + DEC*REV; I4: VIS*FOR, TASK*W;' + \
@@ -177,8 +183,124 @@ stim_presets['darpa_instr_seq_task_demo'] = \
 
 # Darpa instruction following + imagenet + adaptive motor presets
 stim_presets['darpa_combined1'] = \
-    ('{A3[#4#2#7#5]?XXXX:8}',
-     'I1: VIS*GUENON, DATA*POS*FIV; I2: VIS*')
+    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:5}' +
+     '%I4+I5+I6%{A9?#ORGAN,X?#GREY_WHALE,X?#HALF_TRACK,X:5}' +
+     'A3[938]?XXXA3[456]?XXX',
+     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
+     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
+     'I3: VIS*PUCK, DATA*POS1*THR;' +
+     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
+     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
+     'I6: VIS*ORGAN, DATA*POS1*ONE')
+stim_presets['darpa_combined2'] = \
+    ('%I1+I2+I3%{A9?#1,X?#2,X?#3,X:5}' +
+     '%I4+I5+I6%{A9?#4,X?#3,X?#5,X:5}' +
+     'A3[938]?XXXA3[456]?XXX',
+     'I1: VIS*ONE, DATA*POS1*NIN;' +
+     'I2: VIS*TWO, DATA*POS1*SEV;' +
+     'I3: VIS*THR, DATA*POS1*THR;' +
+     'I4: VIS*FOR, DATA*POS1*EIG;' +
+     'I5: VIS*THR, DATA*POS1*TWO;' +
+     'I6: VIS*FIV, DATA*POS1*ONE')
+stim_presets['darpa_combined_test'] = \
+    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:1}',
+     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
+     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
+     'I3: VIS*PUCK, DATA*POS1*THR;' +
+     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
+     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
+     'I6: VIS*ORGAN, DATA*POS1*ONE')
+stim_presets['darpa_combined_test2'] = \
+    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:4}',
+     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
+     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
+     'I3: VIS*PUCK, DATA*POS1*THR;' +
+     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
+     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
+     'I6: VIS*ORGAN, DATA*POS1*ONE')
+stim_presets['darpa_combined_test3'] = \
+    ('%I1+I2+I3%{A9?#1,X?#2,X?#3,X:5}',
+     'I1: VIS*ONE, DATA*POS1*NIN;' +
+     'I2: VIS*TWO, DATA*POS1*SEV;' +
+     'I3: VIS*THR, DATA*POS1*THR;' +
+     'I4: VIS*FOR, DATA*POS1*EIG;' +
+     'I5: VIS*THR, DATA*POS1*TWO;' +
+     'I6: VIS*FIV, DATA*POS1*ONE')
+stim_presets['CBC_combined'] = \
+    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:1}' +
+     '%I4+I5+I6%{A9?#ORGAN,X?#GREY_WHALE,X?#HALF_TRACK,X:1}',
+     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
+     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
+     'I3: VIS*PUCK, DATA*POS1*THR;' +
+     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
+     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
+     'I6: VIS*ORGAN, DATA*POS1*ONE')
+
+# Thesis instruction following delayed instr stim list task (single task, changing list length)
+stim_resp_i = 'I1: VIS*ONE, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX);' + \
+              'I2: VIS*TWO, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV);' + \
+              'I3: VIS*THR, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV + POS6*FOR);' + \
+              'I4: VIS*FOR, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV + POS6*FOR + POS7*THR);' + \
+              'I5: VIS*FIV, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR);' + \
+              'I6: VIS*SIX, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR);' + \
+              'I7: VIS*SEV, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR + POS6*FIV);' + \
+              'I8: VIS*EIG, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR + POS6*FIV + POS7*SIX)'
+stim_presets['delay_instr_stim_resp_4'] = \
+    ('%I1%{M1.?XXXXX:5}%I5%{M5.?XXXXX:5}', stim_resp_i)
+stim_presets['delay_instr_stim_resp_5'] = \
+    ('%I2%{M2.?XXXXXX:5}%I6%{M6.?XXXXXX:5}', stim_resp_i)
+stim_presets['delay_instr_stim_resp_6'] = \
+    ('%I3%{M3.?XXXXXXX:5}%I7%{M7.?XXXXXXX:5}', stim_resp_i)
+stim_presets['delay_instr_stim_resp_7'] = \
+    ('%I4%{M4.?XXXXXXXX:5}%I8%{M8.?XXXXXXXX:5}', stim_resp_i)
+
+# -------------------------- Thesis Presets -----------------------------------
+# Thesis instruction following custom tasks test
+stim_resp_i = 'I1: POS1, TASK*A;' + \
+              'I2: POS2, TASK*A + STATE*QAK;' + \
+              'I3: POS3, TASK*A + STATE*QAP'
+stim_presets['instr_custom0'] = \
+    ('%I1+I2+I3%MP1.[2764]P[3]?XV.[2]?XV.[2]?X', stim_resp_i)
+
+stim_resp_i = 'I1: POS1, TASK*V;' + \
+              'I2: POS2, TASK*M;' + \
+              'I3: POS3, TASK*V + STATE*TRANS1'
+stim_presets['instr_custom1'] = \
+    ('%I1+I2+I3%MP1.[1][3][2][4]V.[472]V.?XXX', stim_resp_i)
+
+stim_resp_i = 'I1: POS1, TASK*M;' + \
+              'I2: POS2, TASK*C + STATE*CNT0;' + \
+              'I3: POS3, TASK*A'
+stim_presets['instr_custom2'] = \
+    ('%I1+I2+I3%MP1.[326]V.[3]?XXXXXV.P[2]?X', stim_resp_i)
+
+stim_resp_i = 'I1: POS1, TASK*V;' + \
+              'I2: POS2, TASK*A;' + \
+              'I3: POS3, TASK*F + STATE*TRANS1;' + \
+              'I4: POS4, TASK*F + STATE*TRANS2'
+stim_presets['instr_custom3'] = \
+    ('%I1+I2+I3+I4%MP1.[1][3][2][4]V.[472]P[2]?XXV.?XXXXV.?XX', stim_resp_i)
+
+# Thesis demo graphs
+stim_resp_i = 'I1: VIS*ONE, DATA*POS1*EIG;' + \
+              'I2: VIS*TWO, DATA*POS1*ONE;' + \
+              'I3: VIS*ONE, DATA*POS1*TWO;' + \
+              'I4: VIS*TWO, DATA*POS1*EIG'
+stim_presets['instr_demo_stage2'] = \
+    ('%I1+I2%A9?1X?2X%I3+I4%A9?1X?2X', stim_resp_i)
+stim_presets['instr_demo_stage3'] = \
+    ('%I1+I2%M1?X2?X%I3+I4%M1?X2?X', stim_resp_i)
+
+stim_resp_i = 'I1: VIS*ONE, TASK*M;' + \
+              'I2: VIS*TWO, TASK*A;' + \
+              'I3: VIS*ONE, TASK*C'
+stim_presets['instr_demo_stage4'] = \
+    ('%I1+I2%M1.[523]?XXXXM2.[679]P[2]?XX%I3%M1.[5][2]?XXXX', stim_resp_i)
+
+stim_resp_i = 'I1: POS1, TASK*C;' + \
+              'I2: POS2, TASK*M'
+stim_presets['instr_demo_stage5'] = \
+    ('%I1+I2%MP2.[154]?XXXMP1.[6][1]?XXV.[83]?XX', stim_resp_i)
 
 # ----- Configuration presets -----
 cfg_presets = {}
@@ -208,18 +330,51 @@ cfg_presets['darpa_vis_imagenet_wta'] = \
     ["stim_module='imagenet'", "vis_module='lif_imagenet_wta'",
      "probe_graph_config='ProbeCfgDarpaVisionImagenet'"]
 
+# Darpa imagenet + instruction following + adaptive motor configs
+cfg_presets['darpa_combined_demo'] = \
+    ["mtr_dyn_adaptation=True", "mtr_forcefield='QVelForcefield'",
+     "stim_module='imagenet'", "vis_module='lif_imagenet'",
+     "probe_graph_config='ProbeCfgDarpaImagenetAdaptMotor'"]
+cfg_presets['darpa_combined_noadapt_demo'] = \
+    ["mtr_dyn_adaptation=False", "mtr_forcefield='QVelForcefield'",
+     "stim_module='imagenet'", "vis_module='lif_imagenet'",
+     "probe_graph_config='ProbeCfgDarpaImagenetAdaptMotor'"]
+cfg_presets['cbc_combined_noadapt_demo'] = \
+    ["mtr_dyn_adaptation=False",
+     "stim_module='imagenet'", "vis_module='lif_imagenet'",
+     "probe_graph_config='ProbeCfgVisMtrMemSpikes'"]
+
 # ----- Definite maximum probe time (if est_sim_time > max_probe_time,
 #       disable probing)
-max_probe_time = 60
+max_probe_time = 80
 
 # ----- Add current directory to system path ---
 cur_dir = os.getcwd()
 
 # ----- Parse arguments -----
 parser = argparse.ArgumentParser(description='Script for running Spaun.')
+
 parser.add_argument(
     '-d', type=int, default=def_dim,
     help='Number of dimensions to use for the semantic pointers.')
+parser.add_argument(
+    '--modules', type=str, default=None,
+    help='A string of characters that determine what Spaun modules to ' +
+         'include when building Spaun: \n' +
+         'S: Stimulus and monitor modules\n' +
+         'V: Vision module\n' +
+         'P: Production system module\n' +
+         'R: Reward system module\n' +
+         'E: Encoding system module\n' +
+         'W: Working memory module\n' +
+         'T: Transformation system module\n' +
+         'D: Decoding system module\n' +
+         'M: Motor system module\n' +
+         'I: Instruction processing module\n' +
+         'E.g. For all modules, provide "SVPREWTDMI". Note: Provide a "-" ' +
+         'as the first character to exclude all modules listed. E.g. To ' +
+         'exclude instruction processing module, provide "-I". ')
+
 parser.add_argument(
     '-t', type=float, default=-1,
     help=('Simulation run time in seconds. If undefined, will be estimated' +
@@ -247,6 +402,10 @@ parser.add_argument(
 # To denote matched random digits (with replacement): a - z (lowercase char)
 # To denote forced blanks: .
 # To denote changes in given instructions (see below): %INSTR_STR%
+# Note:
+#     Stimulus string can be duplicated using the curly braces in the format:
+#     {<STIM_STR>:<DUPLICATION AMOUNT>}, e.g.,
+#     {A3[RRR]?XXX:10}
 parser.add_argument(
     '-i', type=str, default=def_i,
     help='Instructions event sequence. Use the following format to provide ' +
@@ -462,6 +621,20 @@ for n in range(args.n):
     vocab.initialize_mtr_vocab(mtr_data.dimensions, mtr_data.sps)
     vocab.initialize_vis_vocab(vis_data.dimensions, vis_data.sps)
 
+    # ----- Spaun module configuration -----
+    if args.modules is not None:
+        used_modules = cfg.spaun_modules
+        arg_modules = args.modules.upper()
+
+        if arg_modules[0] == '-':
+            used_modules = \
+                ''.join([s if s not in arg_modules else ''
+                         for s in used_modules])
+        else:
+            used_modules = arg_modules
+
+        cfg.spaun_modules = used_modules
+
     # ----- Configure output log files -----
     if cfg.use_mpi:
         sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
@@ -477,6 +650,12 @@ for n in range(args.n):
 
     # ----- Initalize looger and write header data -----
     logger.initialize(cfg.data_dir, cfg.probe_data_filename[:-4] + '_log.txt')
+
+    logger.write('# Spaun Command Line String:\n')
+    logger.write('# -------------------------\n')
+    logger.write('# python ' + ' '.join(sys.argv) + '\n')
+    logger.write('#\n')
+
     cfg.write_header()
     experiment.write_header()
     vocab.write_header()
@@ -527,6 +706,8 @@ for n in range(args.n):
         print "- vis   n_neurons: %i" % (get_total_n_neurons(model.vis))
     if hasattr(model, 'ps'):
         print "- ps    n_neurons: %i" % (get_total_n_neurons(model.ps))
+    if hasattr(model, 'reward'):
+        print "- rewrd n_neurons: %i" % (get_total_n_neurons(model.reward))
     if hasattr(model, 'bg'):
         print "- bg    n_neurons: %i" % (get_total_n_neurons(model.bg))
     if hasattr(model, 'thal'):
