@@ -81,8 +81,8 @@ config_data = np.load(config_filename)
 data_version = 0 if 'version' not in config_data.keys() else \
     config_data['version'].item()
 if int(data_version) != int(supported_data_version):
-    raise Exception('Unsupported data version number. Expected %i, got %i.'
-                    % (supported_data_version, data_version))
+    print('Unsupported data version number. Expected %i, got %i.'
+          % (supported_data_version, data_version))
 
 vocab_dict = config_data['vocab_dict'].item()
 ncount_dict = config_data['ncount_dict'].item()
@@ -474,20 +474,22 @@ if show_io:
             for reset_img in reset_imgs:
                 reset_img_shown = (reset_img_shown or
                                    rmse(img, reset_img) < 0.1)
-            if reset_img_shown:
-                if len(plot_data) > 0:
-                    num_cols = max(num_cols, len(plot_data[-1]))
-                plot_data.append([])
-                plot_type.append([])
-                curr_col_ind = 0
-            if len(plot_data) <= 0:
-                plot_data.append([])
-                plot_type.append([])
-            if (curr_col_ind in img_ind_filter) or len(img_ind_filter) == 0:
-                plot_data[-1].append(np.array(img))
-                plot_type[-1].append("im")
+            if not np.allclose(img, 0):
+                if reset_img_shown:
+                    if len(plot_data) > 0:
+                        num_cols = max(num_cols, len(plot_data[-1]))
+                    plot_data.append([])
+                    plot_type.append([])
+                    curr_col_ind = 0
+                if len(plot_data) <= 0:
+                    plot_data.append([])
+                    plot_type.append([])
+                if (curr_col_ind in img_ind_filter) or \
+                   len(img_ind_filter) == 0:
+                    plot_data[-1].append(np.array(img))
+                    plot_type[-1].append("im")
+                curr_col_ind += 1
             prev_img = img
-            curr_col_ind += 1
 
     # Get number of columns (gotta do this here to take into account last row)
     # added to the plot_data array
