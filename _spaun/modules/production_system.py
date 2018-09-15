@@ -30,14 +30,14 @@ class ProductionSystem(Module):
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
-                                   reset_key='TRANS0')
+                                   wta_inhibit_scale=3, reset_key='TRANS0')
 
             self.dec_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_dec,
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
-                                   reset_key='FWD')
+                                   wta_inhibit_scale=3, reset_key='FWD')
         else:
             self.task_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_task,
@@ -103,10 +103,10 @@ class ProductionSystem(Module):
                            state=(self.state_mb.input, vocab.ps_state),
                            dec=(self.dec_mb.input, vocab.ps_dec),
                            action=(self.action_in, vocab.ps_action))
-        self.outputs = dict(task=(self.task_mb.output, vocab.ps_task),
-                            state=(self.state_mb.output, vocab.ps_state),
-                            dec=(self.dec_mb.output, vocab.ps_dec),
-                            action=(self.action_am.output, vocab.ps_action))
+        self.outputs = dict(task=(self.task, vocab.ps_task),
+                            state=(self.state, vocab.ps_state),
+                            dec=(self.dec, vocab.ps_dec),
+                            action=(self.action, vocab.ps_action))
 
     def setup_connections(self, parent_net):
         # Set up connections from vision module

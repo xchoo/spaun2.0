@@ -37,7 +37,7 @@ def PS_Signal_Generator_Network(vocab, net_label, cleanup_threshold=0.3):
         # is detected. Note: no gating signal is generated if input vector
         # changes to zero vector.
         gate_sig_gen = DetectChange(
-            dimensions=vocab.dimensions, blank_output_value=0, diff_scale=1.0,
+            dimensions=vocab.dimensions, blank_output_value=0, diff_scale=2.0,
             item_magnitude=cfg.get_optimal_sp_radius(vocab.dimensions))
         nengo.Connection(am.output, gate_sig_gen.input)
         nengo.Connection(zero_detect, gate_sig_gen.change_detect, transform=-5)

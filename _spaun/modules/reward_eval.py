@@ -27,8 +27,10 @@ class RewardEvaluationSystem(Module):
         num_actions = experiment.num_learn_actions
 
         # ------------------- Action detection network ------------------------
-        # Translates
-        self.action_input = nengo.Node(size_in=num_actions)
+        # Translates action semantic pointers (from production system) into
+        # array of 1's and 0's
+        self.actions = cfg.make_thresh_ens_net(num_ens=num_actions)
+        self.action_input = self.actions.input
         self.bg_utilities_input = nengo.Node(size_in=num_actions)
         self.vis_sp_input = nengo.Node(size_in=vocab.sp_dim)
 
@@ -46,42 +48,43 @@ class RewardEvaluationSystem(Module):
         self.pos_reward_vals = \
             cfg.make_ens_array(n_ensembles=num_actions, ens_dimensions=1,
                                radius=1)
-        nengo.Connection(self.action_input, self.pos_reward_vals.input,
-                         transform=np.eye(num_actions), synapse=None)
+        nengo.Connection(self.actions.output, self.pos_reward_vals.input,
+                         transform=np.eye(num_actions))
 
         # Calculate negative reward values
         self.neg_reward_vals = \
             cfg.make_ens_array(n_ensembles=num_actions, ens_dimensions=1,
                                radius=1)
-        nengo.Connection(self.action_input, self.neg_reward_vals.input,
-                         transform=np.ones(num_actions) - np.eye(num_actions),
-                         synapse=None)
+        nengo.Connection(self.actions.output, self.neg_reward_vals.input,
+                         transform=np.ones(num_actions) - np.eye(num_actions))
 
         # Do the appropriate reward cross linking
         for i in range(num_actions):
             # No reward detect --> disinhibit neg_reward_vals
             nengo.Connection(self.reward_detect.output[0],
                              self.neg_reward_vals.ensembles[i].neurons,
-                             transform=[[-3]] *
+                             transform=[[-5]] *
                              self.neg_reward_vals.ensembles[i].n_neurons)
             # Yes reward detect --> disinhibit pos_reward_vals
             nengo.Connection(self.reward_detect.output[1],
                              self.pos_reward_vals.ensembles[i].neurons,
-                             transform=[[-3]] *
+                             transform=[[-5]] *
                              self.pos_reward_vals.ensembles[i].n_neurons)
 
         # Calculate the utility bias needed (so that the rewards don't send
         # the utilities to +inf, -inf)
-        self.util_vals = EnsembleArray(100, num_actions,
-                                       encoders=Choice([[1]]),
-                                       intercepts=Exponential(0.15, 0.3, 1))
+        self.util_vals = \
+            EnsembleArray(100, num_actions, encoders=Choice([[1]]),
+                          intercepts=Exponential(0.15, cfg.learn_util_min, 1))
         nengo.Connection(self.reward_detect.output, self.util_vals.input,
                          transform=-np.ones((num_actions, 2)))
-        nengo.Connection(self.action_input, self.util_vals.input,
-                         transform=np.ones((num_actions, num_actions)),
-                         synapse=None)
+        nengo.Connection(self.actions.output, self.util_vals.input,
+                         transform=np.ones((num_actions, num_actions)))
         nengo.Connection(self.bg_utilities_input,
                          self.util_vals.input, transform=1, synapse=None)
+
+        # DEBUG node for computed reward values
+        self.reward_node = nengo.Node(size_in=num_actions)
 
     def setup_connections(self, parent_net, learn_conns=None):
         p_net = parent_net
@@ -112,6 +115,15 @@ class RewardEvaluationSystem(Module):
                                  conn.learning_rule, transform=-1)
                 nengo.Connection(self.util_vals.output[i],
                                  conn.learning_rule, transform=1)
+
+                # DEBUG connections
+                nengo.Connection(self.pos_reward_vals.output[i],
+                                 self.reward_node[i], transform=-1)
+                nengo.Connection(self.neg_reward_vals.output[i],
+                                 self.reward_node[i], transform=-1)
+                nengo.Connection(self.util_vals.output[i],
+                                 self.reward_node[i], transform=1)
+                # DEBUG connections
         else:
             warn("RewardEvaluation Module - No learned connections to " +
                  "configure")

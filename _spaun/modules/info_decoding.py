@@ -336,6 +336,12 @@ class InfoDecoding(Module):
             nengo.Connection(p_net.ps.dec, self.output_classify.fr_utils_n,
                              transform=[dec_inhibit_fr_sp_vecs])
 
+            # Inhibit output stop during counting task
+            dec_inhibit_output_stop_sp_vecs = vocab.main.parse('CNT').v
+            nengo.Connection(p_net.ps.dec,
+                             self.output_classify.output_stop_inhibit,
+                             transform=[dec_inhibit_output_stop_sp_vecs])
+
             # ###### DEBUG ########
             dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
             nengo.Connection(p_net.ps.dec, self.debug_task,
