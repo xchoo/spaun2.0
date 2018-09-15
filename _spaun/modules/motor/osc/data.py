@@ -13,6 +13,7 @@ class OSCMotorDataObject(MotorDataObject):
         self.kp = 65
         self.kv1 = np.sqrt(8)
         self.kv2 = np.sqrt(18) - self.kv1
+        # KV2 - Additional KV to use when moving arm to start of trajectory
 
         # --- Motor semantic pointer generation ---
         canonical_paths = np.load(os.path.join(self.filepath,
