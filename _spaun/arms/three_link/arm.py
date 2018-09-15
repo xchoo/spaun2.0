@@ -90,6 +90,7 @@ class Arm3Link(Arm):
         for ii in range(int(np.ceil(dt / 1e-5))):
             self.sim.step(self.state, u)
         self.update_state()
+        return [0]
 
     def gen_jacCOM1(self, q=None):
         """Generates the Jacobian from the COM of the first

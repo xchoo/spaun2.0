@@ -125,6 +125,9 @@ class OSControllerNengo(controller.Control):
 
             model.CB2_inhibit = nengo.Node(size_in=1)
             if self.kv2 != 0:
+                # Additional KV ensemble so that we can have another KV value
+                # (if necessary) to use when moving arm to start of target
+                # trajectory (can reduce time between written digits).
                 CB2 = nengo.Ensemble(**config.CB)
                 nengo.Connection(arm_node[:6], CB2,
                                  function=lambda x: config.CB_scaledown(x))
