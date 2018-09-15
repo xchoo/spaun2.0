@@ -32,7 +32,8 @@ def norm_subtract_func(x, in_trfm, in_bias, out_trfm, out_bias):
 
 def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
                     n_neurons_norm=50, n_neurons_prod=150,
-                    norm_error_per_dimension=0.0003, net=None):
+                    norm_error_per_dimension=0.0003,
+                    subtract_scale=1, net=None):
     if net is None:
         net = nengo.Network(label="Vector Normalize")
 
@@ -95,5 +96,6 @@ def VectorNormalize(min_mag, max_mag, dimensions, radius_scale=1.0,
 
         # Output connections
         nengo.Connection(norm_array.output, net.output)
-        nengo.Connection(prod_array.prod2, net.output, transform=-1)
+        nengo.Connection(prod_array.prod2, net.output,
+                         transform=-subtract_scale)
     return net
