@@ -30,6 +30,7 @@ class InstructionProcessingSystem(Module):
     @with_self
     def init_module(self):
         bias_node = nengo.Node(1)
+        self.bias_node = bias_node
 
         # ------------------------ INPUT NODES --------------------------------
         self.instr_input = nengo.Node(size_in=vocab.sp_dim)
@@ -127,6 +128,9 @@ class InstructionProcessingSystem(Module):
         nengo.Connection(
             self.pos_inc.output, instr_pos_cconv.B,
             transform=instr_voc.parse('1').get_convolution_matrix()[antT])
+
+        self.pos_inc_reset = cfg.make_thresh_ens_net()
+        nengo.Connection(self.pos_inc_reset.output, self.pos_inc.reset)
 
         self.pos_inc_init = cfg.make_thresh_ens_net()
         nengo.Connection(self.pos_inc_init.output, self.pos_inc.gate)
@@ -289,7 +293,7 @@ class InstructionProcessingSystem(Module):
 
             # ####### POS INC NETWORK #######
             pos_inc_gate_sp_vecs = vocab.main.parse('V').v
-            pos_inc_rst_sp_vecs = vocab.main.parse('P+A+M').v
+            pos_inc_rst_sp_vecs = vocab.main.parse('A+M').v
 
             nengo.Connection(parent_net.vis.output, self.pos_inc.gate,
                              transform=[pos_inc_gate_sp_vecs])
@@ -298,6 +302,12 @@ class InstructionProcessingSystem(Module):
 
             nengo.Connection(parent_net.vis.output, self.pos_inc.reset,
                              transform=[pos_inc_rst_sp_vecs])
+
+            # POS INC reset for visual presentation of 'P'
+            # - Needs to be in INSTR task to do this
+            pos_inc_instr_rst_vis_sp_vecs = vocab.main.parse('P').v
+            nengo.Connection(parent_net.vis.output, self.pos_inc_reset.input,
+                             transform=[pos_inc_instr_rst_vis_sp_vecs])
 
             nengo.Connection(parent_net.vis.vis_main_mem.output,
                              self.pos_inc.input)
@@ -319,6 +329,13 @@ class InstructionProcessingSystem(Module):
                              synapse=0.01)
             nengo.Connection(parent_net.ps.dec, self.dec_input,
                              synapse=0.01)
+
+            # ###### POS INC RESET STATE ######
+            pos_inc_instr_rst_task_sp_vecs = vocab.main.parse('INSTR').v
+            nengo.Connection(self.bias_node, self.pos_inc_reset.input,
+                             transform=-1)
+            nengo.Connection(parent_net.ps.task, self.pos_inc_reset.input,
+                             transform=[pos_inc_instr_rst_task_sp_vecs])
 
             # ###### POS INC INIT STATE ######
             pos_inc_init_state_sp_vecs = vocab.ps_state.parse('INSTRP').v
