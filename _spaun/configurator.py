@@ -23,8 +23,9 @@ class SpaunConfig(object):
         self.seed = -1
         self.set_seed(self.seed)
 
-        self.learn_init_trfm_max = 0.15
+        self.learn_init_trfm_max = 0.25
         self.learn_init_trfm_bias = 0.05
+        self.learn_util_min = 0.0
         self.learn_learning_rate = 1e-4
         self.learn_init_transforms = []
 
@@ -41,12 +42,14 @@ class SpaunConfig(object):
         self.stim_module = 'mnist'
         self.vis_module = 'lif_vision'
 
+        self.spaun_modules = 'SVPREWTDMI'
+
         self.vis_detect_dim = 5000
 
-        self.ps_mb_gain_scale = 2.0
+        self.ps_mb_gain_scale = 1.25
         self.ps_mb_gate_scale = 1.25
         self.ps_use_am_mb = True
-        self.ps_action_am_threshold = 0.2
+        self.ps_action_am_threshold = 0.0
 
         self.enc_mb_acc_radius_scale = 2.5
         self.enc_pos_cleanup_mode = 2
@@ -64,7 +67,7 @@ class SpaunConfig(object):
         self.mb_neg_attn_scale = 2.0
 
         self.trans_cconv_radius = 2
-        self.trans_ave_scale = 0.25  # 0.3
+        self.trans_ave_scale = 0.275  # 0.25  # 0.3
         self.trans_cmp_threshold = 0.65  # 0.5
 
         self.dcconv_radius = 2
@@ -79,23 +82,23 @@ class SpaunConfig(object):
         self.mtr_ramp_synapse = 0.05
         self.mtr_ramp_reset_hold_transform = 0.1  # 0.945
         self.mtr_ramp_init_hold_transform = 0.01
-        self.mtr_ramp_scale = 2
-        self.mtr_est_digit_response_time = 1.0 / self.mtr_ramp_scale + 0.60
+        self.mtr_ramp_scale = 3
 
         self.mtr_module = 'osc'
         self.mtr_kp = None
         self.mtr_kv1 = None
-        self.mtr_kv2 = None
+        self.mtr_kv2 = 0
         self.mtr_arm_type = 'three_link'
         self.mtr_arm_rest_x_bias = -0.3
         self.mtr_arm_rest_y_bias = 2.5
-        self.mtr_tgt_threshold = 0.05  # 0.075
+        self.mtr_tgt_threshold = 0.035  # 0.05  # 0.075
 
         self.mtr_dyn_adaptation = False
         self.mtr_dyn_adaptation_n_neurons = 1000
-        self.mtr_dyn_adaptation_learning_rate = 8e-5
+        self.mtr_dyn_adaptation_learning_rate = 1e-4  # 8e-5
+        self.mtr_dyn_adaptation_synapse = 0.02
         self.mtr_forcefield = 'NoForcefield'
-        self.mtr_forcefield_synapse = 0.0525
+        self.mtr_forcefield_synapse = 0.05  # 0.0525
 
         self.instr_cconv_radius = 2.0
         self.instr_out_gain = 1.5
@@ -152,6 +155,10 @@ class SpaunConfig(object):
         arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
                                 globals(), locals(), 'Arm')
         return arm_module.Arm
+
+    @property
+    def mtr_est_digit_response_time(self):
+        return 1.0 / self.mtr_ramp_scale + 0.60
 
     def write_header(self):
         # Write spaun configurator options
