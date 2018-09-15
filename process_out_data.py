@@ -216,7 +216,8 @@ def process_line(task_str, task_data_str):
             task_answer_ref = np.array(map(str, [list1[0] + induction_diff]))
         elif (induction_len_change is not None and induction_diff is None and
               induction_identity is None):
-            task_answer_ref = np.array(map(str, [list1[0]] * (len(list1) + 1)))
+            task_answer_ref = np.array(map(str,
+                                       [list1[0]] * (len(list1) + len_change)))
         elif (induction_len_change is None and induction_diff is None and
               induction_identity is not None):
             task_answer_ref = np.array(map(str, list1))
@@ -249,6 +250,8 @@ def process_line(task_str, task_data_str):
     if task_str in ['A4', 'A5', 'A6', 'A7']:
         # For other non-learning tasks, check accuracy as wholesale correct /
         # incorrect
+        if task_answer[0] == '-':
+            return (None, None)
         return ('_'.join([task_str, str(len(task_answer_ref))]),
                 [int(np.all(task_answer == task_answer_ref))])
 
