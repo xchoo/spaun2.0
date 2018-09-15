@@ -34,7 +34,7 @@ class SpaunExperiment(object):
         self.instr_sps_list = []
         self.instr_dict = []
 
-        self.learn_min_num_actions = 3
+        self.learn_min_num_actions = 2
         self._num_learn_actions = self.learn_min_num_actions
 
         self.present_blanks = False
@@ -65,7 +65,7 @@ class SpaunExperiment(object):
                 else:
                     logger.write('# - %s = %s\n' % (param_name, param_value))
         logger.write('# ------\n')
-        logger.write('# Simulation time: %0.2fs' % self.get_est_simtime())
+        logger.write('# Simulation time: %0.2fs\n' % self.get_est_simtime())
         logger.write('#\n')
 
     def parse_mult_seq(self, seq_str):
@@ -151,10 +151,15 @@ class SpaunExperiment(object):
                 new_task_str = 'A2' + '?X.' * num_trials
 
             elif task_str == "QA":
-                # Format: (QA; P or K; LIST_LEN)
+                # Format: (QA; P or K; LIST_LEN; PROBE_IND (optional))
                 qa_opts = task_opts_str.split(';')
                 qa_type = str(qa_opts[0]).upper()
                 qa_len = int(qa_opts[1])
+
+                if len(qa_opts) > 2:
+                    qa_ind = int(qa_opts[2])
+                else:
+                    qa_ind = None
 
                 # Generate number list
                 num_list = np.array(self.num_map.keys())
@@ -162,8 +167,12 @@ class SpaunExperiment(object):
                 num_list = map(str, num_list)
 
                 # Generate position / kind options
-                len_list = np.arange(qa_len)
-                np.random.shuffle(len_list)
+                if qa_ind is None:
+                    len_list = np.arange(qa_len)
+                    np.random.shuffle(len_list)
+                else:
+                    len_list = [qa_ind]
+
                 pk_opt = 0
                 if qa_type == 'P':
                     pk_opt = str(len_list[0] + 1)
