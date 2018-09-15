@@ -31,7 +31,7 @@ class SpaunProbeConfig(object):
         # Probe config internal objects
         self.graph_list = []
         # Graph list format: The graph list is a list of strings, where each
-        # string is either a graph title, probe_id, or next graph tag
+        # string is either a graph title, probe_id, or next figure tag
         # - graph titles are suffixed with '.t'
         # - probe_ids are suffixed with 'v.' for value probes,
         #                               'v*' for value probes with legends,
@@ -40,7 +40,7 @@ class SpaunProbeConfig(object):
         #                               's.' for spike probes,
         #                               's*' for spike probes with legends
         #                               'i.' or 'i*' for image probes
-        # - next graph tags are '..'
+        # - next figure tags are '..'
 
         self.probe_list = []
         self.label_dict = {}
@@ -218,6 +218,48 @@ class ProbeCfgVisOnly(SpaunProbeConfig):
         self.add_graph('Vis Spikes', [p0, pvsp1, pvsp2])
 
 
+class ProbeCfgMtrOnly(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Stim')
+        else:
+            with self.m:
+                self.m.null_node = nengo.Node(0)
+            p0 = self.probe_value(self.m.null_node)
+
+        if hasattr(self.m, 'mtr'):
+            net = self.m.mtr
+            pmt1 = self.probe_value(net.ramp, label='ramp')
+            pmt2 = self.probe_value(net.ramp_reset_hold, label='rst_hold')
+            pmt2b = self.probe_value(net.ramp_sig.init_hold, label='init_hold')
+            pmt3 = self.probe_value(net.motor_stop_input.output,
+                                    label='mtr_si')
+            pmt4 = self.probe_value(net.motor_init, label='mtr_init')
+            pmt5 = self.probe_value(net.motor_go, label='mtr_go')
+            pmt6 = self.probe_value(net.ramp_sig.stop, label='rmp_stop')
+            pmt6b = self.probe_value(net.ramp_sig.go, label='rmp_go')
+            pmt6c = self.probe_value(net.ramp_sig.end, label='rmp_end')
+            pmt7a = self.probe_value(net.arm_px_node, label='arm_px')
+            pmt7b = self.probe_value(net.arm_py_node, label='arm_py')
+            pmt8 = self.probe_value(net.pen_down, synapse=0.05, label='pen_d')
+            pmt11 = self.probe_value(net.motor_bypass.output, label='mtr_byp')
+            pmt10 = self.probe_value(net.target_diff_norm_out,
+                                     label='tgt_diff_norm')
+
+            if hasattr(net, 'adapt_conn'):
+                pmt12 = self.probe_value(net.adapt_conn, label='Adapt Ens')
+            else:
+                pmt12 = self.probe_null()
+
+            self.add_graph('mtr', [p0, pmt1, pmt10, pmt3, pmt4, pmt5, pmt11,
+                                   pmt12])
+            self.add_graph('ramp', [p0, pmt1, pmt2, pmt2b, pmt6b, pmt6, pmt6c,
+                                    pmt8])
+            self.add_graph('arm', [pmt7a, pmt7b, pmt8])
+
+
 class ProbeCfgAnimDefault(SpaunProbeConfig):
     def initialize_probes(self):
         if hasattr(self.m, 'stim') and hasattr(self.m, 'mtr'):
@@ -326,11 +368,18 @@ class ProbeCfgDefault(SpaunProbeConfig):
                        'POS1*GUENON', 'POS1*RED_FOX', 'POS1*KIT_FOX']:
             vocab_mem1.add(sp_str, self.v.main.parse(sp_str))
 
+        vocab_imnet = self.v.main.create_subset([])
+        vocab_imnet.readonly = False
+        for sp_str in ['POLICE_VAN', 'PUCK', 'GREY_WHALE',
+                       'ORGAN', 'HALF_TRACK']:
+            vocab_imnet.add(sp_str, self.v.main.parse(sp_str))
+
         # ----------- Default vocabs ------------------
         # mem_vocab = vocab_seq_list
         mem_vocab = vocab_pos1
         # mem_vocab = sub_vocab1
         # mem_vocab = vocab_mem1
+        # mem_vocab = vocab_imnet
         # vocab_seq_list = vocab_rpm
 
         # ========================= MAKE PROBES ===============================
@@ -352,12 +401,15 @@ class ProbeCfgDefault(SpaunProbeConfig):
                                     label='Vis Utils')
             pvs3i = self.probe_value(net.vis_classify.inhibit,
                                      label='Vis AM Inhibit')
-            pvs4 = self.probe_value(net.mb_output, label='Vis MB')
-            pvs4b = self.probe_value(net.mb_output, label='Vis MB',
-                                     vocab=self.v.vis)
+            pvs4 = self.probe_value(net.mb_output, label='Vis MB',
+                                    vocab=self.v.vis)
+            pvs4b = self.probe_value(net.mb_output, label='Vis MB')
             pvs5 = self.probe_value(net.vis_out, label='Vis Out')
             pvs6 = self.probe_value(net.vis_main_mem.output,
                                     vocab=self.v.vis_main)
+            pvs6c = self.probe_value(net.vis_main_mem.output,
+                                     vocab=vocab_imnet,
+                                     label='Vis Main Mem Out')
             pvs6b = self.probe_value(net.vis_main_mem.input,
                                      vocab=self.v.vis_main)
             pvs6g = self.probe_value(net.vis_main_mem.gate)
@@ -385,8 +437,8 @@ class ProbeCfgDefault(SpaunProbeConfig):
 
             self.add_graph('vis', [p0, pvs7, pvs1, pvs2, pvs3, pvs3i, pvs6, pvs6b, pvs6g])
             # self.add_graph('vis net', [pvs4, pvs4b, pvs5])  ##
-            # self.add_graph('vis main mem', [pvs6, pvs6b, pvs6d, pvs6m])  ##
-            self.add_graph('vis mem', [pvs8, pvs8b, pvs8g, pvs8d, pvs8m])  ##
+            self.add_graph('vis main mem', [pvs6, pvs6c, pvs6b, pvs6d, pvs6m])  ##
+            # self.add_graph('vis mem', [pvs8, pvs8b, pvs8g, pvs8d, pvs8m])  ##
             # self.add_graph('vis dbg',
             #                [p0, pvs6g, pvs6b, pvs6, pvsdb2, pvsdb1, pvsdb3])
 
@@ -494,8 +546,10 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pmm8 = self.probe_value(net.mb3_net.gate)
             pmm9 = self.probe_value(net.mb3_net.reset)
             pmm10 = self.probe_value(net.wm_gate.output)
+            pmm11 = self.probe_value(net.mb1_no_gate_in)
+            pmm12 = self.probe_value(net.mb1_no_gate_out)
 
-            self.add_graph('mb1', [p0, pmm1, pmm10, pmm1a, pmm1b, pmm2, pmm3], [pmm1])
+            self.add_graph('mb1', [p0, pmm1, pmm10, pmm1a, pmm1b, pmm2, pmm3, pmm11, pmm12], [pmm1])
             self.add_graph('mb2', [p0, pmm4, pmm5, pmm6])  ##
             self.add_graph('mb3', [p0, pmm7, pmm8, pmm9])  ##
 
@@ -626,6 +680,13 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pbg2 = self.probe_value(self.m.bg.output)
 
             self.add_graph('bg', [p0, pbg1, pbg2])
+
+        if hasattr(self.m, 'reward') and True:
+            prw1 = self.probe_value(self.m.bg.input[:len(cfg.learn_init_transforms)])
+            prw2 = self.probe_value(self.m.reward.actions.output)
+            prw3 = self.probe_value(self.m.reward.reward_node)
+
+            self.add_graph('reward', [p0, prw1, prw2, prw3])
 
         if hasattr(self.m, 'dec') and True:
             net = self.m.dec
@@ -1348,3 +1409,146 @@ class ProbeCfgDarpaInstr3(SpaunProbeConfig):
                        [p0, pins1, pins2, pins3, pins4, pins5, pins6, pmm1,
                         pmtr3, pmtr4],
                        [pmm1, pins1, pins5, pins6])
+
+
+class ProbeCfgDarpaImagenetAdaptMotor(SpaunProbeConfig):
+    def initialize_probes(self):
+        if hasattr(self.m, 'stim'):
+            p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                                  shape=stim_data.probe_image_shape,
+                                  label='Vis Input')
+        else:
+            p0 = self.probe_null()
+
+        vis_vocab = self.v.vis_main.create_subset(['A', 'OPEN', 'CLOSE', 'QM',
+                                                   'ZER', 'ONE', 'TWO', 'THR',
+                                                   'FOR', 'FIV', 'SIX', 'SEV',
+                                                   'EIG', 'NIN', 'POLICE_VAN',
+                                                   'PUCK'])
+        if hasattr(self.m, 'vis'):
+            pvsp1 = self.probe_spike(self.m.vis.vis_net.layers[0],
+                                     label='Vis L1')
+            # pvsp2 = self.probe_spike(self.m.vis.vis_net.layers[1],
+            #                          label='Vis Net L2')
+            pvsp3 = self.probe_spike(self.m.vis.vis_net.layers[2],
+                                     label='Vis L3')
+            # pvsp4 = self.probe_spike(self.m.vis.vis_net.layers[3],
+            #                          label='Vis Net L4')
+            pvsp5 = self.probe_spike(self.m.vis.vis_net.layers[4],
+                                     label='Vis L5')
+
+            pvs1 = self.probe_value(self.m.vis.output, vocab=vis_vocab,
+                                    label='Vis SP')
+        else:
+            pvsp1 = self.probe_null()
+            # pvsp2 = self.probe_null()
+            pvsp3 = self.probe_null()
+            # pvsp4 = self.probe_null()
+            pvsp5 = self.probe_null()
+            pvs1 = self.probe_null()
+
+        if hasattr(self.m, 'mtr'):
+            pmtr1 = self.probe_spike(self.m.mtr.ctrl_net.CB,
+                                     label='Mtr CB')
+            pmtr2 = self.probe_spike(self.m.mtr.ctrl_net.M1,
+                                     label='Mtr M1')
+
+            pmtr3 = self.probe_value(self.m.mtr.ramp,
+                                     label='Mtr Ramp')
+            pmtr4 = self.probe_path(
+                self.m.mtr.zero_centered_arm_ee_loc,
+                self.m.mtr.pen_down, synapse=0.05,
+                path_xlimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                path_ylimits=[-mtr_data.sp_scaling_factor * 0.6,
+                              mtr_data.sp_scaling_factor * 0.6],
+                label='Arm Output')
+
+            pmtr5 = self.probe_spike(self.m.mtr.adapt_ens, label='Adapt Ens')
+            pmtr6 = self.probe_value(self.m.mtr.adapt_conn, label='Adapt Ens')
+        else:
+            pmtr1 = self.probe_null()
+            pmtr2 = self.probe_null()
+            pmtr3 = self.probe_null()
+            pmtr4 = self.probe_null()
+            pmtr5 = self.probe_null()
+            pmtr6 = self.probe_null()
+
+        self.add_graph('Spaun Network',
+                       [p0, pvsp1, pvsp5, pvs1, pmtr1, pmtr2, pmtr5, pmtr6,
+                        pmtr3, pmtr4],
+                       [pvs1])
+
+
+class ProbeCfgVisMtrMemSpikes(SpaunProbeConfig):
+    def initialize_probes(self):
+        p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                              shape=stim_data.probe_image_shape)
+
+        pvsp1 = self.probe_spike(self.m.vis.vis_net.layers[0],
+                                 label='Vision Layer 1')
+        pvsp2 = self.probe_spike(self.m.vis.vis_net.layers[1],
+                                 label='Vision Layer 2')
+
+        pmemsp1 = self.probe_spike(self.m.vis.vis_mem.mem.all_ensembles[0],
+                                   label='Vision WM [0]')
+        pmemsp2 = self.probe_spike(self.m.mem.mb1_net.mba.mem2.all_ensembles[0],
+                                   label='Working Memory (MB1)[0]')
+
+        pmtrsp1 = self.probe_spike(self.m.mtr.ctrl_net.M1,
+                                   label='Mtr M1')
+        pmtrsp2 = self.probe_spike(self.m.mtr.ctrl_net.CB,
+                                   label='Mtr CB')
+        pmtrsp3 = self.probe_spike(self.m.mtr.ramp,
+                                   label='Mtr ramp signal')
+
+        self.add_graph('Vis Spikes', [p0, pvsp1, pvsp2])
+        self.add_graph('Mem Spikes', [p0, pmemsp1, pmemsp2])
+        self.add_graph('Mtr Spikes', [p0, pmtrsp1, pmtrsp2, pmtrsp3])
+        # self.add_graph('BG Spikes', [p0, pbgsp1, pbgsp2])
+
+
+class ProbeCfgVisMtrMemSpikesAndValues(SpaunProbeConfig):
+    def initialize_probes(self):
+        p0 = self.probe_image(self.m.stim.probe_output, synapse=None,
+                              shape=stim_data.probe_image_shape)
+
+        pvsp1 = self.probe_spike(self.m.vis.vis_net.layers[0],
+                                 label='Vision Layer 1', n_neurons=400)
+        pvsp2 = self.probe_spike(self.m.vis.vis_net.layers[1],
+                                 label='Vision Layer 2', n_neurons=100)
+        pvs = self.probe_value(self.m.vis.vis_main_mem.input, label='Vision Output')
+
+        pmemsp1 = self.probe_spike(self.m.vis.vis_mem.mem.all_ensembles[0],
+                                   label='Vision WM [0]', n_neurons=50)
+        pmemsp2 = self.probe_spike(self.m.mem.mb1_net.mba.mem2.mem.all_ensembles[0],
+                                   label='Working Memory (MB1)[0]', n_neurons=50)
+        pmemsp3 = self.probe_spike(self.m.mem.mb2_net.mba.mem2.mem.all_ensembles[0],
+                                   label='Working Memory (MB2)[0]', n_neurons=50)
+        pmemsp4 = self.probe_spike(self.m.mem.mb3_net.mba.mem2.mem.all_ensembles[0],
+                                   label='Working Memory (MB3)[0]', n_neurons=50)
+        pmm1 = self.probe_value(self.m.mem.mb1, label='Working Memory (MB1)')
+        pmm2 = self.probe_value(self.m.mem.mb2, label='Working Memory (MB2)')
+        pmm3 = self.probe_value(self.m.mem.mb3, label='Working Memory (MB3)')
+
+        pmtrsp1 = self.probe_spike(self.m.mtr.ctrl_net.M1,
+                                   label='Mtr M1', n_neurons=400)
+        pmtrsp2 = self.probe_spike(self.m.mtr.ctrl_net.CB,
+                                   label='Mtr CB', n_neurons=100)
+        pmtrsp3 = self.probe_spike(self.m.mtr.ramp,
+                                   label='Mtr ramp signal')
+        pmtr1 = self.probe_value(self.m.mtr.motor_sp_in, label='Motor Input')
+
+        self.add_graph('Vis Spikes', [p0, pvsp1, pvsp2])
+        self.add_graph('Vis Values', [p0, pvs])
+        self.add_graph('Mem Spikes', [p0, pmemsp1, pmemsp2, pmemsp3, pmemsp4])
+        self.add_graph('Mem Values', [p0, pmm1, pmm2, pmm3])
+        self.add_graph('Mtr Spikes', [p0, pmtrsp1, pmtrsp2, pmtrsp3])
+        self.add_graph('Mtr Values', [p0, pmtr1])
+
+        # self.add_graph('Vis Spikes', [p0, pvsp1])
+        # self.add_graph('Vis Values', [p0, pvs])
+        # self.add_graph('Mem Spikes', [p0, pmemsp2, pmemsp3, pmemsp4])
+        # self.add_graph('Mem Values', [p0, pmm1, pmm2, pmm3])
+        # self.add_graph('Mtr Spikes', [p0, pmtrsp1])
+        # self.add_graph('Mtr Values', [p0, pmtr1])
