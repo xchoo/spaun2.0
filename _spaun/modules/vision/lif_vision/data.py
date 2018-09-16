@@ -6,7 +6,7 @@ import nengo
 
 class LIFVisionDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'vision')
+        self.filepath = os.path.join(os.path.dirname(__file__), '..')
         self.module_name = 'lif_vision'
 
         # --- LIF vision network configurations ---

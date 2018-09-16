@@ -6,7 +6,7 @@ from nengo_extras.cuda_convnet import load_model_pickle
 
 class LIFImagenetVisionDataObject(object):
     def __init__(self):
-        self.filepath = os.path.join('_spaun', 'modules', 'vision')
+        self.filepath = os.path.join(os.path.dirname(__file__), '..')
         self.module_name = 'lif_imagenet'  # Use the lif_imagenet vision files
 
         # --- LIF vision network weights configurations ---

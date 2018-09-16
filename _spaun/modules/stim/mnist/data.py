@@ -6,10 +6,14 @@ import mnist
 
 
 class MNISTDataObject(object):
-    def __init__(self):
+    def __init__(self, data_filepath=None):
         self.module_name = 'mnist'
-        self.filepath = os.path.join('_spaun', 'modules', 'stim',
-                                     self.module_name)
+
+        if data_filepath is None:
+            self.filepath = os.path.join(os.path.dirname(__file__), '..',
+                                         self.module_name)
+        else:
+            self.filepath = data_filepath
 
         # --- Mnist data ---
         _, _, [images_data, images_labels] = \
