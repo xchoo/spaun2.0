@@ -41,6 +41,8 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp integrator
         ramp_integrator = nengo.Ensemble(cfg.n_neurons_cconv, 1, radius=1.1)
+        nengo.Connection(ramp_int_stop.output, ramp_integrator.neurons,
+                         transform=[[-5]] * ramp_integrator.n_neurons)
 
         # -- Note: We could use the ramp_int_go signal here, but it is noisier
         #    than the motor_go signal
@@ -49,12 +51,12 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp integrator reset circuitry -- Works like the difference gate in
         # the gated integrator
-        ramp_int_reset = nengo.Ensemble(cfg.n_neurons_ens, 1)
+        ramp_int_reset = nengo.Ensemble(cfg.n_neurons_cconv, 1, radius=1.1)
         nengo.Connection(ramp_integrator, ramp_int_reset)
         nengo.Connection(ramp_int_reset, ramp_integrator,
                          transform=-10, synapse=cfg.mtr_ramp_synapse)
         nengo.Connection(ramp_int_go.output, ramp_int_reset.neurons,
-                         transform=[[-3]] * cfg.n_neurons_ens)
+                         transform=[[-3]] * ramp_int_reset.n_neurons)
 
         # Ramp end reset signal generator -- Signals when the ramp integrator
         # reaches the top of the ramp slope.
