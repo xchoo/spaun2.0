@@ -22,7 +22,6 @@ def Spaun():
     with model:
         model.config[nengo.Ensemble].max_rates = cfg.max_rates
         model.config[nengo.Ensemble].neuron_type = cfg.neuron_type
-        model.config[nengo.Ensemble].n_neurons = cfg.n_neurons_ens
         model.config[nengo.Connection].synapse = cfg.pstc
 
         if 'S' in cfg.spaun_modules:
