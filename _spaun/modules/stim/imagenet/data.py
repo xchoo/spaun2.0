@@ -6,10 +6,14 @@ from nengo_extras.data import load_ilsvrc2012, spasafe_names
 
 
 class ImagenetDataObject(object):
-    def __init__(self):
+    def __init__(self, data_filepath=None):
         self.module_name = 'imagenet'
-        self.filepath = os.path.join('_spaun', 'modules', 'stim',
-                                     self.module_name)
+
+        if data_filepath is None:
+            self.filepath = os.path.join(os.path.dirname(__file__), '..',
+                                         self.module_name)
+        else:
+            self.filepath = data_filepath
 
         # --- Spaun symbol data ---
         spaun_sym_filename = 'spaun_sym.npz'
