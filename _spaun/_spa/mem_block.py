@@ -22,7 +22,7 @@ class MemoryBlock(Module):
             radius = 3.5 / np.sqrt(dimensions)
 
         if n_neurons == nengo.Default:
-            n_neurons = nengo.config[nengo.Ensemble].n_neurons
+            n_neurons = 100
 
         if cleanup_keys is not None:
             cleanup_vecs = vocab.create_subset(cleanup_keys).vectors
@@ -81,24 +81,6 @@ class MemoryBlock(Module):
             # are needed if the WM network does not have its own gating
             # threshold population. The gating signal needs to be dead-zero
             # (no neural activity) when WM is non-gated.
-            # if threshold_gate_in > 0:
-            #     gate_thresh = min(float(threshold_gate_in), 0.9)
-
-            #     gate_thresh1 = (gate_thresh if gate_mode == 1 else
-            #                     (1 - gate_thresh))
-            #     gate1 = nengo.Ensemble(
-            #         n_neurons, 1, label="gate1",
-            #         intercepts=Exponential(0.15, gate_thresh1, 1),
-            #         encoders=Choice([[1]]))
-            #     nengo.Connection(gate1, self.mem1.gate)
-
-            #     gate_thresh2 = (gate_thresh if gate_mode == 2 else
-            #                     (1 - gate_thresh))
-            #     gate2 = nengo.Ensemble(
-            #         n_neurons, 1, label="gate2",
-            #         intercepts=Exponential(0.15, gate_thresh2, 1),
-            #         encoders=Choice([[1]]))
-            #     nengo.Connection(gate2, self.mem2.gate)
             if threshold_gate_in:
                 gate1 = nengo.Ensemble(
                     n_neurons, 1, label="gate1",
@@ -115,7 +97,7 @@ class MemoryBlock(Module):
                 gate1 = self.mem1.gate
                 gate2 = self.mem2.gate
 
-            # gate_modes:
+            # Gate_modes:
             # - 1: Gate mem1 on gate high, gate mem2 on gate low (default)
             # - 2: Gate mem1 on gate low, gate mem2 on gate high
             if gate_mode == 1:
@@ -138,7 +120,7 @@ class MemoryBlock(Module):
             nengo.Connection(self.gate, self.gateN, transform=-1)
             nengo.Connection(bias_node, self.gateN)
 
-            # reset_modes:
+            # Reset_modes:
             # - 1: Reset only mem1
             # - 2: Reset only mem2
             # - 3: Reset both mem1 and mem2

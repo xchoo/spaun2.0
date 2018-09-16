@@ -16,7 +16,7 @@ class DifferenceFunctionEvaluator(nengo.Network):
         intercept_interval = 2.0 / (num_func_points - 1)
 
         self.func_output_dimensions = func_output_dimensions
-        self.n_neurons = n_neurons
+        self.num_neurons = n_neurons
 
         with self:
             bias_node = nengo.Node(1)
@@ -68,7 +68,7 @@ class DifferenceFunctionEvaluator(nengo.Network):
         for n in range(self.func_output_dimensions):
             for gate in self.func_gate_eas[n].all_ensembles:
                 nengo.Connection(self.inhibit, gate.neurons,
-                                 transform=[[-5]] * self.n_neurons,
+                                 transform=[[-5]] * self.num_neurons,
                                  synapse=None)
 
 

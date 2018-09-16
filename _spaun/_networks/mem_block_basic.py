@@ -17,7 +17,7 @@ class MemoryBlock(nengo.Network):
             radius = 3.5 / np.sqrt(dimensions)
 
         if n_neurons == nengo.Default:
-            n_neurons = nengo.config[nengo.Ensemble].n_neurons
+            n_neurons = 100
 
         with self:
             # Note: Both gate & gateN are needed here to produce dead-zero
