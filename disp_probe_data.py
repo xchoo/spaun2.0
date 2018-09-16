@@ -330,7 +330,7 @@ if show_grphs:
                              [-aspect_equal_y_margin,
                               im_height + aspect_equal_y_margin], 'w')
                 plt.yticks([])
-                plt.gca().set_axis_bgcolor('black')
+                plt.gca().set_facecolor('black')
                 plt.ylim(-aspect_equal_y_margin,
                          im_height + aspect_equal_y_margin)
             elif probe_opts[0] == 'p':
