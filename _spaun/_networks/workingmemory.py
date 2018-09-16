@@ -164,7 +164,7 @@ class InputGatedMemory(nengo.Network):
         super(InputGatedMemory, self).__init__(label, seed, add_to_container)
 
         # Keep copy of network parameters
-        self.n_neurons = n_neurons
+        self.num_neurons = n_neurons
         self.dimensions = dimensions
         self.gate_gain = gate_gain
         self.mem_synapse = mem_synapse
@@ -172,13 +172,13 @@ class InputGatedMemory(nengo.Network):
 
         ens_args = dict(mem_args)
 
-        make_mem_network(self, self.n_neurons, self.dimensions,
+        make_mem_network(self, self.num_neurons, self.dimensions,
                          make_ens_func, ens_args, make_ens_func, ens_args,
                          mem_synapse, fdbk_transform, input_transform,
                          difference_gain, gate_gain)
 
         if reset_value is not None:
-            make_resettable(self, self.n_neurons, self.dimensions,
+            make_resettable(self, self.num_neurons, self.dimensions,
                             reset_value, make_ens_func, ens_args,
                             gate_gain)
 
@@ -200,7 +200,7 @@ class InputGatedCleanupMemory(nengo.Network):
             cleanup_values = np.matrix(cleanup_values)
 
         # Keep copy of network parameters
-        self.n_neurons = n_neurons
+        self.num_neurons = n_neurons
         self.dimensions = dimensions
         self.gate_gain = gate_gain
         self.mem_synapse = mem_synapse
@@ -213,7 +213,7 @@ class InputGatedCleanupMemory(nengo.Network):
         make_mem_args['input_vectors'] = cleanup_values
         make_mem_args['threshold'] = ens_args.pop('threshold', 0.5)
 
-        make_mem_network(self, self.n_neurons, self.dimensions,
+        make_mem_network(self, self.num_neurons, self.dimensions,
                          make_am_func, make_mem_args, make_ens_func, ens_args,
                          mem_synapse, fdbk_transform, input_transform,
                          difference_gain, gate_gain)
@@ -222,7 +222,7 @@ class InputGatedCleanupMemory(nengo.Network):
             self.mem.add_wta_network(wta_inhibit_scale)
 
         if reset_value is not None:
-            make_resettable(self, self.n_neurons, self.dimensions,
+            make_resettable(self, self.num_neurons, self.dimensions,
                             reset_value, make_ens_func, ens_args,
                             gate_gain)
 
@@ -238,7 +238,7 @@ class InputGatedCleanupPlusMemory(nengo.Network):
                                                           add_to_container)
 
         # Keep copy of network parameters
-        self.n_neurons = n_neurons
+        self.num_neurons = n_neurons
         self.dimensions = dimensions
         self.gate_gain = gate_gain
         self.input_transform = 1.0
@@ -295,6 +295,6 @@ class InputGatedCleanupPlusMemory(nengo.Network):
 
         # No indentity! Not supposed to be within network context
         if reset_value is not None:
-            make_resettable(self, self.n_neurons, self.dimensions,
+            make_resettable(self, self.num_neurons, self.dimensions,
                             reset_value, make_ensarray_func, ens_args,
                             gate_gain)
