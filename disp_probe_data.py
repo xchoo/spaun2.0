@@ -541,8 +541,8 @@ if show_anim:
     # Loop through the animation configuration list and add each subplot
     for i, config in enumerate(anim_config[:-1]):
         # Subplot location
-        subplot_row = i / max_subplot_cols
-        subplot_col = i % max_subplot_cols
+        subplot_row = int(i / max_subplot_cols)
+        subplot_col = int(i % max_subplot_cols)
 
         # Create the data object to use for the animation
         data_func_obj = getattr(DataFunctions, config['data_func'])
