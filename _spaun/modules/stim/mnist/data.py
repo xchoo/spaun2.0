@@ -2,7 +2,7 @@ import os
 import numpy as np
 import bisect as bs
 
-import mnist
+from . import mnist
 
 
 class MNISTDataObject(object):
