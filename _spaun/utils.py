@@ -1,8 +1,8 @@
 import numpy as np
 
-from configurator import cfg
-from experimenter import experiment
-from vocabulator import vocab
+from .configurator import cfg
+from .experimenter import experiment
+from .vocabulator import vocab
 
 
 def get_total_n_neurons(model):

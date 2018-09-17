@@ -19,7 +19,7 @@ import numpy as np
 import importlib
 
 import nengo
-import controller
+from . import controller
 
 
 class OSControllerNengo(controller.Control):
