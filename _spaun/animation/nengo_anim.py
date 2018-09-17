@@ -2,7 +2,13 @@
 import numpy as np
 import numpy.ma as ma
 
-from matplotlib_animation.matplotlib_anim import MatplotlibAnim
+try:
+    from matplotlib_animation import MatplotlibAnim
+except ImportError:
+    raise ImportError(
+        'matplotlib_animation is required but not installed. To install it,' +
+        ' clone https://github.com/xchoo/matplotlib_animation and install' +
+        ' using `pip install -e .`')
 
 
 class NengoAnim(MatplotlibAnim):
