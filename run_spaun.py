@@ -892,7 +892,7 @@ for n in range(args.n):
 
         # Log subprocess call
         logger.write("\n#\n# To display graphs of the recorded probe data:")
-        logger.write("\n# " + " ".join(subprocess_call_list))
+        logger.write("\n# > " + " ".join(subprocess_call_list))
 
         if args.showgrph:
             # Open subprocess

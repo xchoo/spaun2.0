@@ -60,8 +60,8 @@ class MNISTDataObject(object):
         self.max_pixel_value = 1.0
 
         self.probe_subsample = 1
-        self.probe_image_shape = (self.image_shape[0] / self.probe_subsample,
-                                  self.image_shape[1] / self.probe_subsample)
+        self.probe_image_shape = (self.image_shape[0] // self.probe_subsample,
+                                  self.image_shape[1] // self.probe_subsample)
 
         subsample_trfm = np.arange(np.cumprod(self.image_shape)[-1])
         subsample_inds = \

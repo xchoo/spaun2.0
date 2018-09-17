@@ -106,8 +106,8 @@ class ImagenetDataObject(object):
         # --- Handle subsampling of probe data ---
         self.probe_subsample = 4
         self.probe_image_shape = (self.image_shape[0],
-                                  self.image_shape[1] / self.probe_subsample,
-                                  self.image_shape[2] / self.probe_subsample)
+                                  self.image_shape[1] // self.probe_subsample,
+                                  self.image_shape[2] // self.probe_subsample)
 
         subsample_trfm = np.arange(np.cumprod(self.image_shape)[-1])
         subsample_inds = \
