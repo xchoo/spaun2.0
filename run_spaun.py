@@ -872,6 +872,10 @@ for n in range(args.n):
         sim.close()
 
     # ----- Write probe data to file -----
+    logger.write("\n\n# Command line options for displaying recorded probed " +
+                 "data:")
+    logger.write("\n# ------------------------------------------------------" +
+                 "---")
     if make_probes and not cfg.use_mpi:
         print "WRITING PROBE DATA TO FILE"
         probe_cfg.write_simdata_to_file(sim, experiment)
@@ -885,6 +889,7 @@ for n in range(args.n):
                                 '--showgrph']
 
         # Log subprocess call
+        logger.write("\n#\n# To display graphs of the recorded probe data:")
         logger.write("\n# " + " ".join(subprocess_call_list))
 
         if args.showgrph:
@@ -909,13 +914,20 @@ for n in range(args.n):
             subprocess_call_list += ['--showiofig']
 
         # Log subprocess call
-        logger.write("\n# " + " ".join(subprocess_call_list))
+        logger.write("\n#\n# To display Spaun's input/output plots:")
+        logger.write("\n# > " + " ".join(subprocess_call_list, '--showiofig'))
+        logger.write("\n#\n# To display Spaun's input/output animation:")
+        logger.write("\n# > " + " ".join(subprocess_call_list, '--showanim'))
 
         if args.showanim or args.showiofig:
             # Open subprocess
             print "CALLING: \n%s" % (" ".join(subprocess_call_list))
             import subprocess
             subprocess.Popen(subprocess_call_list)
+
+    if not (make_probes or args.showanim or args.showiofig or args.probeio):
+        logger.write("\n# run_spaun.py was not instructed to record probe " +
+                     "data.")
 
     # ----- Write runtime data -----
     runtime_filename = os.path.join(cfg.data_dir, 'runtimes.txt')
