@@ -24,8 +24,9 @@ from ..Arm import Arm
 try:
     from . import py3LinkArm
 except ImportError:
-    print('Error importing py3LinkArm python dll. Please read the README.txt' +
-          ' in %s and recompile the dll.' % os.path.dirname(__file__))
+    raise ImportError(
+        'Error importing py3LinkArm python dll. Please read the README.txt' +
+        ' in %s and recompile the dll.' % os.path.dirname(__file__))
 
 
 class Arm3Link(Arm):
