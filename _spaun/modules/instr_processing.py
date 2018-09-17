@@ -52,7 +52,7 @@ class InstructionProcessingSystem(Module):
         instr_ea_subdim = min(16, vocab.sp_dim)
         self.instr_ea = cfg.make_ens_array(
             n_neurons=cfg.n_neurons_ens * instr_ea_subdim,
-            n_ensembles=vocab.sp_dim / instr_ea_subdim,
+            n_ensembles=vocab.sp_dim // instr_ea_subdim,
             ens_dimensions=instr_ea_subdim,
             radius=cfg.get_optimal_sp_radius(vocab.sp_dim, instr_ea_subdim))
         nengo.Connection(self.instr_input, self.instr_ea.input, synapse=None)
