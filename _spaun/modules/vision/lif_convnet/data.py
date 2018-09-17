@@ -22,7 +22,7 @@ class LIFConvNetVisionDataObject(object):
         centers_filename = \
             os.path.join(self.filepath, self.module_name, 'class_centers.npz')
 
-        sps = np.load(centers_filename)['centers']
+        sps = np.load(centers_filename, encoding='latin1')['centers']
         self.num_classes = sps.shape[0]
 
         self.sps_output_scale = 1.0 / 32.0
@@ -34,7 +34,8 @@ class LIFConvNetVisionDataObject(object):
                          'fc10_class_means.npz')
 
         self.sps_fc10 = np.eye(self.num_classes)
-        self.sps_fc10_means = np.load(means_filename)['means']
+        self.sps_fc10_means = np.load(means_filename,
+                                      encoding='latin1')['means']
         # For magic number 10.1, see reference_code/vision_3/data_analysis.py
         # (print np.mean(norms) for sp_10)
 

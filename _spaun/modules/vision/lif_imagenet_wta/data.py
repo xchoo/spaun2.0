@@ -30,7 +30,8 @@ class LIFImagenetVisionDataObject(object):
         centers_filename = \
             os.path.join(self.filepath, self.module_name,
                          'spaun_sym_class_centers.npz')
-        self.sps_spaun_sym = np.load(centers_filename)['class_centers']
+        self.sps_spaun_sym = np.load(centers_filename,
+                                     encoding='latin1')['class_centers']
         self.spaun_sym_num_classes = self.sps_spaun_sym.shape[0]
         self.spaun_sym_out_dimensions = self.sps_spaun_sym.shape[1]
 
@@ -43,7 +44,8 @@ class LIFImagenetVisionDataObject(object):
             os.path.join(self.filepath, self.module_name,
                          'class_means.npz')
 
-        self.imagenet_sps_means = np.load(means_filename)['means']
+        self.imagenet_sps_means = np.load(means_filename,
+                                          encoding='latin1')['means']
         self.imagenet_num_classes = self.imagenet_sps_means.shape[0]
         self.imagenet_out_dimensions = self.imagenet_num_classes
 

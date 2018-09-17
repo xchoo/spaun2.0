@@ -104,7 +104,8 @@ class NengoAnim(MatplotlibAnim):
         t_max = max(ax.get_xlim()[1], t_data[-1])
         new_tick_labels = np.linspace(t_min, t_max, num=num_ticks,
                                       endpoint=True)
-        ax.xaxis.set_ticklabels(map(lambda t: "%0.2f" % t, new_tick_labels))
+        ax.xaxis.set_ticklabels(
+            list(map(lambda t: "%0.2f" % t, new_tick_labels)))
 
         t_indexes = subplot_data['buffer_len']
         self._rasterplot_common_update(key, t_data[-t_indexes:] - t_min,

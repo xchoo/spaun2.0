@@ -18,7 +18,8 @@ class ImagenetDataObject(object):
         # --- Spaun symbol data ---
         spaun_sym_filename = 'spaun_sym.npz'
 
-        sym_fileobj = np.load(os.path.join(self.filepath, spaun_sym_filename))
+        sym_fileobj = np.load(os.path.join(self.filepath, spaun_sym_filename),
+                              encoding='latin1')
 
         # --- Imagenet data ---
         # retrieve from https://figshare.com/s/cdde71007405eb11a88f
@@ -42,7 +43,8 @@ class ImagenetDataObject(object):
         # images_data_mean = images_data_mean[:, 16:-16, 16:-16]
         images_data_mean = \
             np.load(os.path.join(self.filepath,
-                                 data_mean_filename))['data_mean']
+                                 data_mean_filename),
+                    encoding='latin1')['data_mean']
 
         # --- Combined image (imagenet + spaun symbol) data ---
         # Spaun symbol data

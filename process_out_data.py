@@ -349,7 +349,7 @@ else:
 
 output_filepath = os.path.join(probe_dir, output_file)
 if args.a or args.r:
-    old_result_data = np.load(output_filepath)
+    old_result_data = np.load(output_filepath, encoding='latin1')
     old_results = dict(old_result_data)
 
     for key in processed_results:
@@ -391,7 +391,7 @@ if not args.r:
     # Write CI data to file
     np.savez_compressed(ci_data_filepath, **ci_data)
 else:
-    ci_data = dict(np.load(ci_data_filepath))
+    ci_data = dict(np.load(ci_data_filepath, encoding='latin1'))
 
 # Print CI data
 print "CI Data: ", ci_data

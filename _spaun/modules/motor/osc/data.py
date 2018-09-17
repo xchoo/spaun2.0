@@ -18,7 +18,8 @@ class OSCMotorDataObject(MotorDataObject):
         # --- Motor semantic pointer generation ---
         canonical_paths = np.load(os.path.join(self.filepath,
                                                self.module_name,
-                                               'canon_paths.npz'))
+                                               'canon_paths.npz'),
+                                  encoding='latin1')
         canonical_paths_x = canonical_paths['canon_paths_x']
         canonical_paths_y = canonical_paths['canon_paths_y']
 
