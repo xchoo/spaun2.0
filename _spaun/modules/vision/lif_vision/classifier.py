@@ -1,6 +1,6 @@
 import nengo
 
-from _spaun._networks import AssociativeMemory as AM
+from ...._networks import AssociativeMemory as AM
 
 
 def LIFVisionClassifier(vis_data, concept_sps, net=None):

@@ -1,7 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 
-from loggerator import logger
+from .loggerator import logger
 
 
 class SpaunExperiment(object):
@@ -18,8 +18,8 @@ class SpaunExperiment(object):
         for key in self.sym_map.keys():
             self.sym_rev_map[self.sym_map[key]] = key
 
-        # self.num_out_list = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        #                      '-']
+        # Use alphabetical numerical representation for output logging so as
+        # to avoid confusion between input stimulus and spaun outputs
         self.num_out_list = ['z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
                              '-']
 

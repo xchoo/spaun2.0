@@ -4,7 +4,7 @@ import numpy as np
 from nengo.spa import Vocabulary
 from nengo.spa import SemanticPointer
 
-from loggerator import logger
+from .loggerator import logger
 
 
 class SpaunVocabulary(object):
