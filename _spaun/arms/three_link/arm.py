@@ -15,10 +15,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+from __future__ import print_function
+import os
 import numpy as np
 
 from ..Arm import Arm
-import py3LinkArm
+
+try:
+    from . import py3LinkArm
+except ImportError:
+    print('Error importing py3LinkArm python dll. Please read the README.txt' +
+          ' in %s and recompile the dll.' % os.path.dirname(__file__))
 
 
 class Arm3Link(Arm):
