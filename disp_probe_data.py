@@ -60,7 +60,7 @@ if not (show_grphs or show_io or show_anim):
 gen_trange = False
 if data_filename.endswith('.npz'):
     config_filename = data_filename[:-4] + '_cfg.npz'
-    probe_data = np.load(data_filename)
+    probe_data = np.load(data_filename, encoding='latin1')
 
 elif data_filename.endswith('.h5'):
     # H5 file format (nengo_mpi)
@@ -78,7 +78,7 @@ else:
                        data_filename)
 
 # --------------------- LOAD MODEL & PROBE CONFIG DATA ---------------------
-config_data = np.load(config_filename)
+config_data = np.load(config_filename, encoding='latin1')
 
 data_version = 0 if 'version' not in config_data.keys() else \
     config_data['version'].item()

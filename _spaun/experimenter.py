@@ -164,7 +164,7 @@ class SpaunExperiment(object):
                 # Generate number list
                 num_list = np.array(self.num_map.keys())
                 np.random.shuffle(num_list)
-                num_list = map(str, num_list)
+                num_list = list(map(str, num_list))
 
                 # Generate position / kind options
                 if qa_ind is None:

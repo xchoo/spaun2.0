@@ -1,9 +1,15 @@
-import cPickle as pickle
 import gzip
 import os
-import urllib
-
+import sys
 import numpy as np
+
+# Python2 vs Python3 imports
+if sys.version_info[0] < 3:
+    import cPickle as pickle
+    from urllib import urlretrieve
+else:
+    from urllib.request import urlretrieve
+    import pickle
 
 urls = {
     'mnist.pkl.gz': 'http://deeplearning.net/data/mnist/mnist.pkl.gz',
@@ -15,14 +21,18 @@ def read_file(filename, filepath):
     filepath = os.path.join(filepath, filename)
     if not os.path.exists(filepath):
         if filename in urls:
-            urllib.urlretrieve(urls[filename], filename=filepath)
+            urlretrieve(urls[filename], filename=filepath)
             print("Fetched '%s' to '%s'" % (urls[filename], filepath))
         else:
             raise NotImplementedError(
                 "I do not know where to find '%s'" % filename)
 
-    with gzip.open(filepath, 'rb') as f:
-        train, valid, test = pickle.load(f)
+    if sys.version_info[0] < 3:
+        with gzip.open(filepath, 'rb') as f:
+            train, valid, test = pickle.load(f)
+    else:
+        with gzip.open(filepath, 'r') as f:
+            train, valid, test = pickle.load(f, encoding='bytes')
 
     return train, valid, test
 

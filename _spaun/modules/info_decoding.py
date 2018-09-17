@@ -112,7 +112,8 @@ class InfoDecoding(Module):
             copy_draw_tfrm_data = \
                 np.load(os.path.join(mtr_data.filepath, cfg.mtr_module,
                                      '_'.join([cfg.vis_module,
-                                               'copydraw_trfms.npz'])))
+                                               'copydraw_trfms.npz'])),
+                        encoding='latin1')
             copy_draw_trfms_x = copy_draw_tfrm_data['trfms_x']
             copy_draw_trfms_y = copy_draw_tfrm_data['trfms_y']
 

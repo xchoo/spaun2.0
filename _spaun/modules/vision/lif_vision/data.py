@@ -18,7 +18,8 @@ class LIFVisionDataObject(object):
         # --- LIF vision network weights configurations ---
         self.vision_network_filename = \
             os.path.join(self.filepath, self.module_name, 'params.npz')
-        self.vision_network_data = np.load(self.vision_network_filename)
+        self.vision_network_data = np.load(self.vision_network_filename,
+                                           encoding='latin1')
 
         self.weights = self.vision_network_data['weights']
         self.biases = self.vision_network_data['biases']
@@ -36,7 +37,8 @@ class LIFVisionDataObject(object):
         # --- Visual associative memory configurations ---
         means_filename = \
             os.path.join(self.filepath, self.module_name, 'class_means.npz')
-        means_data = np.matrix(1.0 / np.load(means_filename)['means'])
+        means_data = np.matrix(1.0 / np.load(means_filename,
+                                             encoding='latin1')['means'])
 
         self.num_classes = weights_class.shape[1]
 

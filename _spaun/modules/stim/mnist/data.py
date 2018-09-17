@@ -53,7 +53,7 @@ class MNISTDataObject(object):
         self.images_data = images_data
         self.images_labels = images_labels
         self.stim_SP_labels = symbol_labels
-        self.stim_SP_labels_full = (map(str, self.images_labels_unique) +
+        self.stim_SP_labels_full = (list(map(str, self.images_labels_unique)) +
                                     symbol_labels)
 
         self.image_shape = (28, 28)

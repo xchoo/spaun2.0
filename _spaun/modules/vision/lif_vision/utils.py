@@ -49,7 +49,7 @@ class FileObject(object):
 
     @staticmethod
     def from_file(file_name):
-        npzfile = np.load(file_name)
+        npzfile = np.load(file_name, encoding='latin1')
         cls = npzfile['__class__'].item()
         d = npzfile['__dict__'].item()
 
