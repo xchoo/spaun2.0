@@ -5,7 +5,7 @@ from nengo.networks import EnsembleArray
 from nengo.dists import Choice
 from nengo.dists import Exponential
 
-from assoc_mem import AssociativeMemory
+from .assoc_mem import AssociativeMemory
 
 
 def make_ensarray_func(n_neurons, dimensions, **ens_args):
