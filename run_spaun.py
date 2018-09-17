@@ -910,16 +910,21 @@ for n in range(args.n):
                                              'disp_probe_data.py'),
                                 '"' + anim_probe_data_filename + '"',
                                 '--data_dir', '"' + cfg.data_dir + '"']
+
+        # Log subprocess call
+        logger.write("\n#\n# To display Spaun's input/output plots:")
+        logger.write("\n# > " + " ".join(subprocess_call_list +
+                                         ['--showiofig']))
+        logger.write("\n#\n# To display Spaun's input/output animation:")
+        logger.write("\n# > " + " ".join(subprocess_call_list +
+                                         ['--showanim']))
+        logger.write("\n# (Flags can be combined to display both plots and" +
+                     " animations)")
+
         if args.showanim:
             subprocess_call_list += ['--showanim']
         if args.showiofig:
             subprocess_call_list += ['--showiofig']
-
-        # Log subprocess call
-        logger.write("\n#\n# To display Spaun's input/output plots:")
-        logger.write("\n# > " + " ".join(subprocess_call_list, '--showiofig'))
-        logger.write("\n#\n# To display Spaun's input/output animation:")
-        logger.write("\n# > " + " ".join(subprocess_call_list, '--showanim'))
 
         if args.showanim or args.showiofig:
             # Open subprocess
