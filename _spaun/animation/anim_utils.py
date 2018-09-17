@@ -8,8 +8,6 @@ def print_progress_bar(t, t_max, steps=10, eta_s=None):
     percent_per_bar = steps / 100.0
     bars_filled = int(round(percent_done / percent_per_bar, 2))
 
-    # frac_percent = (percent_done * 10) - int(percent_done * 10)
-
     eta_str = "" if eta_s is None else \
         time.strftime("%Hh %Mm %Ss", time.gmtime(max(eta_s, 0)))
 
@@ -119,7 +117,6 @@ class GeneratorFunctions(object):
     #         print_progress_bar(t, t_stop,
     #                            eta_s=1.0 * (timestamp - timestamp_start)
     #                            * (t_stop - t) / t)
-    #     print ""
 
     @staticmethod
     def keyed_data_funcs(t_data, func_map, t_index_step=1):
@@ -188,7 +185,6 @@ class DataFunctions(object):
     @staticmethod
     def generic_constant(data, **args):
         flatten_data = np.asarray(data).flatten()
-        print flatten_data.shape
 
         def data_func(t_index, data=flatten_data):
             return data
