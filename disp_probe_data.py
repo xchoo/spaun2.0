@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import numpy as np
 import numpy.ma as ma
@@ -108,7 +110,7 @@ else:
 t_data = trange[trange_inds]
 
 # --------------------- DISPLAY PROBE DATA ---------------------
-print "\nDISPLAYING PROBE DATA."
+print("\nDISPLAYING PROBE DATA.")
 
 fig_list = []
 
@@ -184,8 +186,8 @@ aspect_equal_y_margin = present_interval * 0.25
 if show_grphs:
     graph_list = config_data['graph_list']
 
-    print "GRAPH LIST: "
-    print graph_list
+    print("GRAPH LIST: ")
+    print(graph_list)
 
     title_list = [[]]
     grph_list = [[]]
@@ -418,8 +420,8 @@ if show_grphs:
 if show_anim or show_io:
     anim_config = config_data['anim_config']
 
-    print "ANIMATION CONFIG: "
-    print anim_config
+    print("ANIMATION CONFIG: ")
+    print(anim_config)
 
 if show_io:
     # TODO: UPDATE TO USE NEW CODE FROM ABOVE
