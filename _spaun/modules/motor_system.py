@@ -32,8 +32,8 @@ class MotorSystem(Module):
 
         # Motor init signal
         self.motor_init_vis = cfg.make_thresh_ens_net(0.75, n_neurons=100)
-        self.motor_init_ps_task = cfg.make_thresh_ens_net(0.75, n_neurons=100)
-        self.motor_init_ps_dec = cfg.make_thresh_ens_net(0.75, n_neurons=100)
+        self.motor_init_exe_task = cfg.make_thresh_ens_net(0.75, n_neurons=100)
+        self.motor_init_exe_dec = cfg.make_thresh_ens_net(0.75, n_neurons=100)
 
         # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
         # Motor go signal
@@ -62,13 +62,13 @@ class MotorSystem(Module):
                          transform=3, synapse=0.008)
         # nengo.Connection(self.motor_init_vis.output, self.ramp_sig.init,
         #                  transform=-6, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_task.output, self.ramp_sig.init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_task.output, self.ramp_sig.init,
                          transform=-6.5, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.ramp_sig.init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.ramp_sig.init,
                          transform=-6.5, synapse=0.05)
 
         # Stop the ramp from starting if the stop command has been given
@@ -311,17 +311,17 @@ class MotorSystem(Module):
         # motor_init signal
         self.motor_init = nengo.Node(size_in=1)
         # nengo.Connection(self.motor_init_vis.output, self.motor_init)
-        # nengo.Connection(self.motor_init_ps_task.output, self.motor_init)
-        # nengo.Connection(self.motor_init_ps_dec.output, self.motor_init)
+        # nengo.Connection(self.motor_init_exe_task.output, self.motor_init)
+        # nengo.Connection(self.motor_init_exe_dec.output, self.motor_init)
         nengo.Connection(self.motor_init_vis.output, self.motor_init,
                          transform=3, synapse=0.0035)
-        nengo.Connection(self.motor_init_ps_task.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_task.output, self.motor_init,
                          transform=5, synapse=0.0035)
-        nengo.Connection(self.motor_init_ps_task.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_task.output, self.motor_init,
                          transform=-6, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_dec.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.motor_init,
                          transform=5, synapse=0.0035)
-        nengo.Connection(self.motor_init_ps_dec.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.motor_init,
                          transform=-6, synapse=0.05)
 
         self.arm_state = nengo.Node(output=lambda t, arm=arm_obj:
@@ -338,38 +338,40 @@ class MotorSystem(Module):
         else:
             warn("MotorSystem Module - Cannot connect from 'vis'")
 
-        # Set up connections from production system module
-        if hasattr(parent_net, 'ps'):
-            # Motor init signal generation - generates a pulse when ps.task
-            # changes to DEC vectors. Also generates a pulse when ps.dec
+        # Set up connections from executive system module
+        if hasattr(parent_net, 'exe'):
+            # Motor init signal generation - generates a pulse when exe.task
+            # changes to DEC vectors. Also generates a pulse when exe.dec
             # changes to FWD or REV.
             mtr_init_task_sp_vecs = vocab.main.parse('DEC + FWD + REV').v
 
-            nengo.Connection(parent_net.ps.task, self.motor_init_ps_task.input,
+            nengo.Connection(parent_net.exe.task,
+                             self.motor_init_exe_task.input,
                              transform=[1.25 * mtr_init_task_sp_vecs])
-            nengo.Connection(parent_net.ps.dec, self.motor_init_ps_dec.input,
+            nengo.Connection(parent_net.exe.dec,
+                             self.motor_init_exe_dec.input,
                              transform=[1.25 * mtr_init_task_sp_vecs])
 
-            # Motor stop signal - stop the motor output when ps.task
+            # Motor stop signal - stop the motor output when exe.task
             # is not one of the DEC vectors.
-            nengo.Connection(parent_net.ps.task, self.motor_stop_input.input,
+            nengo.Connection(parent_net.exe.task, self.motor_stop_input.input,
                              transform=[mtr_init_task_sp_vecs * -1.0])
 
-            # Motor stop signal - stop the motor output when ps.state
+            # Motor stop signal - stop the motor output when exe.state
             # is not in the LEARN state.
             mtr_learn_sp_vecs = vocab.main.parse('LEARN').v
-            nengo.Connection(parent_net.ps.state, self.motor_stop_input.input,
+            nengo.Connection(parent_net.exe.state, self.motor_stop_input.input,
                              transform=[mtr_learn_sp_vecs * -1.0])
 
             # Motor bypass signal, also disable target_diff_norm
             # calculation, and the motor_stop_input signal
             mtr_bypass_task_sp_vecs = vocab.main.parse('CNT').v
-            nengo.Connection(parent_net.ps.dec, self.motor_bypass.input,
+            nengo.Connection(parent_net.exe.dec, self.motor_bypass.input,
                              transform=[mtr_bypass_task_sp_vecs * 1.0])
-            nengo.Connection(parent_net.ps.dec, self.motor_stop_input.input,
+            nengo.Connection(parent_net.exe.dec, self.motor_stop_input.input,
                              transform=[mtr_bypass_task_sp_vecs * -3.0])
         else:
-            warn("MotorSystem Module - Cannot connect from 'ps'")
+            warn("MotorSystem Module - Cannot connect from 'exe'")
 
         # Set up connections from decoding system module
         if hasattr(parent_net, 'dec'):
@@ -409,8 +411,8 @@ class MotorSystemDummy(Module):
 
         # Motor init signal
         self.motor_init_vis = cfg.make_thresh_ens_net(0.75)
-        self.motor_init_ps_task = cfg.make_thresh_ens_net(0.75)
-        self.motor_init_ps_dec = cfg.make_thresh_ens_net(0.75)
+        self.motor_init_exe_task = cfg.make_thresh_ens_net(0.75)
+        self.motor_init_exe_dec = cfg.make_thresh_ens_net(0.75)
 
         # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
         # Motor go signal
@@ -435,13 +437,13 @@ class MotorSystemDummy(Module):
                          transform=3, synapse=0.008)
         # nengo.Connection(self.motor_init_vis.output, self.ramp_sig.init,
         #                  transform=-6, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_task.output, self.ramp_sig.init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_task.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_task.output, self.ramp_sig.init,
                          transform=-6, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.ramp_sig.init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_dec.output, self.ramp_sig.init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.ramp_sig.init,
                          transform=-6, synapse=0.05)
 
         # Stop the ramp from starting if the stop command has been given
@@ -517,17 +519,17 @@ class MotorSystemDummy(Module):
         # motor_init signal
         self.motor_init = nengo.Node(size_in=1)
         # nengo.Connection(self.motor_init_vis.output, self.motor_init)
-        # nengo.Connection(self.motor_init_ps_task.output, self.motor_init)
-        # nengo.Connection(self.motor_init_ps_dec.output, self.motor_init)
+        # nengo.Connection(self.motor_init_exe_task.output, self.motor_init)
+        # nengo.Connection(self.motor_init_exe_dec.output, self.motor_init)
         nengo.Connection(self.motor_init_vis.output, self.motor_init,
                          transform=3, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_task.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_task.output, self.motor_init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_task.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_task.output, self.motor_init,
                          transform=-6, synapse=0.05)
-        nengo.Connection(self.motor_init_ps_dec.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.motor_init,
                          transform=5, synapse=0.008)
-        nengo.Connection(self.motor_init_ps_dec.output, self.motor_init,
+        nengo.Connection(self.motor_init_exe_dec.output, self.motor_init,
                          transform=-6, synapse=0.05)
 
         # ################ DEBUG CODE ###################
@@ -545,37 +547,38 @@ class MotorSystemDummy(Module):
         else:
             warn("MotorSystem Module - Cannot connect from 'vis'")
 
-        # Set up connections from production system module
-        if hasattr(parent_net, 'ps'):
-            # Motor init signal generation - generates a pulse when ps.task
-            # changes to DEC vectors. Also generates a pulse when ps.dec
+        # Set up connections from executive system module
+        if hasattr(parent_net, 'exe'):
+            # Motor init signal generation - generates a pulse when exe.task
+            # changes to DEC vectors. Also generates a pulse when exe.dec
             # changes to FWD or REV.
             mtr_init_task_sp_vecs = vocab.main.parse('DEC').v
             mtr_init_task_dec_vecs = vocab.main.parse('FWD + REV').v
 
-            nengo.Connection(parent_net.ps.task, self.motor_init_ps_task.input,
+            nengo.Connection(parent_net.exe.task,
+                             self.motor_init_exe_task.input,
                              transform=[1.25 * mtr_init_task_sp_vecs])
-            nengo.Connection(parent_net.ps.dec, self.motor_init_ps_dec.input,
+            nengo.Connection(parent_net.exe.dec, self.motor_init_exe_dec.input,
                              transform=[1.25 * mtr_init_task_dec_vecs])
 
-            # Motor stop signal - stop the motor output when ps.task
+            # Motor stop signal - stop the motor output when exe.task
             # is not one of the DEC vectors.
-            nengo.Connection(parent_net.ps.task, self.motor_stop_input.input,
+            nengo.Connection(parent_net.exe.task, self.motor_stop_input.input,
                              transform=[mtr_init_task_sp_vecs * -1.0])
 
-            # Motor stop signal - stop the motor output when ps.state
+            # Motor stop signal - stop the motor output when exe.state
             # is not in the LEARN state.
             mtr_learn_sp_vecs = vocab.main.parse('LEARN').v
-            nengo.Connection(parent_net.ps.state, self.motor_stop_input.input,
+            nengo.Connection(parent_net.exe.state, self.motor_stop_input.input,
                              transform=[mtr_learn_sp_vecs * -1.0])
 
             # Motor bypass signal, also disable target_diff_norm
             # calculation
             mtr_bypass_task_sp_vecs = vocab.main.parse('CNT').v
-            nengo.Connection(parent_net.ps.dec, self.motor_bypass.input,
+            nengo.Connection(parent_net.exe.dec, self.motor_bypass.input,
                              transform=[mtr_bypass_task_sp_vecs * 1.0])
         else:
-            warn("MotorSystem Module - Cannot connect from 'ps'")
+            warn("MotorSystem Module - Cannot connect from 'exe'")
 
         # Set up connections from decoding system module
         if hasattr(parent_net, 'dec'):

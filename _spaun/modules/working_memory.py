@@ -135,7 +135,7 @@ class WorkingMemory(Module):
             # item_mb_gate_sp_vecs = \
             #     vocab.main.parse('+'.join(vocab.num_sp_strs)).v
             item_mb_no_gate_sp_vecs = \
-                vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+                vocab.main.parse('+'.join(vocab.exe_task_vis_sp_strs +
                                           vocab.misc_vis_sp_strs)).v
             item_mb_rst_sp_vecs = vocab.main.parse('A+OPEN').v
 
@@ -203,17 +203,17 @@ class WorkingMemory(Module):
         else:
             warn("WorkingMemory Module - Cannot connect from 'vis'")
 
-        # Set up connections from production system module
-        if hasattr(p_net, 'ps'):
+        # Set up connections from executive system module
+        if hasattr(p_net, 'exe'):
             # ###### INPUT SELECTOR #######
             instr_task_sp_vecs = vocab.main.parse('INSTR').v
-            nengo.Connection(p_net.ps.task, self.select_in.sel1,
+            nengo.Connection(p_net.exe.task, self.select_in.sel1,
                              transform=[instr_task_sp_vecs])
-            nengo.Connection(p_net.ps.task, self.select_gate.sel1,
+            nengo.Connection(p_net.exe.task, self.select_gate.sel1,
                              transform=[instr_task_sp_vecs])
 
             # ### DEBUG ###
-            nengo.Connection(p_net.ps.task, self.gate_sel_node1_in,
+            nengo.Connection(p_net.exe.task, self.gate_sel_node1_in,
                              transform=[instr_task_sp_vecs])
             # ### DEBUG ###
 
@@ -231,7 +231,7 @@ class WorkingMemory(Module):
                 mb1_no_gate_thresh_ens1 = cfg.make_thresh_ens_net()
                 mb1_no_gate_sp_vecs1 = \
                     vocab.main.parse('QAP+QAK+TRANS1+TRANS2+CNT0').v
-                nengo.Connection(p_net.ps.state, mb1_no_gate_thresh_ens1.input,
+                nengo.Connection(p_net.exe.state, mb1_no_gate_thresh_ens1.input,
                                  transform=[mb1_no_gate_sp_vecs1])
                 nengo.Connection(mb1_no_gate_thresh_ens1.output,
                                  self.mb1_net.gate,
@@ -240,7 +240,7 @@ class WorkingMemory(Module):
                 mb1_no_gate_thresh_ens2 = cfg.make_thresh_ens_net()
                 mb1_no_gate_sp_vecs2 = \
                     vocab.main.parse('X+L').v
-                nengo.Connection(p_net.ps.task, mb1_no_gate_thresh_ens2.input,
+                nengo.Connection(p_net.exe.task, mb1_no_gate_thresh_ens2.input,
                                  transform=[mb1_no_gate_sp_vecs2])
                 nengo.Connection(mb1_no_gate_thresh_ens2.output,
                                  self.mb1_net.gate,
@@ -249,7 +249,7 @@ class WorkingMemory(Module):
                 mb1_no_reset_thresh_ens = cfg.make_thresh_ens_net()
                 mb1_no_reset_sp_vecs = \
                     vocab.main.parse('QAP+QAK+TRANS1+CNT0+CNT1').v
-                nengo.Connection(p_net.ps.state, mb1_no_reset_thresh_ens.input,
+                nengo.Connection(p_net.exe.state, mb1_no_reset_thresh_ens.input,
                                  transform=[mb1_no_reset_sp_vecs])
                 nengo.Connection(mb1_no_reset_thresh_ens.output,
                                  self.mb1_net.reset,
@@ -261,13 +261,13 @@ class WorkingMemory(Module):
 
             mb1_sel_1_sp_vecs = vocab.main.parse('CNT1').v
                 # Use *ONE connection in the CNT1 state  # noqa
-            nengo.Connection(p_net.ps.state, self.mb1_net.sel1,
+            nengo.Connection(p_net.exe.state, self.mb1_net.sel1,
                              transform=[mb1_sel_1_sp_vecs])
-            nengo.Connection(p_net.ps.state, self.mb1_net.fdbk_gate,
+            nengo.Connection(p_net.exe.state, self.mb1_net.fdbk_gate,
                              transform=[mb1_sel_1_sp_vecs])
 
             # Disable memory feedback connection for INSTR task
-            nengo.Connection(p_net.ps.task, self.mb1_net.fdbk_gate,
+            nengo.Connection(p_net.exe.task, self.mb1_net.fdbk_gate,
                              transform=[instr_task_sp_vecs])
 
             # ###### MB2 ########
@@ -275,9 +275,9 @@ class WorkingMemory(Module):
                 mb2_no_gate_thresh_ens = cfg.make_thresh_ens_net()
                 mb2_no_gate_sp_vecs = \
                     vocab.main.parse('X+TRANS0+TRANS2+CNT1+L').v
-                nengo.Connection(p_net.ps.state, mb2_no_gate_thresh_ens.input,
+                nengo.Connection(p_net.exe.state, mb2_no_gate_thresh_ens.input,
                                  transform=[mb2_no_gate_sp_vecs])
-                nengo.Connection(p_net.ps.task, mb2_no_gate_thresh_ens.input,
+                nengo.Connection(p_net.exe.task, mb2_no_gate_thresh_ens.input,
                                  transform=[mb2_no_gate_sp_vecs])
                 nengo.Connection(mb2_no_gate_thresh_ens.output,
                                  self.mb2_net.gate,
@@ -291,7 +291,7 @@ class WorkingMemory(Module):
                 # Why is there a no reset for the QAP and QAK states??
                 #    vocab.main.parse('QAP+QAK+TRANS1+TRANS2+CNT1+TRANSC').v
                 # Why is there a no reset for the TRANS1 state???
-                nengo.Connection(p_net.ps.state, mb2_no_reset_thresh_ens.input,
+                nengo.Connection(p_net.exe.state, mb2_no_reset_thresh_ens.input,
                                  transform=[mb2_no_reset_sp_vecs])
                 nengo.Connection(mb2_no_reset_thresh_ens.output,
                                  self.mb2_net.reset,
@@ -299,13 +299,13 @@ class WorkingMemory(Module):
 
             mb2_sel_1_sp_vecs = vocab.main.parse('0').v
             # TODO: Make configurable? Use *ONE connection in the none
-            nengo.Connection(p_net.ps.state, self.mb2_net.sel1,
+            nengo.Connection(p_net.exe.state, self.mb2_net.sel1,
                              transform=[mb2_sel_1_sp_vecs])
-            nengo.Connection(p_net.ps.state, self.mb2_net.fdbk_gate,
+            nengo.Connection(p_net.exe.state, self.mb2_net.fdbk_gate,
                              transform=[mb2_sel_1_sp_vecs])
 
             # Disable memory feedback connection for INSTR task
-            nengo.Connection(p_net.ps.task, self.mb2_net.fdbk_gate,
+            nengo.Connection(p_net.exe.task, self.mb2_net.fdbk_gate,
                              transform=[instr_task_sp_vecs])
 
             # ###### MB3 ########
@@ -313,9 +313,9 @@ class WorkingMemory(Module):
                 mb3_no_gate_thresh_ens = cfg.make_thresh_ens_net()
                 mb3_no_gate_sp_vecs = \
                     vocab.main.parse('X+QAP+QAK+TRANS0+TRANS1+L').v
-                nengo.Connection(p_net.ps.state, mb3_no_gate_thresh_ens.input,
+                nengo.Connection(p_net.exe.state, mb3_no_gate_thresh_ens.input,
                                  transform=[mb3_no_gate_sp_vecs])
-                nengo.Connection(p_net.ps.task, mb3_no_gate_thresh_ens.input,
+                nengo.Connection(p_net.exe.task, mb3_no_gate_thresh_ens.input,
                                  transform=[mb3_no_gate_sp_vecs])
                 nengo.Connection(mb3_no_gate_thresh_ens.output,
                                  self.mb3_net.gate,
@@ -323,7 +323,7 @@ class WorkingMemory(Module):
 
                 mb3_no_reset_thresh_ens = cfg.make_thresh_ens_net()
                 mb3_no_reset_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
-                nengo.Connection(p_net.ps.state, mb3_no_reset_thresh_ens.input,
+                nengo.Connection(p_net.exe.state, mb3_no_reset_thresh_ens.input,
                                  transform=[mb3_no_reset_sp_vecs])
                 nengo.Connection(mb3_no_reset_thresh_ens.output,
                                  self.mb3_net.reset,
@@ -331,18 +331,18 @@ class WorkingMemory(Module):
 
             mb3_sel_1_sp_vecs = vocab.main.parse('CNT1').v
                 # Use *ONE connection in the CNT1 state  # noqa
-            nengo.Connection(p_net.ps.state, self.mb3_net.sel1,
+            nengo.Connection(p_net.exe.state, self.mb3_net.sel1,
                              transform=[mb3_sel_1_sp_vecs])
-            nengo.Connection(p_net.ps.state, self.mb3_net.fdbk_gate,
+            nengo.Connection(p_net.exe.state, self.mb3_net.fdbk_gate,
                              transform=[mb3_sel_1_sp_vecs])
 
             mb3_sel_2_sp_vecs = vocab.main.parse('CNT0').v
                 # Use POS1*ONE connection for CNT0 state  # noqa
-            nengo.Connection(p_net.ps.state, self.mb3_net.sel2,
+            nengo.Connection(p_net.exe.state, self.mb3_net.sel2,
                              transform=[mb3_sel_2_sp_vecs])
 
             # Disable memory feedback connection for INSTR task
-            nengo.Connection(p_net.ps.task, self.mb3_net.fdbk_gate,
+            nengo.Connection(p_net.exe.task, self.mb3_net.fdbk_gate,
                              transform=[instr_task_sp_vecs])
 
             # ###### MBAVe ########
@@ -350,28 +350,28 @@ class WorkingMemory(Module):
                 mbave_no_gate_thresh_ens = cfg.make_thresh_ens_net()
                 mbave_no_gate_sp_vecs = \
                     vocab.main.parse('X+QAP+QAK+TRANS0+L').v
-                nengo.Connection(p_net.ps.state,
+                nengo.Connection(p_net.exe.state,
                                  mbave_no_gate_thresh_ens.input,
                                  transform=[mbave_no_gate_sp_vecs])
-                nengo.Connection(p_net.ps.task, mbave_no_gate_thresh_ens.input,
+                nengo.Connection(p_net.exe.task, mbave_no_gate_thresh_ens.input,
                                  transform=[mbave_no_gate_sp_vecs])
                 nengo.Connection(mbave_no_gate_thresh_ens.output,
                                  self.mbave_net.gate,
                                  transform=cfg.mb_neg_gate_scale)
 
             mbave_do_reset_sp_vecs = vocab.main.parse('X').v
-            nengo.Connection(p_net.ps.task, self.mbave_net.reset,
+            nengo.Connection(p_net.exe.task, self.mbave_net.reset,
                              transform=[cfg.mb_gate_scale *
                                         mbave_do_reset_sp_vecs])
 
             # ###### Gate Signal Bias ######
             gate_sig_bias_enable_sp_vecs = vocab.main.parse('CNT').v
                 # Only enable gate signal bias for dec=CNT  # noqa
-            nengo.Connection(p_net.ps.dec, self.gate_sig_bias.input,
+            nengo.Connection(p_net.exe.dec, self.gate_sig_bias.input,
                              transform=[gate_sig_bias_enable_sp_vecs],
                              synapse=0.01)
         else:
-            warn("WorkingMemory Module - Cannot connect from 'ps'")
+            warn("WorkingMemory Module - Cannot connect from 'exe'")
 
         # Set up connections from encoding module
         if hasattr(p_net, 'enc'):

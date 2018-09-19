@@ -451,62 +451,70 @@ class ProbeCfgDefault(SpaunProbeConfig):
         #
         #     self.add_graph('vis detect', [p0, pvsd1, pvsd2, pvsd3])
 
-        if hasattr(self.m, 'ps') and True:
-            net = self.m.ps
-            pps1 = self.probe_value(net.task, vocab=self.v.ps_task,
-                                    label='ps task')
-            pps2 = self.probe_value(net.state, vocab=self.v.ps_state,
-                                    label='ps state')
-            pps3 = self.probe_value(net.dec, vocab=self.v.ps_dec,
-                                    label='ps dec')
+        if hasattr(self.m, 'exe') and True:
+            net = self.m.exe
+            pexe1 = self.probe_value(net.task, vocab=self.v.exe_task,
+                                     label='exec task')
+            pexe2 = self.probe_value(net.state, vocab=self.v.exe_state,
+                                     label='exec state')
+            pexe3 = self.probe_value(net.dec, vocab=self.v.exe_dec,
+                                     label='exec dec')
 
-            pps4 = self.probe_value(net.task_mb.mem1.output,
-                                    vocab=self.v.ps_task)
-            pps5 = self.probe_value(net.task_mb.mem2.output,
-                                    vocab=self.v.ps_task)
-            pps6 = self.probe_value(net.task_mb.mem1.input, synapse=None,
-                                    vocab=self.v.ps_task)
-            pps6b = self.probe_value(net.task_init.output)
+            pexe4 = self.probe_value(net.task_mb.mem1.output,
+                                     vocab=self.v.exe_task)
+            pexe5 = self.probe_value(net.task_mb.mem2.output,
+                                     vocab=self.v.exe_task)
+            pexe6 = self.probe_value(net.task_mb.mem1.input, synapse=None,
+                                     vocab=self.v.exe_task)
+            pexe6b = self.probe_value(net.task_init.output)
 
-            pps7 = self.probe_value(net.state_mb.mem1.output,
-                                    vocab=self.v.ps_state)
-            pps8 = self.probe_value(net.state_mb.mem2.output,
-                                    vocab=self.v.ps_state)
-            pps9 = self.probe_value(net.state_mb.mem1.input, synapse=None,
-                                    vocab=self.v.ps_state)
+            pexe7 = self.probe_value(net.state_mb.mem1.output,
+                                     vocab=self.v.exe_state)
+            pexe8 = self.probe_value(net.state_mb.mem2.output,
+                                     vocab=self.v.exe_state)
+            pexe9 = self.probe_value(net.state_mb.mem1.input, synapse=None,
+                                     vocab=self.v.exe_state)
 
-            pps10 = self.probe_value(net.dec_mb.mem1.output,
-                                     vocab=self.v.ps_dec)
-            pps11 = self.probe_value(net.dec_mb.mem2.output,
-                                     vocab=self.v.ps_dec)
-            pps12 = self.probe_value(net.dec_mb.mem1.input, synapse=None,
-                                     vocab=self.v.ps_dec)
+            pexe10 = self.probe_value(net.dec_mb.mem1.output,
+                                      vocab=self.v.exe_dec)
+            pexe11 = self.probe_value(net.dec_mb.mem2.output,
+                                      vocab=self.v.exe_dec)
+            pexe12 = self.probe_value(net.dec_mb.mem1.input, synapse=None,
+                                      vocab=self.v.exe_dec)
 
-            pps13 = self.probe_value(net.task_mb.gate)
-            pps14 = self.probe_value(net.state_mb.gate)
-            pps15 = self.probe_value(net.dec_mb.gate)
-            pps13b = self.probe_value(net.task_mb.mem1.gate)
-            pps14b = self.probe_value(net.state_mb.mem1.gate)
-            pps15b = self.probe_value(net.dec_mb.mem1.gate)
+            pexe13 = self.probe_value(net.task_mb.gate)
+            pexe14 = self.probe_value(net.state_mb.gate)
+            pexe15 = self.probe_value(net.dec_mb.gate)
+            pexe13b = self.probe_value(net.task_mb.mem1.gate)
+            pexe14b = self.probe_value(net.state_mb.mem1.gate)
+            pexe15b = self.probe_value(net.dec_mb.mem1.gate)
 
-            pps13r = self.probe_value(net.task_mb.reset)
-            pps14r = self.probe_value(net.state_mb.reset)
-            pps15r = self.probe_value(net.dec_mb.reset)
+            pexe13r = self.probe_value(net.task_mb.reset)
+            pexe14r = self.probe_value(net.state_mb.reset)
+            pexe15r = self.probe_value(net.dec_mb.reset)
 
-            pps16 = self.probe_value(net.action, vocab=self.v.ps_action_learn)
-            pps17 = self.probe_value(net.action_in,
-                                     vocab=self.v.ps_action_learn)
+            pexe16 = self.probe_value(net.action,
+                                      vocab=self.v.exe_action_learn)
+            pexe17 = self.probe_value(net.action_in,
+                                      vocab=self.v.exe_action_learn)
 
-            self.add_graph('ps', [p0, pps1, pps2, pps3], [pps1, pps2, pps3])
             self.add_graph(
-                'ps_task',
-                [p0, pps6, pps4, pps5, pps6b, pps13, pps13b, pps13r],
-                [pps4, pps5, pps6])
+                'exe',
+                [p0, pexe1, pexe2, pexe3],
+                [pexe1, pexe2, pexe3])
             self.add_graph(
-                'ps_state', [p0, pps9, pps7, pps8, pps14, pps14b, pps14r])
+                'exe_task',
+                [p0, pexe6, pexe4, pexe5, pexe6b, pexe13, pexe13b, pexe13r],
+                [pexe4, pexe5, pexe6])
             self.add_graph(
-                'ps_dec', [p0, pps12, pps10, pps11, pps15, pps15b, pps15r])
-            self.add_graph('ps_action', [p0, pps17, pps16], [pps16])
+                'exe_state',
+                [p0, pexe9, pexe7, pexe8, pexe14, pexe14b, pexe14r])
+            self.add_graph(
+                'exe_dec',
+                [p0, pexe12, pexe10, pexe11, pexe15, pexe15b, pexe15r])
+            self.add_graph(
+                'exe_action',
+                [p0, pexe17, pexe16], [pexe16])
 
         if hasattr(self.m, 'enc') and True:
             net = self.m.enc
@@ -549,9 +557,16 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pmm11 = self.probe_value(net.mb1_no_gate_in)
             pmm12 = self.probe_value(net.mb1_no_gate_out)
 
-            self.add_graph('mb1', [p0, pmm1, pmm10, pmm1a, pmm1b, pmm2, pmm3, pmm11, pmm12], [pmm1])
-            self.add_graph('mb2', [p0, pmm4, pmm5, pmm6])  ##
-            self.add_graph('mb3', [p0, pmm7, pmm8, pmm9])  ##
+            self.add_graph(
+                'mb1',
+                [p0, pmm1, pmm10, pmm1a, pmm1b, pmm2, pmm3, pmm11, pmm12],
+                [pmm1])
+            self.add_graph(
+                'mb2',
+                [p0, pmm4, pmm5, pmm6])
+            self.add_graph(
+                'mb3',
+                [p0, pmm7, pmm8, pmm9])
 
         if hasattr(self.m, 'mem') and True:
             net = self.m.mem
@@ -622,7 +637,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
             # ptf3d = self.probe_value(ptf3)
             ptf4 = self.probe_value(net.output, vocab=mem_vocab)
             # ptf4b = self.probe_value(ptf4)
-            ptf5 = self.probe_value(net.compare.output, vocab=self.v.ps_cmp,
+            ptf5 = self.probe_value(net.compare.output, vocab=self.v.exe_cmp,
                                     label="Cmp Out")
             # ptf6 = self.probe_value(net.norm_a.output, vocab=sub_vocab1)
             # ptf7 = self.probe_value(net.norm_b.output, vocab=sub_vocab1)
@@ -668,7 +683,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
             ptf7 = self.probe_value(nt.am_trfms.num_to_pos1, vocab=self.v.pos1)
             ptf8 = self.probe_value(nt.am_trfms.pos_to_pos1, vocab=self.v.pos1)
             ptf14 = self.probe_value(nt.am_trfms.frm_compare,
-                                     vocab=self.v.ps_cmp, label='Frm Cmp')
+                                     vocab=self.v.exe_cmp, label='Frm Cmp')
             ptf15 = self.probe_value(nt.am_trfms.compare_out,
                                      vocab=self.v.pos1, label='Cmp Out')
 
@@ -816,23 +831,23 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pins4 = self.probe_value(net.instr_pos_cconv.output,
                                      vocab=self.v.pos, label='cconv pos')
             pins5 = self.probe_value(net.vis_input, vocab=self.v.vis_main)
-            pins6 = self.probe_value(net.task_input, vocab=self.v.ps_task)
+            pins6 = self.probe_value(net.task_input, vocab=self.v.exe_task)
 
             pins7 = self.probe_value(net.norm_node1)
             pins8 = self.probe_value(net.norm_node2)
             # pins9 = self.probe_value(net.instr_ea.output)
 
-            pins10a = self.probe_value(net.task_node, vocab=self.v.ps_task,
+            pins10a = self.probe_value(net.task_node, vocab=self.v.exe_task,
                                        label='task node')
-            pins10 = self.probe_value(net.task_output, vocab=self.v.ps_task,
+            pins10 = self.probe_value(net.task_output, vocab=self.v.exe_task,
                                       label='task out')
-            pins11a = self.probe_value(net.state_node, vocab=self.v.ps_state,
+            pins11a = self.probe_value(net.state_node, vocab=self.v.exe_state,
                                        label='state node')
-            pins11 = self.probe_value(net.state_output, vocab=self.v.ps_state,
+            pins11 = self.probe_value(net.state_output, vocab=self.v.exe_state,
                                       label='state out')
-            pins12a = self.probe_value(net.dec_node, vocab=self.v.ps_dec,
+            pins12a = self.probe_value(net.dec_node, vocab=self.v.exe_dec,
                                        label='dec node')
-            pins12 = self.probe_value(net.dec_output, vocab=self.v.ps_dec,
+            pins12 = self.probe_value(net.dec_output, vocab=self.v.exe_dec,
                                       label='dec out')
 
             pins13 = self.probe_value(net.task_gate_sig, label='task sig')
@@ -857,7 +872,7 @@ class ProbeCfgDefault(SpaunProbeConfig):
             pins23 = self.probe_value(net.gate_disable.output,
                                       label='gate dis')
             pins24 = self.probe_value(net.pos_util_output,
-                                      vocab=self.v.ps_task)
+                                      vocab=self.v.exe_task)
 
             pins25 = self.probe_value(net.pos_inc.num_2_pos_am.output,
                                       vocab=self.v.pos, label='pi am out')

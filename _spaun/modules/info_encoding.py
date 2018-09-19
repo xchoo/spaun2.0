@@ -84,7 +84,7 @@ class InfoEncoding(Module):
             # pos_mb_gate_sp_vecs = \
             #     vocab.main.parse('+'.join(vocab.num_sp_strs)).v
             pos_mb_no_gate_sp_vecs = \
-                vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+                vocab.main.parse('+'.join(vocab.exe_task_vis_sp_strs +
                                           vocab.misc_vis_sp_strs)).v
             nengo.Connection(parent_net.vis.output, self.pos_gate.input,
                              transform=[-cfg.mb_gate_scale *
@@ -127,35 +127,35 @@ class InfoEncoding(Module):
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 
-        # Set up connections from production system module
-        if hasattr(parent_net, 'ps'):
+        # Set up connections from executive system module
+        if hasattr(parent_net, 'exe'):
             # Suppress the pos acc gate signal when in the decoding task stage
             pos_mb_acc_no_gate_sp_vecs = vocab.main.parse('DEC').v
-            nengo.Connection(parent_net.ps.task, self.pos_mb_acc.gate,
+            nengo.Connection(parent_net.exe.task, self.pos_mb_acc.gate,
                              transform=[-1.25 * pos_mb_acc_no_gate_sp_vecs])
 
             # Suppress the pos inc reset if dec == REV
             pos_mb_no_rst_sp_vecs = vocab.main.parse('REV').v
-            nengo.Connection(parent_net.ps.dec, self.pos_inc.reset,
+            nengo.Connection(parent_net.exe.dec, self.pos_inc.reset,
                              transform=[-1.25 * pos_mb_no_rst_sp_vecs])
 
             # Provide rev signal for pos_inc network
             pos_inc_rev_sp_vecs = vocab.main.parse('REV').v
-            nengo.Connection(parent_net.ps.dec, self.pos_inc.reverse,
+            nengo.Connection(parent_net.exe.dec, self.pos_inc.reverse,
                              transform=[pos_inc_rev_sp_vecs])
             # But only when decoding
             pos_inc_no_rev_sp_vecs = vocab.main.parse('DEC').v
             nengo.Connection(self.bias_node, self.pos_inc.reverse,
                              transform=-1.25)
-            nengo.Connection(parent_net.ps.task, self.pos_inc.reverse,
+            nengo.Connection(parent_net.exe.task, self.pos_inc.reverse,
                              transform=[1.25 * pos_inc_no_rev_sp_vecs])
 
             # Provide rev signal for pos_inc_rev_gate_bias signal
-            nengo.Connection(parent_net.ps.dec,
+            nengo.Connection(parent_net.exe.dec,
                              self.pos_inc_rev_gate_bias.input,
                              transform=[pos_inc_rev_sp_vecs])
         else:
-            warn("InfoEncoding Module - Cannot connect from 'ps'")
+            warn("InfoEncoding Module - Cannot connect from 'exe'")
 
         # Set up connections from decoding module
         if hasattr(parent_net, 'dec'):

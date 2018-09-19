@@ -2,7 +2,15 @@ import os
 import numpy as np
 import bisect as bs
 
-from nengo_extras.data import load_ilsvrc2012, spasafe_names
+try:
+    from nengo_extras.data import load_ilsvrc2012, get_ilsvrc2012_tar_gz
+    from nengo_extras.data import spasafe_names
+except ImportError:
+    raise ImportError(
+        'nengo_extras is required but not installed. To install it,' +
+        ' clone https://github.com/nengo/nengo-extras and install' +
+        ' using `pip install -e .` Note that PIL (pip install pillow) is' +
+        ' also required.')
 
 
 class ImagenetDataObject(object):
@@ -23,13 +31,7 @@ class ImagenetDataObject(object):
 
         # --- Imagenet data ---
         # retrieve from https://figshare.com/s/cdde71007405eb11a88f
-        data_filename = os.path.join(self.filepath,
-                                     'ilsvrc-2012-batches-test3.tar.gz')
-
-        # Try alternate params filename if can't locate default file
-        if not os.path.exists(data_filename):
-            data_filename = \
-                os.path.join(self.filepath, 'ilsvrc2012batchestest3.tar.gz')
+        data_filename = get_ilsvrc2012_tar_gz()
 
         images_data, images_labels, images_data_mean, class_labels = \
             load_ilsvrc2012(data_filename, n_files=5)

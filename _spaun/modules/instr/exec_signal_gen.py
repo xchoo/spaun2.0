@@ -6,11 +6,11 @@ from ..._networks import DetectChange
 from ...configurator import cfg
 
 
-def PS_Signal_Generator_Network(vocab, net_label, cleanup_threshold=0.3):
+def Exec_Signal_Generator_Network(vocab, net_label, cleanup_threshold=0.3):
     # Returns a network that generates the appropriate values and signals for
-    # the production system. Takes in the sp output from the instruction data
+    # the executive system. Takes in the sp output from the instruction data
     # decoding network and produces a cleaned version (using `vocab`), and
-    # gating signals to drive the appropriate prod system memories.
+    # gating signals to drive the appropriate executive system memories.
     net = nengo.Network(label=net_label)
 
     with net:

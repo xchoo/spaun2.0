@@ -7,7 +7,7 @@ from nengo.utils.network import with_self
 
 from ..configurator import cfg
 from ..vocabulator import vocab
-from .instr import PS_Sig_Gen, Data_Sig_Gen, Set_Pos_Inc_Net
+from .instr import Exec_Sig_Gen, Data_Sig_Gen, Set_Pos_Inc_Net
 
 
 # ### DEBUG ###
@@ -42,10 +42,10 @@ class InstructionProcessingSystem(Module):
         #                             vectors=vocab.vis_main.vectors:
         #                             cleanup_func_wta(t, x, vectors))
         # self.task_input = nengo.Node(size_in=vocab.sp_dim, output=lambda t, x,
-        #                              vectors=vocab.ps_task.vectors:
+        #                              vectors=vocab.exe_task.vectors:
         #                              cleanup_func(t, x, vectors))
         # self.state_input = nengo.Node(size_in=vocab.sp_dim, output=lambda t, x,
-        #                               vectors=vocab.ps_state.vectors:
+        #                               vectors=vocab.exe_state.vectors:
         #                               cleanup_func_wta(t, x, vectors))
 
         # ----------- INSTRUCTION SP INPUT + SEMI NORMALIZATION ---------------
@@ -68,12 +68,12 @@ class InstructionProcessingSystem(Module):
                          transform=-ignored_vis_sp[:, None])
 
         # Associative memory for task information
-        task_am = cfg.make_assoc_mem(vocab.ps_task.vectors,
+        task_am = cfg.make_assoc_mem(vocab.exe_task.vectors,
                                      wta_inhibit_scale=None)
         nengo.Connection(self.task_input, task_am.input)
 
         # Associative memory for state information
-        state_am = cfg.make_assoc_mem(vocab.ps_state.vectors)
+        state_am = cfg.make_assoc_mem(vocab.exe_state.vectors)
         nengo.Connection(self.state_input, state_am.input)
 
         # ------------ INSTRUCTION POSITION CIRCONV NETWORK -------------------
@@ -174,8 +174,9 @@ class InstructionProcessingSystem(Module):
         self.data_gate_sig = data_sig_gen.gate_sig
 
         # Instruction TASK output
-        task_sig_gen = PS_Sig_Gen(vocab.ps_task, 'PS TASK',
-                                  cleanup_threshold=cfg.instr_ps_threshold)
+        task_sig_gen = Exec_Sig_Gen(
+            vocab.exe_task, 'EXEC TASK',
+            cleanup_threshold=cfg.instr_exe_threshold)
         nengo.Connection(
             instr_cons_cconv.output[inv_conT], task_sig_gen.input,
             transform=instr_voc.parse('~TASK').get_convolution_matrix(),
@@ -184,8 +185,9 @@ class InstructionProcessingSystem(Module):
         self.task_gate_sig = task_sig_gen.gate_sig
 
         # Instruction STATE output
-        state_sig_gen = PS_Sig_Gen(vocab.ps_state, 'PS STATE',
-                                   cleanup_threshold=cfg.instr_ps_threshold)
+        state_sig_gen = Exec_Sig_Gen(
+            vocab.exe_state, 'EXEC STATE',
+            cleanup_threshold=cfg.instr_exe_threshold)
         nengo.Connection(
             instr_cons_cconv.output[inv_conT], state_sig_gen.input,
             transform=instr_voc.parse('~STATE').get_convolution_matrix(),
@@ -194,8 +196,9 @@ class InstructionProcessingSystem(Module):
         self.state_gate_sig = state_sig_gen.gate_sig
 
         # Instruction DEC output
-        dec_sig_gen = PS_Sig_Gen(vocab.ps_dec, 'PS DEC',
-                                 cleanup_threshold=cfg.instr_ps_threshold)
+        dec_sig_gen = Exec_Sig_Gen(
+            vocab.exe_dec, 'EXEC DEC',
+            cleanup_threshold=cfg.instr_exe_threshold)
         nengo.Connection(
             instr_cons_cconv.output[inv_conT], dec_sig_gen.input,
             transform=instr_voc.parse('~DEC').get_convolution_matrix(),
@@ -227,19 +230,19 @@ class InstructionProcessingSystem(Module):
                          transform=-80, synapse=0.01)
 
         # ------------- POS AM UTILITY OUTPUT (TO BG) ------------------------
-        self.pos_util_output = nengo.Node(size_in=vocab.ps_task.dimensions)
-        pos_util_matrix = np.array([vocab.ps_task.parse('INSTR').v] *
+        self.pos_util_output = nengo.Node(size_in=vocab.exe_task.dimensions)
+        pos_util_matrix = np.array([vocab.exe_task.parse('INSTR').v] *
                                    len(vocab.pos.keys))
         nengo.Connection(pos_am.elem_utilities, self.pos_util_output,
                          transform=pos_util_matrix.T)
 
         # ------------------- MODULE INPUTS AND OUTPUTS -----------------------
         self.inputs = dict(en=(self.enable_in_sp, vocab.instr),
-                           util=(self.pos_util_output, vocab.ps_task))
+                           util=(self.pos_util_output, vocab.exe_task))
         self.outputs = dict(data=(self.output, vocab.main),
-                            task=(self.task_output, vocab.ps_task),
-                            state=(self.state_output, vocab.ps_state),
-                            dec=(self.dec_output, vocab.ps_dec))
+                            task=(self.task_output, vocab.exe_task),
+                            state=(self.state_output, vocab.exe_state),
+                            dec=(self.dec_output, vocab.exe_dec))
 
         # ## DEBUG ## #
         self.pos_am = pos_am
@@ -315,32 +318,33 @@ class InstructionProcessingSystem(Module):
             warn("InstructionProcessingSystem Module - Cannot connect from " +
                  "'vis'")
 
-        # Set up connections from vision module
+        # Set up connections from instruction stimulus module
         if hasattr(parent_net, 'instr_stim'):
             nengo.Connection(parent_net.instr_stim.output, self.instr_input)
         else:
             warn("InstructionProcessingSystem Module - Cannot connect from " +
                  "'instr_stim'")
 
-        if hasattr(parent_net, 'ps'):
-            nengo.Connection(parent_net.ps.task, self.task_input,
+        # Set up connections from executive system module
+        if hasattr(parent_net, 'exe'):
+            nengo.Connection(parent_net.exe.task, self.task_input,
                              synapse=0.01)
-            nengo.Connection(parent_net.ps.state, self.state_input,
+            nengo.Connection(parent_net.exe.state, self.state_input,
                              synapse=0.01)
-            nengo.Connection(parent_net.ps.dec, self.dec_input,
+            nengo.Connection(parent_net.exe.dec, self.dec_input,
                              synapse=0.01)
 
             # ###### POS INC RESET STATE ######
             pos_inc_instr_rst_task_sp_vecs = vocab.main.parse('INSTR').v
             nengo.Connection(self.bias_node, self.pos_inc_reset.input,
                              transform=-1)
-            nengo.Connection(parent_net.ps.task, self.pos_inc_reset.input,
+            nengo.Connection(parent_net.exe.task, self.pos_inc_reset.input,
                              transform=[pos_inc_instr_rst_task_sp_vecs])
 
             # ###### POS INC INIT STATE ######
-            pos_inc_init_state_sp_vecs = vocab.ps_state.parse('INSTRP').v
-            nengo.Connection(parent_net.ps.state, self.pos_inc_init.input,
+            pos_inc_init_state_sp_vecs = vocab.exe_state.parse('INSTRP').v
+            nengo.Connection(parent_net.exe.state, self.pos_inc_init.input,
                              transform=[pos_inc_init_state_sp_vecs])
         else:
             warn("InstructionProcessingSystem Module - Cannot connect from " +
-                 "'ps'")
+                 "'exe'")

@@ -8,57 +8,57 @@ from ..configurator import cfg
 from ..vocabulator import vocab
 
 
-class ProductionSystem(Module):
-    def __init__(self, label="Production Sys", seed=None,
+class ExecutiveSystem(Module):
+    def __init__(self, label="Executive Sys", seed=None,
                  add_to_container=None):
-        super(ProductionSystem, self).__init__(label, seed, add_to_container)
+        super(ExecutiveSystem, self).__init__(label, seed, add_to_container)
         self.init_module()
 
     @with_self
     def init_module(self):
         # Memory block to hold task information
-        if cfg.ps_use_am_mb:
+        if cfg.exe_use_am_mb:
             self.task_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_task,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_task,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.5, wta_output=False,
                                    reset_key='X')
 
             self.state_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_state,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_state,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
                                    wta_inhibit_scale=3, reset_key='TRANS0')
 
             self.dec_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_dec,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_dec,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
                                    wta_inhibit_scale=3, reset_key='FWD')
         else:
             self.task_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_task,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_task,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    fdbk_transform=1.005, reset_key='X')
 
             self.state_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_state,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_state,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    fdbk_transform=1.005, reset_key='TRANS0')
 
             self.dec_mb = \
-                cfg.make_mem_block(vocab=vocab.ps_dec,
-                                   input_transform=cfg.ps_mb_gain_scale,
+                cfg.make_mem_block(vocab=vocab.exe_dec,
+                                   input_transform=cfg.exe_mb_gain_scale,
                                    fdbk_transform=1.005, reset_key='FWD')
 
         # ------ Associative memory for non-mb actions ------
-        self.action_in = nengo.Node(size_in=vocab.ps_action.dimensions)
+        self.action_in = nengo.Node(size_in=vocab.exe_action.dimensions)
         self.action_am = \
-            cfg.make_assoc_mem(input_vectors=vocab.ps_action.vectors,
-                               threshold=cfg.ps_action_am_threshold)  # ,
+            cfg.make_assoc_mem(input_vectors=vocab.exe_action.vectors,
+                               threshold=cfg.exe_action_am_threshold)  # ,
                                # wta_inhibit_scale=None)  # noqa
         nengo.Connection(self.action_in, self.action_am.input, synapse=0.01)
 
@@ -79,9 +79,9 @@ class ProductionSystem(Module):
         nengo.Connection(self.task_init.output, self.state_mb.gate)
         nengo.Connection(self.task_init.output, self.dec_mb.gate)
 
-        ps_task_init_task_sp_vecs = vocab.main.parse('X').v
+        exe_task_init_task_sp_vecs = vocab.main.parse('X').v
         nengo.Connection(self.task, self.task_init.input,
-                         transform=[ps_task_init_task_sp_vecs],
+                         transform=[exe_task_init_task_sp_vecs],
                          synapse=0.01)
 
         # ------ Gate signal from decoding system ------
@@ -93,20 +93,20 @@ class ProductionSystem(Module):
                          transform=5)
 
         # Ignore the decoding system gate signal when task is INSTR
-        no_dec_sys_gate_sig_sp_vecs = vocab.ps_task.parse('INSTR').v
+        no_dec_sys_gate_sig_sp_vecs = vocab.exe_task.parse('INSTR').v
         nengo.Connection(self.task, self.dec_sys_gate_sig.input,
                          transform=[-2.0 * no_dec_sys_gate_sig_sp_vecs],
                          synapse=0.01)
 
         # ------ Define module input and outputs ------
-        self.inputs = dict(task=(self.task_mb.input, vocab.ps_task),
-                           state=(self.state_mb.input, vocab.ps_state),
-                           dec=(self.dec_mb.input, vocab.ps_dec),
-                           action=(self.action_in, vocab.ps_action))
-        self.outputs = dict(task=(self.task, vocab.ps_task),
-                            state=(self.state, vocab.ps_state),
-                            dec=(self.dec, vocab.ps_dec),
-                            action=(self.action, vocab.ps_action))
+        self.inputs = dict(task=(self.task_mb.input, vocab.exe_task),
+                           state=(self.state_mb.input, vocab.exe_state),
+                           dec=(self.dec_mb.input, vocab.exe_dec),
+                           action=(self.action_in, vocab.exe_action))
+        self.outputs = dict(task=(self.task, vocab.exe_task),
+                            state=(self.state, vocab.exe_state),
+                            dec=(self.dec, vocab.exe_dec),
+                            action=(self.action, vocab.exe_action))
 
     def setup_connections(self, parent_net):
         # Set up connections from vision module
@@ -116,13 +116,13 @@ class ProductionSystem(Module):
             task_mb_rst_sp_vecs = vocab.main.parse('A').v
 
             nengo.Connection(parent_net.vis.output, self.task_mb.gate,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         task_mb_gate_sp_vecs])
             nengo.Connection(parent_net.vis.neg_attention,
                              self.task_mb.gate, transform=-1.5, synapse=0.005)
 
             nengo.Connection(parent_net.vis.output, self.task_mb.reset,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         task_mb_rst_sp_vecs])
 
             # ###### State MB ########
@@ -130,13 +130,13 @@ class ProductionSystem(Module):
             state_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.state_mb.gate,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         state_mb_gate_sp_vecs])
             nengo.Connection(parent_net.vis.neg_attention,
                              self.state_mb.gate, transform=-1.5, synapse=0.005)
 
             nengo.Connection(parent_net.vis.output, self.state_mb.reset,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         state_mb_rst_sp_vecs])
 
             # ###### Dec MB ########
@@ -144,16 +144,16 @@ class ProductionSystem(Module):
             dec_mb_rst_sp_vecs = vocab.main.parse('0').v
 
             nengo.Connection(parent_net.vis.output, self.dec_mb.gate,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         dec_mb_gate_sp_vecs])
             nengo.Connection(parent_net.vis.neg_attention,
                              self.dec_mb.gate, transform=-1.5, synapse=0.005)
 
             nengo.Connection(parent_net.vis.output, self.dec_mb.reset,
-                             transform=[cfg.ps_mb_gate_scale *
+                             transform=[cfg.exe_mb_gate_scale *
                                         dec_mb_rst_sp_vecs])
         else:
-            warn("ProductionSystem Module - Cannot connect from 'vis'")
+            warn("ExecutiveSystem Module - Cannot connect from 'vis'")
 
         # Set up connections from trfm module
         if hasattr(parent_net, 'trfm'):
@@ -162,14 +162,14 @@ class ProductionSystem(Module):
             nengo.Connection(parent_net.trfm.compare_gate_sig,
                              self.dec_mb.gate, transform=4)
         else:
-            warn("ProductionSystem Module - Could not connect from 'trfm'")
+            warn("ExecutiveSystem Module - Could not connect from 'trfm'")
 
         # Set up connections from dec module
         if hasattr(parent_net, 'dec'):
             nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
                              self.dec_sys_gate_sig.input)
         else:
-            warn("ProductionSystem Module - Could not connect from 'dec'")
+            warn("ExecutiveSystem Module - Could not connect from 'dec'")
 
         # Set up connections from instr module
         if hasattr(parent_net, 'instr'):
@@ -184,4 +184,4 @@ class ProductionSystem(Module):
             nengo.Connection(parent_net.instr.pos_inc_init.output,
                              self.state_mb.gate, transform=2)
         else:
-            warn("ProductionSystem Module - Could not connect from 'instr'")
+            warn("ExecutiveSystem Module - Could not connect from 'instr'")

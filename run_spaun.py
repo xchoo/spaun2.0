@@ -365,7 +365,7 @@ parser.add_argument(
          'include when building Spaun: \n' +
          'S: Stimulus and monitor modules\n' +
          'V: Vision module\n' +
-         'P: Production system module\n' +
+         'X: Executive system module\n' +
          'R: Reward system module\n' +
          'E: Encoding system module\n' +
          'W: Working memory module\n' +
@@ -373,7 +373,7 @@ parser.add_argument(
          'D: Decoding system module\n' +
          'M: Motor system module\n' +
          'I: Instruction processing module\n' +
-         'E.g. For all modules, provide "SVPREWTDMI". Note: Provide a "-" ' +
+         'E.g. For all modules, provide "SVXREWTDMI". Note: Provide a "-" ' +
          'as the first character to exclude all modules listed. E.g. To ' +
          'exclude instruction processing module, provide "-I". ')
 
@@ -544,8 +544,14 @@ if args.spinn:
 print("BACKEND: %s" % cfg.backend.upper())
 
 # ----- Stimulus sequence settings -----
-if args.stim_preset in stim_presets:
-    stim_seq_str, instr_seq_str = stim_presets[args.stim_preset]
+if len(args.stim_preset) > 0:
+    if args.stim_preset in stim_presets:
+        stim_seq_str, instr_seq_str = stim_presets[args.stim_preset]
+    else:
+        print("STIM_PRESET: UNABLE TO FIND PRESET '%s'" % args.stim_preset)
+        print("STIM_PRESET: DEFAULTING TO '%s'" % args.s)
+        stim_seq_str = args.s
+        instr_seq_str = args.i
 else:
     stim_seq_str = args.s
     instr_seq_str = args.i
@@ -626,7 +632,9 @@ for n in range(args.n):
     # ----- Spaun module configuration -----
     if args.modules is not None:
         used_modules = cfg.spaun_modules
-        arg_modules = args.modules.upper()
+        arg_modules = args.modules.upper().replace('"', '').replace("'", '')
+        # Note: Remove quotes from module string just in case they were
+        #       provided by the user.
 
         if arg_modules[0] == '-':
             used_modules = \
@@ -706,8 +714,8 @@ for n in range(args.n):
     print("MODEL N_NEURONS:  %i" % (get_total_n_neurons(model)))
     if hasattr(model, 'vis'):
         print("- vis   n_neurons: %i" % (get_total_n_neurons(model.vis)))
-    if hasattr(model, 'ps'):
-        print("- ps    n_neurons: %i" % (get_total_n_neurons(model.ps)))
+    if hasattr(model, 'exe'):
+        print("- exe   n_neurons: %i" % (get_total_n_neurons(model.exe)))
     if hasattr(model, 'reward'):
         print("- rewrd n_neurons: %i" % (get_total_n_neurons(model.reward)))
     if hasattr(model, 'bg'):

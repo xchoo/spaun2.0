@@ -71,8 +71,8 @@ class TransformationSystem(Module):
         self.am_trfms = Assoc_Mem_Transforms_Network(vocab.item,
                                                      vocab.pos, vocab.pos1,
                                                      vocab.max_enum_list_pos,
-                                                     vocab.ps_action_learn,
-                                                     vocab.ps_cmp)
+                                                     vocab.exe_action_learn,
+                                                     vocab.exe_cmp)
 
         nengo.Connection(self.frm_mb1, self.am_trfms.frm_mb1, synapse=None)
         nengo.Connection(self.frm_mb2, self.am_trfms.frm_mb2, synapse=None)
@@ -140,24 +140,24 @@ class TransformationSystem(Module):
     def setup_connections(self, parent_net):
         p_net = parent_net
 
-        # Set up connections from ps module
-        if hasattr(p_net, 'ps'):
-            nengo.Connection(p_net.ps.action, self.frm_action)
+        # Set up connections from executive system module
+        if hasattr(p_net, 'exe'):
+            nengo.Connection(p_net.exe.action, self.frm_action)
 
             # Select IN A
             # - sel0 (MB1): State = QAP + QAK + TRANS1
             # - sel1 (MB2): State = TRANS2 + CNT1 + TRANSC
             # - sel2 (MB3): State = TRANS0
             in_a_sel0_sp_vecs = vocab.main.parse('QAP+QAK+TRANS1').v
-            nengo.Connection(p_net.ps.state, self.select_in_a.sel0,
+            nengo.Connection(p_net.exe.state, self.select_in_a.sel0,
                              transform=[in_a_sel0_sp_vecs])
 
             in_a_sel1_sp_vecs = vocab.main.parse('TRANS2+CNT1+TRANSC').v
-            nengo.Connection(p_net.ps.state, self.select_in_a.sel1,
+            nengo.Connection(p_net.exe.state, self.select_in_a.sel1,
                              transform=[in_a_sel1_sp_vecs])
 
             in_a_sel2_sp_vecs = vocab.main.parse('TRANS0').v
-            nengo.Connection(p_net.ps.state, self.select_in_a.sel2,
+            nengo.Connection(p_net.exe.state, self.select_in_a.sel2,
                              transform=[in_a_sel2_sp_vecs])
 
             # Select IN B
@@ -168,31 +168,31 @@ class TransformationSystem(Module):
             # - sel4 (MBAve): Dec = DECI
             # - sel5 (MB3): State = CNT1 + TRANSC
             in_b_sel0_sp_vecs = vocab.main.parse('QAP').v
-            nengo.Connection(p_net.ps.state, self.select_in_b.sel0,
+            nengo.Connection(p_net.exe.state, self.select_in_b.sel0,
                              transform=[in_b_sel0_sp_vecs])
 
             in_b_sel1_sp_vecs = vocab.main.parse('QAK').v
-            nengo.Connection(p_net.ps.state, self.select_in_b.sel1,
+            nengo.Connection(p_net.exe.state, self.select_in_b.sel1,
                              transform=[in_b_sel1_sp_vecs])
 
             in_b_sel2_sp_vecs = vocab.main.parse('TRANS1-DECI').v
-            nengo.Connection(p_net.ps.state, self.select_in_b.sel2,
+            nengo.Connection(p_net.exe.state, self.select_in_b.sel2,
                              transform=[in_b_sel2_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.select_in_b.sel2,
+            nengo.Connection(p_net.exe.dec, self.select_in_b.sel2,
                              transform=[in_b_sel2_sp_vecs])
 
             in_b_sel3_sp_vecs = vocab.main.parse('TRANS2-DECI').v
-            nengo.Connection(p_net.ps.state, self.select_in_b.sel3,
+            nengo.Connection(p_net.exe.state, self.select_in_b.sel3,
                              transform=[in_b_sel3_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.select_in_b.sel3,
+            nengo.Connection(p_net.exe.dec, self.select_in_b.sel3,
                              transform=[in_b_sel3_sp_vecs])
 
             in_b_sel4_sp_vecs = vocab.main.parse('DECI').v
-            nengo.Connection(p_net.ps.dec, self.select_in_b.sel4,
+            nengo.Connection(p_net.exe.dec, self.select_in_b.sel4,
                              transform=[in_b_sel4_sp_vecs])
 
             in_b_sel5_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
-            nengo.Connection(p_net.ps.state, self.select_in_b.sel5,
+            nengo.Connection(p_net.exe.state, self.select_in_b.sel5,
                              transform=[in_b_sel5_sp_vecs])
 
             # Select Output
@@ -205,56 +205,56 @@ class TransformationSystem(Module):
             # - sel6 (TRFM IN DIRECT): Task = REACT + INSTR
             # - sel7 (COMPARE Out): State = TRANSC
             out_sel0_sp_vecs = vocab.main.parse('QAP').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel0,
+            nengo.Connection(p_net.exe.state, self.select_out.sel0,
                              transform=[out_sel0_sp_vecs])
 
             out_sel1_sp_vecs = vocab.main.parse('QAK').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel1,
+            nengo.Connection(p_net.exe.state, self.select_out.sel1,
                              transform=[out_sel1_sp_vecs])
 
             out_sel2_sp_vecs = vocab.main.parse('TRANS0+CNT1-DECI').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel2,
+            nengo.Connection(p_net.exe.state, self.select_out.sel2,
                              transform=[out_sel2_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.select_out.sel2,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel2,
                              transform=[out_sel2_sp_vecs])
 
             out_sel3_sp_vecs = vocab.main.parse('TRANS1+TRANS2-DECI').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel3,
+            nengo.Connection(p_net.exe.state, self.select_out.sel3,
                              transform=[out_sel3_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.select_out.sel3,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel3,
                              transform=[out_sel3_sp_vecs])
 
             out_sel4_sp_vecs = vocab.main.parse('DECI').v
-            nengo.Connection(p_net.ps.dec, self.select_out.sel4,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel4,
                              transform=[out_sel4_sp_vecs])
 
             out_sel5_sp_vecs = vocab.main.parse('LEARN-NONE').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel5,
+            nengo.Connection(p_net.exe.state, self.select_out.sel5,
                              transform=[out_sel5_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.select_out.sel5,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel5,
                              transform=[out_sel5_sp_vecs])
 
             out_sel6_sp_vecs = vocab.main.parse('DIRECT').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel6,
+            nengo.Connection(p_net.exe.state, self.select_out.sel6,
                              transform=[out_sel6_sp_vecs])
 
             out_sel7_sp_vecs = vocab.main.parse('TRANSC').v
-            nengo.Connection(p_net.ps.state, self.select_out.sel7,
+            nengo.Connection(p_net.exe.state, self.select_out.sel7,
                              transform=[out_sel7_sp_vecs])
 
             # Disable input normalization for Dec == DECI + FWD + REV
             dis_norm_sp_vecs = vocab.main.parse('FWD+REV+DECI').v
-            nengo.Connection(p_net.ps.dec, self.norm_a.disable,
+            nengo.Connection(p_net.exe.dec, self.norm_a.disable,
                              transform=[dis_norm_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.norm_b.disable,
+            nengo.Connection(p_net.exe.dec, self.norm_b.disable,
                              transform=[dis_norm_sp_vecs])
 
             # Enable compare gate output for DEC == CNT
             en_compare_gate_sp_vecs = vocab.main.parse('CNT').v
-            nengo.Connection(p_net.ps.dec, self.compare_gate_sig_gen.input,
+            nengo.Connection(p_net.exe.dec, self.compare_gate_sig_gen.input,
                              transform=[en_compare_gate_sp_vecs])
         else:
-            warn("TransformationSystem Module - Cannot connect from 'ps'")
+            warn("TransformationSystem Module - Cannot connect from 'exe'")
 
         # Set up connections from memory module
         if hasattr(p_net, 'mem'):

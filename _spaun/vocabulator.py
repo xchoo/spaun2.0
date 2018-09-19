@@ -32,10 +32,10 @@ class SpaunVocabulary(object):
         # F - Fluid Induction (Ravens)
         # X - Task precursor
         # DEC - Decoding task (output to motor system)
-        self.ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X',
-                                'DEC', 'REACT', 'INSTR', 'CMP']
-        self.ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
-                                    'V', 'W']
+        self.exe_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X',
+                                 'DEC', 'REACT', 'INSTR', 'CMP']
+        self.exe_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
+                                     'V', 'W']
         # --- Task visual semantic pointer usage ---
         # A - Task initialization
         # F - Forward recall
@@ -43,23 +43,23 @@ class SpaunVocabulary(object):
         # K - Q&A 'kind' probe
         # P - Q&A 'position' probe
 
-        # --- Production system semantic pointers ---
+        # --- Executive system semantic pointers ---
         # DECW - Decoding state (output to motor system, but for drawing task)
         # DECI - Decoding state (output to motor system, but for inductn tasks)
-        self.ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
-                                 'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
-                                 'INSTRV', 'TRANSC']
-        self.ps_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
+        self.exe_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
+                                  'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
+                                  'INSTRV', 'TRANSC']
+        self.exe_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
 
         # --- Misc actions semantic pointers
-        self.ps_action_sp_strs = None
-        self.min_num_ps_actions = 3
+        self.exe_action_sp_strs = None
+        self.min_num_exe_actions = 3
 
         # --- Misc visual semantic pointers ---
         self.misc_vis_sp_strs = ['OPEN', 'CLOSE', 'SPACE', 'QM']
 
         # --- Misc state semantic pointers ---
-        self.misc_ps_sp_strs = ['NO_MATCH', 'MATCH']
+        self.misc_exe_sp_strs = ['NO_MATCH', 'MATCH']
 
         # --- 'I don't know' motor response vector
         self.mtr_sp_strs = ['UNK']
@@ -67,7 +67,7 @@ class SpaunVocabulary(object):
         # --- List of all visual semantic pointers ---
         # self.vis_sp_strs = list(self.num_sp_strs)
         # self.vis_sp_strs.extend(self.misc_vis_sp_strs)
-        # self.vis_sp_strs.extend(self.ps_task_vis_sp_strs)
+        # self.vis_sp_strs.extend(self.exe_task_vis_sp_strs)
 
         # --- Position (enumerated) semantic pointers ---
         self.pos_sp_strs = None
@@ -109,12 +109,12 @@ class SpaunVocabulary(object):
         self.unitary_sp_strs = [self.num_sp_strs[0], self.pos_sp_strs[0]]
         self.unitary_sp_strs.extend(self.ops_sp_strs)
 
-        # --- Production system (action) semantic pointers ---
-        self.ps_action_learn_sp_strs = ['A%d' % (i + 1) for i in
-                                        range(num_learn_actions)]
-        self.ps_action_misc_sp_strs = []
-        self.ps_action_sp_strs = (self.ps_action_learn_sp_strs +
-                                  self.ps_action_misc_sp_strs)
+        # --- Executive system (action) semantic pointers ---
+        self.exe_action_learn_sp_strs = ['A%d' % (i + 1) for i in
+                                         range(num_learn_actions)]
+        self.exe_action_misc_sp_strs = []
+        self.exe_action_sp_strs = (self.exe_action_learn_sp_strs +
+                                   self.exe_action_misc_sp_strs)
 
         # #################### Vocabulary definitions #########################
         # --- Primary vocabulary ---
@@ -123,7 +123,7 @@ class SpaunVocabulary(object):
 
         # --- Add in visual sp's ---
         self.main.parse('+'.join(self.misc_vis_sp_strs))
-        self.main.parse('+'.join(self.ps_task_vis_sp_strs))
+        self.main.parse('+'.join(self.exe_task_vis_sp_strs))
         for sp_str in list(stim_SP_labels):
             if sp_str not in self.num_sp_strs and \
                sp_str not in self.pos_sp_strs:
@@ -149,13 +149,13 @@ class SpaunVocabulary(object):
 
         self.inc_sp = inc_sp
 
-        # --- Add production system sp's ---
-        self.main.parse('+'.join(self.ps_task_sp_strs))
-        self.main.parse('+'.join(self.ps_state_sp_strs))
-        self.main.parse('+'.join(self.ps_dec_sp_strs))
-        if len(self.ps_action_sp_strs) > 0:
-            self.main.parse('+'.join(self.ps_action_sp_strs))
-        self.main.parse('+'.join(self.misc_ps_sp_strs))
+        # --- Add executive system sp's ---
+        self.main.parse('+'.join(self.exe_task_sp_strs))
+        self.main.parse('+'.join(self.exe_state_sp_strs))
+        self.main.parse('+'.join(self.exe_dec_sp_strs))
+        if len(self.exe_action_sp_strs) > 0:
+            self.main.parse('+'.join(self.exe_action_sp_strs))
+        self.main.parse('+'.join(self.misc_exe_sp_strs))
 
         # --- Add instruction processing system sp's ---
         self.main.parse('+'.join(self.instr_tag_strs))
@@ -172,9 +172,9 @@ class SpaunVocabulary(object):
             raise RuntimeError("Vocabulator - Stimulus vocabulary does not " +
                                "contain necessary Spaun MISC semantic " +
                                "pointer definitions.")
-        if (not all(x in self.vis_sp_strs for x in self.ps_task_vis_sp_strs)):
+        if (not all(x in self.vis_sp_strs for x in self.exe_task_vis_sp_strs)):
             raise RuntimeError("Vocabulator - Stimulus vocabulary does not " +
-                               "contain necessary Spaun PS semantic " +
+                               "contain necessary Spaun EXEC semantic " +
                                "pointer definitions.")
 
         # ################# Sub-vocabulary definitions ########################
@@ -185,13 +185,13 @@ class SpaunVocabulary(object):
         self.item = self.main.create_subset(self.num_sp_strs)
         self.item_1_index = self.main.create_subset(self.num_sp_strs[1:])
 
-        self.ps_task = self.main.create_subset(self.ps_task_sp_strs)
-        self.ps_state = self.main.create_subset(self.ps_state_sp_strs)
-        self.ps_dec = self.main.create_subset(self.ps_dec_sp_strs)
-        self.ps_cmp = self.main.create_subset(self.misc_ps_sp_strs)
-        self.ps_action = self.main.create_subset(self.ps_action_sp_strs)
-        self.ps_action_learn = \
-            self.main.create_subset(self.ps_action_learn_sp_strs)
+        self.exe_task = self.main.create_subset(self.exe_task_sp_strs)
+        self.exe_state = self.main.create_subset(self.exe_state_sp_strs)
+        self.exe_dec = self.main.create_subset(self.exe_dec_sp_strs)
+        self.exe_cmp = self.main.create_subset(self.misc_exe_sp_strs)
+        self.exe_action = self.main.create_subset(self.exe_action_sp_strs)
+        self.exe_action_learn = \
+            self.main.create_subset(self.exe_action_learn_sp_strs)
 
         self.reward = self.main.create_subset(self.reward_sp_strs)
 

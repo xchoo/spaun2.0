@@ -42,14 +42,14 @@ class SpaunConfig(object):
         self.stim_module = 'mnist'
         self.vis_module = 'lif_vision'
 
-        self.spaun_modules = 'SVPREWTDMI'
+        self.spaun_modules = 'SVXREWTDMI'
 
         self.vis_detect_dim = 5000
 
-        self.ps_mb_gain_scale = 1.25
-        self.ps_mb_gate_scale = 1.25
-        self.ps_use_am_mb = True
-        self.ps_action_am_threshold = 0.0
+        self.exe_mb_gain_scale = 1.25
+        self.exe_mb_gate_scale = 1.25
+        self.exe_use_am_mb = True
+        self.exe_action_am_threshold = 0.0
 
         self.enc_mb_acc_radius_scale = 2.5
         self.enc_pos_cleanup_mode = 2
@@ -102,7 +102,7 @@ class SpaunConfig(object):
 
         self.instr_cconv_radius = 2.0
         self.instr_out_gain = 1.5
-        self.instr_ps_threshold = 0.5
+        self.instr_exe_threshold = 0.5
         self.instr_pos_inc_cleanup_mode = 1
 
         self._backend = 'ref'

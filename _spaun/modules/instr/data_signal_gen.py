@@ -8,9 +8,10 @@ from ...configurator import cfg
 
 def Data_Signal_Generator_Network(vocab, net_label):
     # Returns a network that generates the appropriate values and signals for
-    # the production system. Takes in the sp output from the instruction data
-    # decoding network and produces a cleaned version (using `vocab`), and
-    # gating signals to drive the appropriate prod system memories.
+    # the transformation and memory systems. Takes in the sp output from the
+    # instruction data decoding network and produces a cleaned version
+    # (using `vocab`), and gating signals to drive the appropriate memory
+    # system networks.
     net = nengo.Network(label=net_label)
 
     with net:

@@ -291,64 +291,64 @@ class InfoDecoding(Module):
         else:
             warn("InfoEncoding Module - Cannot connect from 'vis'")
 
-        # Set up connections from production system module
-        if hasattr(p_net, 'ps'):
+        # Set up connections from executive system module
+        if hasattr(p_net, 'exe'):
             # Connections for sel0 - SR
             dec_out_sr_sp_vecs = vocab.main.parse('FWD+REV+CNT+DECI').v
-            nengo.Connection(p_net.ps.dec, self.select_out.sel0,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel0,
                              transform=[dec_out_sr_sp_vecs])
 
             # Connections for sel1 - Copy Drawing
             dec_out_copy_draw_sp_vecs = vocab.main.parse('DECW').v
-            nengo.Connection(p_net.ps.dec, self.select_out.sel1,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel1,
                              transform=[dec_out_copy_draw_sp_vecs])
 
             # Connections for sel2 - FR
             dec_out_fr_sp_vecs = vocab.main.parse('0').v  # TODO: Implement
-            nengo.Connection(p_net.ps.dec, self.select_out.sel2,
+            nengo.Connection(p_net.exe.dec, self.select_out.sel2,
                              transform=[dec_out_fr_sp_vecs])
 
             # Connections for gate signals
             dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
-            nengo.Connection(p_net.ps.dec, self.pos_mb_gate_bias.input,
+            nengo.Connection(p_net.exe.dec, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_dec_sp_vecs],
                              synapse=0.02)
 
             dec_pos_gate_task_sp_vecs = vocab.main.parse('DEC').v
-            nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias.input,
+            nengo.Connection(p_net.exe.task, self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_task_sp_vecs],
                              synapse=0.02)
 
             # Connections for inhibitory signals
-            nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
+            nengo.Connection(p_net.exe.task, self.dec_am_task_inhibit.input,
                              transform=[dec_pos_gate_task_sp_vecs * -1.5])
 
             # Inhibit FR for induction, learning, counting, react, and instr
             # tasks
             # - also set fr_utils_n to high
             dec_inhibit_fr_sp_vecs = vocab.main.parse('DECI+L+C+REACT+INSTR').v
-            nengo.Connection(p_net.ps.task, self.free_recall_decode.inhibit,
+            nengo.Connection(p_net.exe.task, self.free_recall_decode.inhibit,
                              transform=[dec_inhibit_fr_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.free_recall_decode.inhibit,
+            nengo.Connection(p_net.exe.dec, self.free_recall_decode.inhibit,
                              transform=[dec_inhibit_fr_sp_vecs])
 
-            nengo.Connection(p_net.ps.task, self.output_classify.fr_utils_n,
+            nengo.Connection(p_net.exe.task, self.output_classify.fr_utils_n,
                              transform=[dec_inhibit_fr_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.output_classify.fr_utils_n,
+            nengo.Connection(p_net.exe.dec, self.output_classify.fr_utils_n,
                              transform=[dec_inhibit_fr_sp_vecs])
 
             # Inhibit output stop during counting task
             dec_inhibit_output_stop_sp_vecs = vocab.main.parse('CNT').v
-            nengo.Connection(p_net.ps.dec,
+            nengo.Connection(p_net.exe.dec,
                              self.output_classify.output_stop_inhibit,
                              transform=[dec_inhibit_output_stop_sp_vecs])
 
             # ###### DEBUG ########
             dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
-            nengo.Connection(p_net.ps.dec, self.debug_task,
+            nengo.Connection(p_net.exe.dec, self.debug_task,
                              transform=[dec_pos_gate_dec_sp_vecs])
         else:
-            warn("InfoDecoding Module - Could not connect from 'ps'")
+            warn("InfoDecoding Module - Could not connect from 'exe'")
 
         # Set up connections from encoding module
         if hasattr(p_net, 'enc'):

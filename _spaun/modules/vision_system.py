@@ -82,7 +82,7 @@ class VisionSystem(Module):
         # # circuit here.
 
         vis_mem_no_gate_sp_vecs = \
-            vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+            vocab.main.parse('+'.join(vocab.exe_task_vis_sp_strs +
                                       vocab.misc_vis_sp_strs)).v
         nengo.Connection(self.vis_classify.output, self.vis_mem.gate,
                          transform=[cfg.mb_gate_scale *

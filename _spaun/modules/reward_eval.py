@@ -27,7 +27,7 @@ class RewardEvaluationSystem(Module):
         num_actions = experiment.num_learn_actions
 
         # ------------------- Action detection network ------------------------
-        # Translates action semantic pointers (from production system) into
+        # Translates action semantic pointers (from executive system) into
         # array of 1's and 0's
         self.actions = cfg.make_thresh_ens_net(num_ens=num_actions)
         self.action_input = self.actions.input
@@ -95,12 +95,14 @@ class RewardEvaluationSystem(Module):
         else:
             warn("RewardEvaluation Module - Cannot connect from 'vis'")
 
-        if hasattr(p_net, 'ps'):
-            nengo.Connection(p_net.ps.action, self.action_input,
-                             transform=vocab.ps_action.vectors)
+        # Set up connections from exec module
+        if hasattr(p_net, 'exe'):
+            nengo.Connection(p_net.exe.action, self.action_input,
+                             transform=vocab.exe_action.vectors)
         else:
-            warn("RewardEvaluation Module - Cannot connect from 'ps'")
+            warn("RewardEvaluation Module - Cannot connect from 'exe'")
 
+        # Set up connections from bg
         if hasattr(p_net, 'bg'):
             nengo.Connection(p_net.bg.input[:experiment.num_learn_actions],
                              self.bg_utilities_input)
