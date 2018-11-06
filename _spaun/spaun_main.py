@@ -85,17 +85,13 @@ def Spaun():
                      '(0.25 * (dot(exe_task, DEC) + dot(exe_state, CNT1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = FWD, exe_state = TRANS0']  # noqa
                 # Counting task format: A4[START_NUM][NUM_COUNT]?X..X
 
-                ####
-                # task = S
-                # state = SUB1
                 subtract_action = \
                     ['0.5 * (dot(exe_task, X) + dot(vis, K)) --> exe_task = S, exe_state = TRANS0, exe_dec = FWD',  # noqa
                      '0.5 * (dot(exe_task, S) + dot(exe_state, TRANS0)) - dot(vis, QM) - dot(exe_task, DEC) --> exe_state = CNT0',  # noqa
                      '0.5 * (dot(exe_task, S) + dot(exe_state, CNT0)) - dot(vis, QM) - dot(exe_task, DEC) --> exe_state = SUB1',  # noqa
                      '(0.25 * (dot(exe_task, DEC) + dot(exe_state, SUB1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = CNT, exe_state = SUB1',  # noqa
                      '(0.25 * (dot(exe_task, DEC) + dot(exe_state, SUB1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = FWD, exe_state = TRANS0']  # noqa
-                # Counting task format: A4[START_NUM][NUM_COUNT]?X..X
-                ###
+                # Subtract task format: AK[START_NUM][NUM_SUBTRACT]?X..X
 
                 qa_action = \
                     ['0.5 * (dot(exe_task, X) + dot(vis, FIV)) --> exe_task = A, exe_state = TRANS0, exe_dec = FWD',  # noqa
