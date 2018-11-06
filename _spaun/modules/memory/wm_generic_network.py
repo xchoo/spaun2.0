@@ -2,17 +2,17 @@ import numpy as np
 import nengo
 
 from ...configurator import cfg
-from ...utils import invol_matrix
 
-def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
+
+def WM_Generic_Network(vocab, sp_add_matrix, sp_sub_matrix, net=None,
+                       net_label="MB"):
     if net is None:
         net = nengo.Network(label=net_label)
 
     if sp_add_matrix is None:
         sp_add_matrix = np.eye(vocab.dimensions)
+    if sp_sub_matrix is None:
         sp_sub_matrix = np.eye(vocab.dimensions)
-    else:
-        sp_sub_matrix = invol_matrix(sp_add_matrix)
 
     with net:
         # Memory block (MBA - long term memory (rehearsal),

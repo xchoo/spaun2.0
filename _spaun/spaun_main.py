@@ -159,7 +159,7 @@ def Spaun():
                 instr_action = []
 
             decode_action = \
-                ['dot(vis, QM) - 0.6 * dot(exe_task, W+C+V+F+L+REACT) --> exe_task = exe_task + DEC, exe_state = exe_state + 0.5 * TRANS0, exe_dec = exe_dec + 0.5 * FWD',  # noqa
+                ['dot(vis, QM) - 0.6 * dot(exe_task, W+C+S+V+F+L+REACT) --> exe_task = exe_task + DEC, exe_state = exe_state + 0.5 * TRANS0, exe_dec = exe_dec + 0.5 * FWD',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, W-DEC)) --> exe_task = W + DEC, exe_state = exe_state, exe_dec = DECW',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, C+S-DEC)) --> exe_task = exe_task + DEC, exe_state = exe_state, exe_dec = CNT',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, V+F-DEC)) --> exe_task = exe_task + DEC, exe_state = exe_state, exe_dec = DECI',  # noqa

@@ -38,6 +38,10 @@ class WorkingMemory(Module):
         sp_add_matrix = (vocab.add_sp.get_convolution_matrix() *
                          (0.25 / cfg.mb_rehearsalbuf_input_scale +
                           0.25 / (cfg.mb_decaybuf_input_scale - 0.15)))
+        # '~ADD' transform for WM
+        sp_sub_matrix = ((~vocab.add_sp).get_convolution_matrix() *
+                         (0.25 / cfg.mb_rehearsalbuf_input_scale +
+                          0.25 / (cfg.mb_decaybuf_input_scale - 0.15)))
 
         self.num0_bias_node = nengo.Node(vocab.main.parse('POS1*ZER').v,
                                          label="POS1*ZER")
@@ -52,7 +56,7 @@ class WorkingMemory(Module):
 
         # Memory block 1
         self.mb1_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB1")
+                                          sp_sub_matrix, net_label="MB1")
         nengo.Connection(self.select_in.output, self.mb1_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb1_net.gate)
@@ -67,7 +71,7 @@ class WorkingMemory(Module):
 
         # Memory block 2
         self.mb2_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB2")
+                                          sp_sub_matrix, net_label="MB2")
         nengo.Connection(self.select_in.output, self.mb2_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb2_net.gate)
@@ -82,7 +86,7 @@ class WorkingMemory(Module):
 
         # Memory block 3
         self.mb3_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB3")
+                                          sp_sub_matrix, net_label="MB3")
         nengo.Connection(self.select_in.output, self.mb3_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb3_net.gate)
