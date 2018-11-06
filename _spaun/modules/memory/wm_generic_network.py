@@ -2,7 +2,7 @@ import numpy as np
 import nengo
 
 from ...configurator import cfg
-
+from ...utils import invol_matrix
 
 def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
     if net is None:
@@ -10,11 +10,14 @@ def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
 
     if sp_add_matrix is None:
         sp_add_matrix = np.eye(vocab.dimensions)
+        sp_sub_matrix = np.eye(vocab.dimensions)
+    else:
+        sp_sub_matrix = invol_matrix(sp_add_matrix)
 
     with net:
         # Memory block (MBA - long term memory (rehearsal),
         #               MBB - short term memory (decay))
-        sel_in = cfg.make_selector(3, default_sel=0,
+        sel_in = cfg.make_selector(4, default_sel=0,
                                    label=net_label + 'Input Selector')
 
         mb_gate = nengo.Node(size_in=1, label=net_label + ' Gate Node')
@@ -62,6 +65,7 @@ def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
         net.sel0 = sel_in.sel0
         net.sel1 = sel_in.sel1
         net.sel2 = sel_in.sel2
+        net.sel3 = sel_in.sel3
 
         net.mb_reh = mba.output
         net.mb_dcy = mbb.output
@@ -75,6 +79,11 @@ def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
         # (slight primacy)
         nengo.Connection(net.output, sel_in.input1,
                          transform=sp_add_matrix * 1.05)
+
+        # "~ADD1" feedback connection, with above unity connection weights
+        # (slight primacy)
+        nengo.Connection(net.output, sel_in.input3,
+                         transform=sp_sub_matrix * 1.05)
 
         net.gate = mb_gate
         net.reset = mb_reset

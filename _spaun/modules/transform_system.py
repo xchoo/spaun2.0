@@ -146,13 +146,13 @@ class TransformationSystem(Module):
 
             # Select IN A
             # - sel0 (MB1): State = QAP + QAK + TRANS1
-            # - sel1 (MB2): State = TRANS2 + CNT1 + TRANSC
+            # - sel1 (MB2): State = TRANS2 + CNT1 + SUB1 + TRANSC
             # - sel2 (MB3): State = TRANS0
             in_a_sel0_sp_vecs = vocab.main.parse('QAP+QAK+TRANS1').v
             nengo.Connection(p_net.exe.state, self.select_in_a.sel0,
                              transform=[in_a_sel0_sp_vecs])
 
-            in_a_sel1_sp_vecs = vocab.main.parse('TRANS2+CNT1+TRANSC').v
+            in_a_sel1_sp_vecs = vocab.main.parse('TRANS2+CNT1+SUB1+TRANSC').v
             nengo.Connection(p_net.exe.state, self.select_in_a.sel1,
                              transform=[in_a_sel1_sp_vecs])
 
@@ -166,7 +166,7 @@ class TransformationSystem(Module):
             # - sel2 (~MB1): State = TRANS1 & Dec = -DECI
             # - sel3 (~MB2): State = TRANS2 & Dec = -DECI
             # - sel4 (MBAve): Dec = DECI
-            # - sel5 (MB3): State = CNT1 + TRANSC
+            # - sel5 (MB3): State = CNT1 + SUB1 + TRANSC
             in_b_sel0_sp_vecs = vocab.main.parse('QAP').v
             nengo.Connection(p_net.exe.state, self.select_in_b.sel0,
                              transform=[in_b_sel0_sp_vecs])
@@ -191,7 +191,7 @@ class TransformationSystem(Module):
             nengo.Connection(p_net.exe.dec, self.select_in_b.sel4,
                              transform=[in_b_sel4_sp_vecs])
 
-            in_b_sel5_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
+            in_b_sel5_sp_vecs = vocab.main.parse('CNT1+SUB1+TRANSC').v
             nengo.Connection(p_net.exe.state, self.select_in_b.sel5,
                              transform=[in_b_sel5_sp_vecs])
 

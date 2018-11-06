@@ -248,7 +248,7 @@ class WorkingMemory(Module):
 
                 mb1_no_reset_thresh_ens = cfg.make_thresh_ens_net()
                 mb1_no_reset_sp_vecs = \
-                    vocab.main.parse('QAP+QAK+TRANS1+CNT0+CNT1').v
+                    vocab.main.parse('QAP+QAK+TRANS1+CNT0+CNT1+SUB1').v
                 nengo.Connection(p_net.exe.state, mb1_no_reset_thresh_ens.input,
                                  transform=[mb1_no_reset_sp_vecs])
                 nengo.Connection(mb1_no_reset_thresh_ens.output,
@@ -266,6 +266,13 @@ class WorkingMemory(Module):
             nengo.Connection(p_net.exe.state, self.mb1_net.fdbk_gate,
                              transform=[mb1_sel_1_sp_vecs])
 
+            mb1_sel_3_sp_vecs = vocab.main.parse('SUB1').v
+                # Use *~ONE connection in the SUB1 state  # noqa
+            nengo.Connection(p_net.exe.state, self.mb1_net.sel3,
+                             transform=[mb1_sel_3_sp_vecs])
+            nengo.Connection(p_net.exe.state, self.mb1_net.fdbk_gate,
+                             transform=[mb1_sel_3_sp_vecs])
+
             # Disable memory feedback connection for INSTR task
             nengo.Connection(p_net.exe.task, self.mb1_net.fdbk_gate,
                              transform=[instr_task_sp_vecs])
@@ -274,7 +281,7 @@ class WorkingMemory(Module):
             with self:
                 mb2_no_gate_thresh_ens = cfg.make_thresh_ens_net()
                 mb2_no_gate_sp_vecs = \
-                    vocab.main.parse('X+TRANS0+TRANS2+CNT1+L').v
+                    vocab.main.parse('X+TRANS0+TRANS2+CNT1+SUB1+L').v
                 nengo.Connection(p_net.exe.state, mb2_no_gate_thresh_ens.input,
                                  transform=[mb2_no_gate_sp_vecs])
                 nengo.Connection(p_net.exe.task, mb2_no_gate_thresh_ens.input,
@@ -285,7 +292,7 @@ class WorkingMemory(Module):
 
                 mb2_no_reset_thresh_ens = cfg.make_thresh_ens_net()
                 mb2_no_reset_sp_vecs = \
-                    vocab.main.parse('TRANS2+CNT1+TRANSC').v
+                    vocab.main.parse('TRANS2+CNT1+SUB1+TRANSC').v
                 # mb2_no_reset_sp_vecs = \
                 #     vocab.main.parse('QAP+QAK+TRANS2+CNT1+TRANSC').v
                 # Why is there a no reset for the QAP and QAK states??
@@ -322,14 +329,14 @@ class WorkingMemory(Module):
                                  transform=cfg.mb_neg_gate_scale)
 
                 mb3_no_reset_thresh_ens = cfg.make_thresh_ens_net()
-                mb3_no_reset_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
+                mb3_no_reset_sp_vecs = vocab.main.parse('CNT1+SUB1+TRANSC').v
                 nengo.Connection(p_net.exe.state, mb3_no_reset_thresh_ens.input,
                                  transform=[mb3_no_reset_sp_vecs])
                 nengo.Connection(mb3_no_reset_thresh_ens.output,
                                  self.mb3_net.reset,
                                  transform=[cfg.mb_neg_gate_scale])
 
-            mb3_sel_1_sp_vecs = vocab.main.parse('CNT1').v
+            mb3_sel_1_sp_vecs = vocab.main.parse('CNT1+SUB1').v
                 # Use *ONE connection in the CNT1 state  # noqa
             nengo.Connection(p_net.exe.state, self.mb3_net.sel1,
                              transform=[mb3_sel_1_sp_vecs])

@@ -84,6 +84,19 @@ def Spaun():
                      '(0.25 * (dot(exe_task, DEC) + dot(exe_state, CNT1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = CNT, exe_state = CNT1',  # noqa
                      '(0.25 * (dot(exe_task, DEC) + dot(exe_state, CNT1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = FWD, exe_state = TRANS0']  # noqa
                 # Counting task format: A4[START_NUM][NUM_COUNT]?X..X
+
+                ####
+                # task = S
+                # state = SUB1
+                subtract_action = \
+                    ['0.5 * (dot(exe_task, X) + dot(vis, K)) --> exe_task = S, exe_state = TRANS0, exe_dec = FWD',  # noqa
+                     '0.5 * (dot(exe_task, S) + dot(exe_state, TRANS0)) - dot(vis, QM) - dot(exe_task, DEC) --> exe_state = CNT0',  # noqa
+                     '0.5 * (dot(exe_task, S) + dot(exe_state, CNT0)) - dot(vis, QM) - dot(exe_task, DEC) --> exe_state = SUB1',  # noqa
+                     '(0.25 * (dot(exe_task, DEC) + dot(exe_state, SUB1)) + 0.5 * dot(trfm_compare, NO_MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = CNT, exe_state = SUB1',  # noqa
+                     '(0.25 * (dot(exe_task, DEC) + dot(exe_state, SUB1)) + 0.5 * dot(trfm_compare, MATCH)) + (dot(exe_dec, CNT) - 1) - dot(vis, QM) --> exe_dec = FWD, exe_state = TRANS0']  # noqa
+                # Counting task format: A4[START_NUM][NUM_COUNT]?X..X
+                ###
+
                 qa_action = \
                     ['0.5 * (dot(exe_task, X) + dot(vis, FIV)) --> exe_task = A, exe_state = TRANS0, exe_dec = FWD',  # noqa
                      'dot(exe_task, A-DEC) - dot(vis, K + P + QM) --> exe_state = exe_state',  # noqa
@@ -119,6 +132,7 @@ def Spaun():
                 #                                   AC[rr..rr][rr..rr]?X<expected 1 if any item in first list appears in second list, 0 if not>    # noqa
             else:
                 count_action = []
+                subtract_action = []
                 qa_action = []
                 rvc_action = []
                 fi_action = []
@@ -147,7 +161,7 @@ def Spaun():
             decode_action = \
                 ['dot(vis, QM) - 0.6 * dot(exe_task, W+C+V+F+L+REACT) --> exe_task = exe_task + DEC, exe_state = exe_state + 0.5 * TRANS0, exe_dec = exe_dec + 0.5 * FWD',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, W-DEC)) --> exe_task = W + DEC, exe_state = exe_state, exe_dec = DECW',  # noqa
-                 '0.5 * (dot(vis, QM) + dot(exe_task, C-DEC)) --> exe_task = C + DEC, exe_state = exe_state, exe_dec = CNT',  # noqa
+                 '0.5 * (dot(vis, QM) + dot(exe_task, C+S-DEC)) --> exe_task = exe_task + DEC, exe_state = exe_state, exe_dec = CNT',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, V+F-DEC)) --> exe_task = exe_task + DEC, exe_state = exe_state, exe_dec = DECI',  # noqa
                  '0.7 * dot(vis, QM) + 0.3 * dot(exe_task, L) --> exe_task = L + DEC, exe_state = LEARN, exe_dec = FWD',  # noqa
                  '0.5 * (dot(vis, QM) + dot(exe_task, REACT)) --> exe_task = REACT + DEC, exe_state = DIRECT, exe_dec = FWD',  # noqa
@@ -161,7 +175,7 @@ def Spaun():
                            copy_draw_action + recog_action + mem_action +
                            count_action + qa_action + rvc_action + fi_action +
                            decode_action + default_action + react_action +
-                           instr_action + match_action)
+                           instr_action + match_action + subtract_action)
 
             actions = spa.Actions(*all_actions)
             model.bg = spa.BasalGanglia(actions=actions, input_synapse=0.008,

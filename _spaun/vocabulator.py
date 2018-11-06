@@ -33,7 +33,7 @@ class SpaunVocabulary(object):
         # X - Task precursor
         # DEC - Decoding task (output to motor system)
         self.exe_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X',
-                                 'DEC', 'REACT', 'INSTR', 'CMP']
+                                 'S', 'DEC', 'REACT', 'INSTR', 'CMP']
         self.exe_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
                                      'V', 'W']
         # --- Task visual semantic pointer usage ---
@@ -48,7 +48,7 @@ class SpaunVocabulary(object):
         # DECI - Decoding state (output to motor system, but for inductn tasks)
         self.exe_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
                                   'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
-                                  'INSTRV', 'TRANSC']
+                                  'INSTRV', 'TRANSC', 'SUB1']
         self.exe_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
 
         # --- Misc actions semantic pointers
