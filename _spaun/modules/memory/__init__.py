@@ -1,0 +1,2 @@
+from .wm_generic_network import WM_Generic_Network
+from .wm_averaging_network import WM_Averaging_Network

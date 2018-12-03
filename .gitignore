@@ -1,0 +1,10 @@
+*.class
+*.pyc
+*.pkc
+.DS_Store
+
+build/
+data/
+reference_code/
+/.idea
+/spaun.egg-info
