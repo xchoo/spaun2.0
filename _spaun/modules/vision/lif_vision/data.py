@@ -19,7 +19,8 @@ class LIFVisionDataObject(object):
         self.vision_network_filename = \
             os.path.join(self.filepath, self.module_name, 'params.npz')
         self.vision_network_data = np.load(self.vision_network_filename,
-                                           encoding='latin1')
+                                           encoding='latin1',
+                                           allow_pickle=True)
 
         self.weights = self.vision_network_data['weights']
         self.biases = self.vision_network_data['biases']
@@ -38,7 +39,8 @@ class LIFVisionDataObject(object):
         means_filename = \
             os.path.join(self.filepath, self.module_name, 'class_means.npz')
         means_data = np.matrix(1.0 / np.load(means_filename,
-                                             encoding='latin1')['means'])
+                                             encoding='latin1',
+                                             allow_pickle=True)['means'])
 
         self.num_classes = weights_class.shape[1]
 
