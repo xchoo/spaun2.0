@@ -6,6 +6,8 @@ import numpy.ma as ma
 import argparse
 import matplotlib.pyplot as plt
 
+from cycler import cycler
+
 
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
 supported_data_version = 6.1
@@ -60,7 +62,7 @@ if not (show_grphs or show_io or show_anim):
 gen_trange = False
 if data_filename.endswith('.npz'):
     config_filename = data_filename[:-4] + '_cfg.npz'
-    probe_data = np.load(data_filename, encoding='latin1')
+    probe_data = np.load(data_filename, encoding='latin1', allow_pickle=True)
 
 elif data_filename.endswith('.h5'):
     # H5 file format (nengo_mpi)
@@ -78,7 +80,7 @@ else:
                        data_filename)
 
 # --------------------- LOAD MODEL & PROBE CONFIG DATA ---------------------
-config_data = np.load(config_filename, encoding='latin1')
+config_data = np.load(config_filename, encoding='latin1', allow_pickle=True)
 
 data_version = 0 if 'version' not in config_data.keys() else \
     config_data['version'].item()
@@ -237,8 +239,9 @@ if show_grphs:
                 # Note: Limit number of plots to max_lines to limit memory
                 #       usage
 
-                plt.gca().set_color_cycle([colormap(i) for i in
-                                           np.linspace(0, 0.9, num_classes)])
+                color_cycler = \
+                    (cycler(color=[colormap(i) for i in np.linspace(0, 0.9, num_classes)]))
+                plt.gca().set_prop_cycle(color_cycler)
                 for i in range(num_classes):
                     plt.plot(t_data,
                              np.dot(p_data, vocab.vectors.T)[:, i])
@@ -248,13 +251,13 @@ if show_grphs:
                 # vector without vocabulary plots
                 num_dims = p_data[-1].size
                 if num_dims < 30:
-                    plt.gca().set_color_cycle([colormap(i) for i in
-                                               np.linspace(0, 0.9,
-                                                           num_dims)])
+                    color_cycler = \
+                        (cycler(color=[colormap(i) for i in np.linspace(0, 0.9, num_dims)]))
+                    plt.gca().set_prop_cycle(color_cycler)
                     for i in range(num_dims):
                         plt.plot(t_data, p_data[:, i])
                     if disp_legend:
-                        plot_legend(map(str, range(num_dims)))
+                        plot_legend(list(map(str, range(num_dims))))
                 else:
                     # If number of dimensions > max_lines, limit to max_lines
                     # (To avoid excessive memory usage)
@@ -279,9 +282,11 @@ if show_grphs:
                 spike_data = p_data[:, spike_ind_selected]
 
                 # Set the color cycle to grayscale
-                plt.gca().set_color_cycle(
-                    [graymap(i) for i in
-                     np.linspace(0, 0.8, disp_neuron_count)])
+                color_cycler = \
+                    (cycler(
+                        color=[graymap(i) for i in np.linspace(0, 0.8, disp_neuron_count)])
+                    )
+                plt.gca().set_prop_cycle(color_cycler)
 
                 # Triple the trange (spike plotting oddities)
                 strange = ma.array(t_data).repeat(3)

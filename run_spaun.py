@@ -17,7 +17,6 @@ from _spaun.utils import get_probe_data_filename
 def_dim = 512
 def_seq = 'A'
 def_i = ''
-def_mpi_p = 128
 
 # ----- Spaun (character & instruction) presets -----
 stim_presets = {}
@@ -426,7 +425,7 @@ parser.add_argument(
 
 parser.add_argument(
     '-b', type=str, default='ref',
-    help='Backend to use for Spaun. One of ["ref", "ocl", "mpi", "spinn"]')
+    help='Backend to use for Spaun. One of ["ref", "ocl", "spinn"]')
 parser.add_argument(
     '--data_dir', type=str, default=os.path.join(cur_dir, 'data'),
     help='Directory to store output data.')
@@ -453,50 +452,32 @@ parser.add_argument(
     '--tag', type=str, default="",
     help='Tag string to apply to probe data file name.')
 parser.add_argument(
-    '--enable_cache', action='store_true',
+    '--enable-cache', action='store_true',
     help='Supply to use nengo caching system when building the nengo model.')
 
 parser.add_argument(
     '--ocl', action='store_true',
     help='Supply to use the OpenCL backend (will override -b).')
 parser.add_argument(
-    '--ocl_platform', type=int, default=-1,
+    '--ocl-platform', type=int, default=-1,
     help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
           ' backend can be listed using "pyopencl.get_platforms()"'))
 parser.add_argument(
-    '--ocl_device', type=int, default=-1,
+    '--ocl-device', type=int, default=-1,
     help=('OCL Only: List index of the device on the OpenCL platform to use.' +
           ' OpenCL devices can be listed using ' +
           '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
           'of the plaform to use.'))
 parser.add_argument(
-    '--ocl_profile', action='store_true',
+    '--ocl-profile', action='store_true',
     help='Supply to use NengoOCL profiler.')
-
-parser.add_argument(
-    '--mpi', action='store_true',
-    help='Supply to use the MPI backend (will override -b).')
-parser.add_argument(
-    '--mpi_save', type=str, default='spaun.net',
-    help=('MPI Only: Filename to use to write the generated Spaun network ' +
-          'to. Defaults to "spaun.net". *Note: Final filename includes ' +
-          'neuron type, dimensionality, and stimulus information.'))
-parser.add_argument(
-    '--mpi_p', type=int, default=def_mpi_p,
-    help='MPI Only: Number of processors to use.')
-parser.add_argument(
-    '--mpi_p_auto', action='store_true',
-    help='MPI Only: Use the automatic partitioner')
-parser.add_argument(
-    '--mpi_compress_save', action='store_true',
-    help='Supply to compress the saved net file with gzip.')
 
 parser.add_argument(
     '--spinn', action='store_true',
     help='Supply to use the SpiNNaker backend (will override -b).')
 
 parser.add_argument(
-    '--nengo_gui', action='store_true',
+    '--nengo-gui', action='store_true',
     help='Supply to use the nengo_viz vizualizer to run Spaun.')
 
 parser.add_argument(
@@ -511,7 +492,7 @@ parser.add_argument(
          '\nNOTE: Use quotes (") to encapsulate strings if you encounter' +
          ' problems.')
 parser.add_argument(
-    '--config_presets', type=str, nargs='*',
+    '--config-presets', type=str, nargs='*',
     help="Use to provide preset configuration options (which can be " +
          "individually provided using --config). Appends to list of " +
          "configuration options provided through --config.")
@@ -536,8 +517,6 @@ else:
 cfg.backend = args.b
 if args.ocl:
     cfg.backend = 'ocl'
-if args.mpi:
-    cfg.backend = 'mpi'
 if args.spinn:
     cfg.backend = 'spinn'
 
@@ -567,7 +546,7 @@ for n in range(args.n):
 
     # ----- Seeeeeeeed -----
     if args.seed < 0:
-        seed = int(time.time())
+        seed = int(time.time() * 1000000) % (2 ** 32)
     else:
         seed = args.seed
 
@@ -638,17 +617,7 @@ for n in range(args.n):
         cfg.spaun_modules = used_modules
 
     # ----- Configure output log files -----
-    if cfg.use_mpi:
-        sys.path.append('C:\\Users\\xchoo\\GitHub\\nengo_mpi')
-
-        mpi_save = args.mpi_save.split('.')
-        mpi_savename = '.'.join(mpi_save[:-1])
-        mpi_saveext = mpi_save[-1]
-
-        cfg.probe_data_filename = get_probe_data_filename(mpi_savename,
-                                                          suffix=args.tag)
-    else:
-        cfg.probe_data_filename = get_probe_data_filename(suffix=args.tag)
+    cfg.probe_data_filename = get_probe_data_filename(suffix=args.tag)
 
     # ----- Initalize looger and write header data -----
     logger.initialize(cfg.data_dir, cfg.probe_data_filename[:-4] + '_log.txt')
@@ -781,34 +750,12 @@ for n in range(args.n):
         else:
             sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt,
                                       profiling=args.ocl_profile)
-    elif cfg.use_mpi:
-        import nengo_mpi
-
-        mpi_savefile = \
-            ('+'.join([cfg.get_probe_data_filename(mpi_savename)[:-4],
-                      ('%ip' % args.mpi_p if not args.mpi_p_auto else 'autop'),
-                      '%0.2fs' % experiment.get_est_simtime()]) + '.' +
-             mpi_saveext)
-        mpi_savefile = os.path.join(cfg.data_dir, mpi_savefile)
-
-        print("USING MPI - Saving to: %s" % (mpi_savefile))
-
-        if args.mpi_p_auto:
-            assignments = {}
-            for n, module in enumerate(model.modules):
-                assignments[module] = n
-            sim = nengo_mpi.Simulator(model, dt=cfg.sim_dt,
-                                      assignments=assignments,
-                                      save_file=mpi_savefile)
-        else:
-            partitioner = nengo_mpi.Partitioner(args.mpi_p)
-            sim = nengo_mpi.Simulator(model, dt=cfg.sim_dt,
-                                      partitioner=partitioner,
-                                      save_file=mpi_savefile)
     else:
+        print("------ REF ------")
         sim = nengo.Simulator(model, dt=cfg.sim_dt)
 
     t_build = time.time() - timestamp
+    t_walltime = -1
     timestamp = time.time()
     print("BUILD FINISHED - build time: %fs" % t_build)
 
@@ -816,7 +763,9 @@ for n in range(args.n):
     experiment.reset()
     if cfg.use_opencl or cfg.use_ref:
         print("START SIM - est_runtime: %f" % runtime)
+        sim_start_time = time.time()
         sim.run(runtime)
+        t_walltime = time.time() - sim_start_time
 
         # Close output logging file
         logger.close()
@@ -825,29 +774,10 @@ for n in range(args.n):
             sim.print_plans()
             sim.print_profiling()
 
-        t_simrun = time.time() - timestamp
         print("MODEL N_NEURONS: %i" % (get_total_n_neurons(model)))
-        print("FINISHED! - Build time: %fs, Sim time: %fs" % (t_build,
-                                                              t_simrun))
-    else:
-        print("MODEL N_NEURONS: %i" % (get_total_n_neurons(model)))
-        print("FINISHED! - Build time: %fs" % (t_build))
-
-        if args.mpi_compress_save:
-            import gzip
-            print("COMPRESSING net file to '%s'" % (mpi_savefile + '.gz'))
-
-            with open(mpi_savefile, 'rb') as f_in:
-                with gzip.open(mpi_savefile + '.gz', 'wb') as f_out:
-                    f_out.writelines(f_in)
-
-            os.remove(mpi_savefile)
-
-            print("UPLOAD '%s' to MPI cluster and decompress to run" %
-                  (mpi_savefile + '.gz'))
-        else:
-            print("UPLOAD '%s' to MPI cluster to run" % mpi_savefile)
-        t_simrun = -1
+        print(f"FINISHED! - Build time: {t_build}, " +
+              f"Sim runtime: {runtime}s, " +
+              f"Wall time: {t_walltime}s")
 
     # ----- Generate debug printouts -----
     n_bytes_ev = 0
@@ -878,7 +808,7 @@ for n in range(args.n):
                  "data:")
     logger.write("\n# ------------------------------------------------------" +
                  "---")
-    if make_probes and not cfg.use_mpi:
+    if make_probes:
         print("WRITING PROBE DATA TO FILE")
         probe_cfg.write_simdata_to_file(sim, experiment)
 
@@ -900,7 +830,7 @@ for n in range(args.n):
             import subprocess
             subprocess.Popen(subprocess_call_list)
 
-    if (args.showanim or args.showiofig or args.probeio) and not cfg.use_mpi:
+    if (args.showanim or args.showiofig or args.probeio):
         print("WRITING ANIMATION PROBE DATA TO FILE")
         probe_anim_cfg.write_simdata_to_file(sim, experiment)
 
@@ -947,7 +877,7 @@ for n in range(args.n):
         rt_file.write('Config options: %s\n' % (str(args.config)))
     rt_file.write('Build time: %fs | Model sim time: %fs | ' % (t_build,
                                                                 runtime))
-    rt_file.write('Sim wall time: %fs\n' % (t_simrun))
+    rt_file.write('Sim wall time: %fs\n' % (t_walltime))
     rt_file.close()
 
     # ----- Cleanup -----

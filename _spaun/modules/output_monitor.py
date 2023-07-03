@@ -21,13 +21,10 @@ class SpaunOutputMonitor(Module):
 
     @with_self
     def init_module(self):
-        if cfg.use_mpi:
-            raise RuntimeError('Not Implemented')
-        else:
-            self.output = \
-                nengo.Node(output=self.monitor_node_func,
-                           size_in=len(vocab.mtr.keys) + 3,
-                           label='Experiment monitor')
+        self.output = \
+            nengo.Node(output=self.monitor_node_func,
+                       size_in=len(vocab.mtr.keys) + 3,
+                       label='Experiment monitor')
 
         # Define vocabulary inputs and outputs
         self.outputs = dict(default=(self.output, vocab.vis_main))

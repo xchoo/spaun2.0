@@ -1,6 +1,7 @@
 import numpy as np
 
 import nengo
+from nengo.processes import PresentInput
 from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
@@ -24,8 +25,17 @@ def get_vocab(label=None):
     return (vocab.vis_main[str(label)].v, label)
 
 
-def stim_func_vis(t):
-    return get_image(experiment.get_stimulus(t))[0]
+# def stim_func_vis(t):
+#     return get_image(experiment.get_stimulus(t))[0]
+
+
+def stim_func_vis():
+    stimulus_list = []
+
+    for stim in experiment.stim_seq_list:
+        stimulus_list.append(get_image(stim)[0])
+
+    return PresentInput(np.array(stimulus_list), experiment.present_interval)
 
 
 def stim_func_vocab(t):
@@ -39,26 +49,19 @@ class SpaunStimulus(Module):
 
     @with_self
     def init_module(self):
-        if cfg.use_mpi:
-            import nengo_mpi
+        self.log_output = nengo.Node(output=experiment.log_stimulus,
+                                     label="Stim Output Logger")
+        self.output = nengo.Node(output=stim_func_vis(),
+                                 label='Stim Module Out')
 
-            dimension = get_image()[0].size
-            self.output = \
-                nengo_mpi.SpaunStimulus(dimension, experiment.raw_seq_list,
-                                        experiment.present_interval,
-                                        experiment.present_blanks)
-        else:
-            self.output = nengo.Node(output=stim_func_vis,
-                                     label='Stim Module Out')
-
-            # Normalized output (output values range from 0 to 1)
-            self.probe_output = \
-                nengo.Node(size_in=stim_data.probe_image_dimensions,
-                           label='Stim Module Probe Out')
-            nengo.Connection(self.output[stim_data.probe_subsample_inds],
-                             self.probe_output,
-                             transform=1.0 / stim_data.max_pixel_value,
-                             synapse=None)
+        # Normalized output (output values range from 0 to 1)
+        self.probe_output = \
+            nengo.Node(size_in=stim_data.probe_image_dimensions,
+                       label='Stim Module Probe Out')
+        nengo.Connection(self.output[stim_data.probe_subsample_inds],
+                         self.probe_output,
+                         transform=1.0 / stim_data.max_pixel_value,
+                         synapse=None)
 
         # Define vocabulary inputs and outputs
         self.outputs = dict(default=(self.output, vocab.vis))

@@ -10,7 +10,7 @@ from nengo.networks import InputGatedMemory as WM
 class MemoryBlock(nengo.Network):
     def __init__(self, n_neurons, dimensions, radius=None, gate_mode=1,
                  reset_mode=3, label=None, seed=None, add_to_container=None,
-                 **mem_args):
+                 neuron_type=None, **mem_args):
         super(MemoryBlock, self).__init__(label, seed, add_to_container)
 
         if radius is None:
@@ -18,6 +18,9 @@ class MemoryBlock(nengo.Network):
 
         if n_neurons == nengo.Default:
             n_neurons = 100
+
+        if neuron_type is None:
+            neuron_type = nengo.LIF()
 
         with self:
             # Note: Both gate & gateN are needed here to produce dead-zero
@@ -29,10 +32,12 @@ class MemoryBlock(nengo.Network):
 
             self.gateX = nengo.Ensemble(n_neurons, 1, label="gateX",
                                         intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]))
+                                        encoders=Choice([[1]]),
+                                        neuron_type=neuron_type)
             self.gateN = nengo.Ensemble(n_neurons, 1, label="gateN",
                                         intercepts=Uniform(0.5, 1),
-                                        encoders=Choice([[1]]))
+                                        encoders=Choice([[1]]),
+                                        neuron_type=neuron_type)
             nengo.Connection(self.gate, self.gateX)
             nengo.Connection(self.gate, self.gateN, transform=-1)
             nengo.Connection(bias_node, self.gateN)
@@ -42,6 +47,7 @@ class MemoryBlock(nengo.Network):
 
             wm_config = nengo.Config(nengo.Ensemble)
             wm_config[nengo.Ensemble].radius = radius
+            wm_config[nengo.Ensemble].neuron_type = neuron_type
 
             with wm_config:
                 self.mem1 = WM(n_neurons, dimensions, **wm_args)

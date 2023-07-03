@@ -209,7 +209,7 @@ class ProbeCfgVisOnly(SpaunProbeConfig):
 
         pvs1 = self.probe_value(self.m.vis.output, vocab=self.v.vis_main)
         pvs2 = self.probe_value(self.m.vis.neg_attention)
-        pvs3 = self.probe_value(self.m.vis.am_utilities)
+        pvs3 = self.probe_value(self.m.vis.vis_classify_utilities)
 
         pvsp1 = self.probe_spike(self.m.vis.vis_net.layers[0])
         pvsp2 = self.probe_spike(self.m.vis.vis_net.layers[1])

@@ -574,9 +574,10 @@ class SpaunExperiment(object):
         task = self.task_phase_seq_list[t_ind]
         return (len(task) > 1 and task[0] == 'L')
 
-    def get_stimulus(self, t):
+    # def get_stimulus(self, t):
+    def log_stimulus(self, t):
         t_ind = self.get_t_ind(t)
-        t_ind_float = self.get_t_ind_float(t)
+        # t_ind_float = self.get_t_ind_float(t)
 
         if t <= 0:
             return None
@@ -606,12 +607,12 @@ class SpaunExperiment(object):
             # Done all the stuff needed for new t_ind. Store new t_ind
             self.prev_t_ind = t_ind
 
-        if (self.present_blanks and t_ind != int(round(t_ind_float))) or \
-           t_ind >= len(self.stim_seq_list) or \
-           self.stim_seq_list[t_ind] == '.':
-            return None
-        else:
-            return self.stim_seq_list[t_ind]
+        # if (self.present_blanks and t_ind != int(round(t_ind_float))) or \
+        #    t_ind >= len(self.stim_seq_list) or \
+        #    self.stim_seq_list[t_ind] == '.':
+        #     return None
+        # else:
+        #     return self.stim_seq_list[t_ind]
 
     def get_instruction_sps(self, t):
         t_ind = self.get_t_ind(t)

@@ -123,8 +123,6 @@ class SpaunConfig(object):
             self._backend = 'ref'
         elif val in ['opencl', 'ocl']:
             self._backend = 'ocl'
-        elif val in ['mpi', 'bluegene', 'bg']:
-            self._backend = 'mpi'
         elif val in ['spinn']:
             self._backend = 'spinn'
         else:
@@ -138,10 +136,6 @@ class SpaunConfig(object):
     @property
     def use_opencl(self):
         return self.backend == 'ocl'
-
-    @property
-    def use_mpi(self):
-        return self.backend == 'mpi'
 
     @property
     def use_spinn(self):

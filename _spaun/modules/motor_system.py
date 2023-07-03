@@ -324,9 +324,9 @@ class MotorSystem(Module):
         nengo.Connection(self.motor_init_ps_dec.output, self.motor_init,
                          transform=-6, synapse=0.05)
 
-        self.arm_state = nengo.Node(output=lambda t, arm=arm_obj:
-                                    np.hstack([arm.q, arm.dq]))
-        self.arm_dq = nengo.Node(output=lambda t, arm=arm_obj: arm.dq)
+        # self.arm_state = nengo.Node(output=lambda t, arm=arm_obj:
+        #                             np.hstack([arm.q, arm.dq]))
+        # self.arm_dq = nengo.Node(output=lambda t, arm=arm_obj: arm.dq)
 
     def setup_connections(self, parent_net):
         # Set up connections from vision system module
