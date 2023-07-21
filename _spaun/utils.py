@@ -199,7 +199,7 @@ def build_and_run_spaun_network(
     # ----- Spaun simulation run -----
     experiment.reset()
     if cfg.use_opencl or cfg.use_ref:
-        print(print_prefix + f"START SIM - est_runtime: {runtime}s")
+        print(print_prefix + f"START SIM - est_runtime: {runtime:.3f}s")
 
         run_steps = int(runtime / cfg.sim_dt)
 

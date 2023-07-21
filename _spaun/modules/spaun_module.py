@@ -149,7 +149,7 @@ class SpaunMPHub(Module):
             if name.startswith("inp_"):
                 self.comm_node.size_in += dim
                 nengo.Connection(
-                    io_node, self.comm_node[d_in:d_in + dim], synapse=None
+                    io_node, self.comm_node[d_in:d_in + dim], synapse=0
                 )
 
                 d_in += dim
@@ -199,7 +199,7 @@ class SpaunMPNode(Network):
                 nengo.Connection(
                     getattr(self.parent, name),
                     self.comm_node[d_in:d_in + dim],
-                    synapse=None
+                    synapse=0
                 )
 
                 d_in += dim

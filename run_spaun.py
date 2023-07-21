@@ -428,14 +428,14 @@ for n in range(args.n):
         rt_file.write(", ".join([f"{t:.3f}s" for t in buildtimes]))
         rt_file.write("\n")
 
-        rt_file.write(f"Model sim time: {runtime}s\n")
+        rt_file.write(f"Model sim time: {runtime:.3f}s\n")
 
         rt_file.write("Sim wall times: ")
         rt_file.write(", ".join([f"{t:.3f}s" for t in walltimes]))
         rt_file.write("\n")
     else:
         rt_file.write(f"Build time: {buildtimes[0]:.3f}s | ")
-        rt_file.write(f"Model sim time: {runtime}s | ")
+        rt_file.write(f"Model sim time: {runtime:.3f}s | ")
         rt_file.write(f"Sim wall time: {walltimes[0]:.3f}s\n")
     rt_file.close()
 
