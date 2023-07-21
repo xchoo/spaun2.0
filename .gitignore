@@ -1,8 +1,10 @@
 *.class
 *.pyc
 *.pkc
+*.out
 .DS_Store
 
 build/
 data/
+plot/
 reference_code/
