@@ -1,9 +1,10 @@
-from __future__ import print_function
-
 import os
 import sys
 import time
 import argparse
+
+import numpy as np
+from multiprocessing import Process, Array, Value
 
 import nengo
 
@@ -11,385 +12,68 @@ from _spaun.configurator import cfg
 from _spaun.vocabulator import vocab
 from _spaun.experimenter import experiment
 from _spaun.loggerator import logger
-from _spaun.utils import get_probe_data_filename
+from _spaun.utils import (
+    get_probe_data_filename,
+    validate_num_gpus,
+    build_and_run_spaun_network,
+)
+from _spaun.presets import stim_presets, cfg_presets
 
 # ----- Defaults -----
 def_dim = 512
-def_seq = 'A'
-def_i = ''
+def_seq = "A"
+def_i = ""
 
-# ----- Spaun (character & instruction) presets -----
-stim_presets = {}
-
-# Standard Spaun stimulus presets
-# TODO: Add in configuration options into presets as well?
-stim_presets['copy_draw'] = ('A0[#1]?X', '')
-stim_presets['copy_draw_mult'] = ('A0[#1#2#3]?XXX', '')
-stim_presets['digit_recog'] = ('A1[#1]?XXX', '')
-stim_presets['learning'] = ('A2?{X:30}', '')
-stim_presets['memory_3'] = ('A3[123]?XXXX', '')
-stim_presets['memory_4'] = ('A3[1234]?XXXX', '')
-stim_presets['memory_7'] = ('A3[2567589]?XXXXXXXXX', '')
-stim_presets['count_3'] = ('A4[5][3]?XXXXXX', '')
-stim_presets['count_9'] = ('A4[0][9]?XXXXXXXXXXX', '')
-stim_presets['count_3_list'] = ('A4[321][3]?XXXXXXX', '')
-stim_presets['qa_kind'] = ('A5[123]K[3]?X', '')
-stim_presets['qa_pos'] = ('A5[123]P[1]?X', '')
-stim_presets['rvc_simple'] = ('A6[12][2][82][2][42]?XXXXX', '')
-stim_presets['rvc_complex'] = ('A6[8812][12][8842][42][8862][62][8832]?XXXXX',
-                               '')
-stim_presets['induction_simple'] = ('A7[1][2][3][2][3][4][3][4]?X', '')
-stim_presets['induction_incomplete'] = ('A7[1][2][3][2]?XX', '')
-stim_presets['induction_ravens'] = ('A7[1][11][111][2][22][222][3][33]?XXXXX',
-                                    '')
-
-# Darpa adaptive motor presets
-stim_presets['darpa_adapt_motor1'] = ('{A3[#4#2#7#5]?XXXX:8}', '')
-
-# Darpa imagenet presets
-stim_presets['darpa_imagenet1'] = ('{AC[#BOX_TURTLE][#BOX_TURTLE]?X' +
-                                   'AC[#SEWING_MACHINE][#SEWING_MACHINE]?X' +
-                                   'AC[#GUENON][#GUENON]?X' +
-                                   'AC[#TIBETAN_TERRIER][#TIBETAN_TERRIER]?X' +
-                                   'AC[#PERSIAN_CAT][#PERSIAN_CAT]?X:5}', '')
-stim_presets['darpa_imagenet2'] = ('{AC[#BOX_TURTLE][#SEWING_MACHINE]?X' +
-                                   'AC[#BOX_TURTLE][#GUENON]?X' +
-                                   'AC[#BOX_TURTLE][#TIBETAN_TERRIER]?X' +
-                                   'AC[#BOX_TURTLE][#PERSIAN_CAT]?X:5}', '')
-stim_presets['darpa_imagenet3'] = ('{AC[#SEWING_MACHINE][#BOX_TURTLE]?X' +
-                                   'AC[#SEWING_MACHINE][#GUENON]?X' +
-                                   'AC[#SEWING_MACHINE][#TIBETAN_TERRIER]?X' +
-                                   'AC[#SEWING_MACHINE][#PERSIAN_CAT]?X:5}',
-                                   '')
-stim_presets['darpa_imagenet4'] = ('{AC[#GUENON][#BOX_TURTLE]?X' +
-                                   'AC[#GUENON][#SEWING_MACHINE]?X' +
-                                   'AC[#GUENON][#TIBETAN_TERRIER]?X' +
-                                   'AC[#GUENON][#PERSIAN_CAT]?X:5}', '')
-stim_presets['darpa_imagenet5'] = ('{AC[#TIBETAN_TERRIER][#BOX_TURTLE]?X' +
-                                   'AC[#TIBETAN_TERRIER][#SEWING_MACHINE]?X' +
-                                   'AC[#TIBETAN_TERRIER][#GUENON]?X' +
-                                   'AC[#TIBETAN_TERRIER][#PERSIAN_CAT]?X:5}',
-                                   '')
-stim_presets['darpa_imagenet6'] = ('{AC[#PERSIAN_CAT][#BOX_TURTLE]?X' +
-                                   'AC[#PERSIAN_CAT][#SEWING_MACHINE]?X' +
-                                   'AC[#PERSIAN_CAT][#GUENON]?X' +
-                                   'AC[#PERSIAN_CAT][#TIBETAN_TERRIER]?X:5}',
-                                   '')
-
-# Darpa instruction following presets
-stim_resp_i = 'I1: VIS*ONE, DATA*POS1*NIN;I2: VIS*TWO, DATA*POS1*EIG;' + \
-              'I3: VIS*THR, DATA*POS1*SEV;I4: VIS*FOR, DATA*POS1*SIX;' + \
-              'I5: VIS*FIV, DATA*POS1*FIV;I6: VIS*SIX, DATA*POS1*FOR;' + \
-              'I7: VIS*SEV, DATA*POS1*THR;I8: VIS*EIG, DATA*POS1*TWO;' + \
-              'I9: VIS*NIN, DATA*POS1*ONE;I0: VIS*ZER, DATA*POS1*ZER'
-stim_presets['darpa_instr_stim_resp_2'] = \
-    ('%I1+I2%A9{?1X?2X:5}%I3+I4%A9{?4X?3X:5}', stim_resp_i)
-stim_presets['darpa_instr_stim_resp_3'] = \
-    ('%I1+I2+I3%A9{?1X?2X?3X:5}%I4+I5+I6%A9{?6X?5X?4X:5}', stim_resp_i)
-stim_presets['darpa_instr_stim_resp_4'] = \
-    ('%I1+I2+I3+I4%A9{?1X?2X?3X?4X:5}%I0+I9+I8+I7%A9{?0X?9X?8X?7X:5}',
-     stim_resp_i)
-stim_presets['darpa_instr_stim_resp_5'] = \
-    ('%I1+I2+I3+I4+I5%A9{?1X?2X?3X?4X?5X:5}' +
-     '%I0+I9+I8+I7+I6%A9{?0X?9X?8X?7X?6X:5}', stim_resp_i)
-stim_presets['darpa_instr_stim_resp_6'] = \
-    ('%I1+I2+I3+I4+I5+I6%A9{?1X?2X?3X?4X?5X?6X:5}' +
-     '%I0+I9+I8+I7+I6+I5%A9{?0X?9X?8X?7X?6X?5X:5}', stim_resp_i)
-stim_presets['darpa_instr_stim_resp_7'] = \
-    ('%I1+I2+I3+I4+I5+I6+I7%A9{?1X?2X?3X?4X?5X?6X?7X:5}' +
-     '%I0+I9+I8+I7+I6+I5+I4%A9{?0X?9X?8X?7X?6X?5X?4X:5}', stim_resp_i)
-stim_presets['darpa_instr_stim_resp_8'] = \
-    ('%I1+I2+I3+I4+I5+I6+I7+I8%A9{?1X?2X?3X?4X?5X?6X?7X?8X:5}' +
-     '%I0+I9+I8+I7+I6+I5+I4+I3%A9{?0X?9X?8X?7X?6X?5X?4X?3X:5}', stim_resp_i)
-
-stim_task_i = 'I1: VIS*ONE, TASK*F;I2: VIS*TWO, TASK*C;' + \
-              'I3: VIS*THR, TASK*M + DEC*REV; I4: VIS*FOR, TASK*W;' + \
-              'I5: VIS*FIV, TASK*M; I6: VIS*SIX, TASK*V;' + \
-              'I7: VIS*SEV, TASK*A;I8: VIS*EIG, TASK*REACT+STATE*DIRECT'
-stim_presets['darpa_instr_stim_task_2'] = \
-    ('%I1+I2%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX:5}' +
-     '%I3+I4%{M3.[321]?XXXM4.[0]?X:5}', stim_task_i)
-stim_presets['darpa_instr_stim_task_3'] = \
-    ('%I1+I2+I3%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXXM3.[321]?XXX:5}' +
-     '%I4+I5+I6%{M4.[0]?XM5.[123]?XXXM6.[13][3][12][2][11]?X:5}', stim_task_i)
-stim_presets['darpa_instr_stim_task_4'] = \
-    ('%I1+I2+I3+I4%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
-     'M3.[321]?XXXM4.[9]?X:5}%I3+I4+I5+I6%{M3.[987]?XXXM4[0]?X' +
-     'M5.[123]?XXXM6.[13][3][12][2][11]?X:5}', stim_task_i)
-stim_presets['darpa_instr_stim_task_5'] = \
-    ('%I1+I2+I3+I4+I5%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
-     'M3.[321]?XXXM4.[9]?XM5.[123]?XXX:5}%I4+I5+I6+I7+I8%{M4[0]?X' +
-     'M5.[123]?XXXM6.[13][3][12][2][11]?XM7.[123]P[3]?XM8.?1X?2X:5}',
-     stim_task_i)
-stim_presets['darpa_instr_stim_task_6'] = \
-    ('%I1+I2+I3+I4+I5+I6%{M1.[1][2][3][2][3][4][3][4]?XM2.[0][3]?XXXX' +
-     'M3.[321]?XXXM4.[9]?XM5.[123]?XXXM6.[39][9][38][8][37]?X:5}' +
-     '%I3+I4+I5+I6+I7+I8%{M3.[876]?XXXM4[0]?XM5.[456]?XXX' +
-     'M6.[13][3][12][2][11]?XM7.[123]P[3]?XM8.?1X?2X:5}', stim_task_i)
-
-seq_task_i = 'I1: POS1, TASK*F;I2: POS2, TASK*C;' + \
-             'I3: POS3, TASK*M + DEC*REV; I4: POS4, TASK*W;' + \
-             'I5: POS5, TASK*M; I6: POS6, TASK*V;' + \
-             'I7: POS7, TASK*A;I8: POS8, TASK*REACT+STATE*DIRECT'
-stim_presets['darpa_instr_seq_task_2'] = \
-    ('%I1+I2%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX:5}' +
-     '%I3+I4%{MP3.[321]?XXXMP4.[0]?X:5}', seq_task_i)
-stim_presets['darpa_instr_seq_task_3'] = \
-    ('%I1+I2+I5%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
-     'MP5.[123]?XXX:5}%I3+I4+I6%{MP6.[21][1][24][4][26][6][28]?' +
-     'XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
-stim_presets['darpa_instr_seq_task_4'] = \
-    ('%I1+I2+I5+I7%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
-     'MP5.[123]?XXXMP7.[123]K[3]?X:5}%I3+I4+I6+I8%{MP8.?1X?2X' +
-     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
-stim_presets['darpa_instr_seq_task_5'] = \
-    ('%I1+I2+I5+I7+I3%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
-     'MP5.[123]?XXXMP7.[123]K[3]?XMP3.[456]?XXX:5}' +
-     '%I3+I4+I6+I8+I2%{MP2.[0][1]?XXMP8.?1X?2X' +
-     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
-stim_presets['darpa_instr_seq_task_6'] = \
-    ('%I1+I2+I5+I7+I3+I4%{MP1.[1][2][3][2][3][4][3][4]?XMP2.[0][3]?XXXX' +
-     'MP5.[123]?XXXMP7.[123]K[3]?XMP3.[456]?XXXMP4.[5]?X:5}' +
-     '%I3+I4+I6+I8+I2+I5%{MP5.[456]?XXXMP2.[0][1]?XXMP8.?1X?2X' +
-     'MP6.[21][1][24][4][26][6][28]?XXMP4.[0]?XMP3.[321]?XXX:5}', seq_task_i)
-
-stim_presets['darpa_instr_stim_resp_demo1'] = \
-    ('%I1+I2%A9?4X?9X%I1+I2+I3%A9?5XXX',
-     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR;' +
-     'I3: VIS*FIV, DATA*(POS1*FOR + POS2*TWO + POS3*THR)')
-stim_presets['darpa_instr_stim_resp_demo2'] = \
-    ('%I1+I2%A9?4X?9X%I3+I4%A9?4X?9X',
-     'I1: VIS*FOR, DATA*POS1*TWO; I2: VIS*NIN, DATA*POS1*THR;' +
-     'I3: VIS*FOR, DATA*POS1*ONE; I4: VIS*NIN, DATA*POS1*EIG')
-stim_presets['darpa_instr_stim_task_demo1'] = \
-    ('%I1+I4%M1[#2]?XM2[427]?XXX',
-     'I1: VIS*ONE, TASK*W; I2: VIS*TWO, TASK*R;' +
-     'I3: VIS*ONE, TASK*M + DEC*FWD; I4: VIS*TWO, TASK*M + DEC*REV')
-stim_presets['darpa_instr_stim_task_demo2'] = \
-    ('%I1+I2%M1[<3725>]?XM2[<3725>]?X%I3+I4%M2[427]?XXX',
-     'I1: VIS*ONE, TASK*W; I2: VIS*TWO, TASK*R;' +
-     'I3: VIS*ONE, TASK*M + DEC*FWD; I4: VIS*TWO, TASK*M + DEC*REV')
-stim_presets['darpa_instr_seq_task_demo'] = \
-    ('%I1+I2+I3%MP3[<3725>]?XMP1[427]?XXXV[<3725>]?X',
-     'I1: POS3, TASK*W; I2: POS2, TASK*R;I3: POS1, TASK*M + DEC*FWD')
-
-# def_seq = 'A1[1]?XXA1[22]?XX'
-# def_seq = '{A1[R]?X:5}'
-# def_seq = '{A3[{R:7}]?{X:8}:5}'
-# def_seq = '{A3[{R:7}]?{X:8}:160}'
-# def_seq = 'A3[{R:7}]?{X:8}'
-# def_seq = '%I1+I2%MP1.5[123]?XXXMP1.8[123]?XXX'
-# def_i = 'I1: 0.5*POS1 + 0.5*VIS*FOR, TASK*M + DEC*FWD;' + \
-#         'I2: 0.5*POS1 + 0.5*VIS*EIG, TASK*M + DEC*REV'
-
-# Darpa instruction following + imagenet + adaptive motor presets
-stim_presets['darpa_combined1'] = \
-    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:5}' +
-     '%I4+I5+I6%{A9?#ORGAN,X?#GREY_WHALE,X?#HALF_TRACK,X:5}' +
-     'A3[938]?XXXA3[456]?XXX',
-     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
-     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
-     'I3: VIS*PUCK, DATA*POS1*THR;' +
-     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
-     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
-     'I6: VIS*ORGAN, DATA*POS1*ONE')
-stim_presets['darpa_combined2'] = \
-    ('%I1+I2+I3%{A9?#1,X?#2,X?#3,X:5}' +
-     '%I4+I5+I6%{A9?#4,X?#3,X?#5,X:5}' +
-     'A3[938]?XXXA3[456]?XXX',
-     'I1: VIS*ONE, DATA*POS1*NIN;' +
-     'I2: VIS*TWO, DATA*POS1*SEV;' +
-     'I3: VIS*THR, DATA*POS1*THR;' +
-     'I4: VIS*FOR, DATA*POS1*EIG;' +
-     'I5: VIS*THR, DATA*POS1*TWO;' +
-     'I6: VIS*FIV, DATA*POS1*ONE')
-stim_presets['darpa_combined_test'] = \
-    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:1}',
-     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
-     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
-     'I3: VIS*PUCK, DATA*POS1*THR;' +
-     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
-     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
-     'I6: VIS*ORGAN, DATA*POS1*ONE')
-stim_presets['darpa_combined_test2'] = \
-    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:4}',
-     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
-     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
-     'I3: VIS*PUCK, DATA*POS1*THR;' +
-     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
-     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
-     'I6: VIS*ORGAN, DATA*POS1*ONE')
-stim_presets['darpa_combined_test3'] = \
-    ('%I1+I2+I3%{A9?#1,X?#2,X?#3,X:5}',
-     'I1: VIS*ONE, DATA*POS1*NIN;' +
-     'I2: VIS*TWO, DATA*POS1*SEV;' +
-     'I3: VIS*THR, DATA*POS1*THR;' +
-     'I4: VIS*FOR, DATA*POS1*EIG;' +
-     'I5: VIS*THR, DATA*POS1*TWO;' +
-     'I6: VIS*FIV, DATA*POS1*ONE')
-stim_presets['CBC_combined'] = \
-    ('%I1+I2+I3%{A9?#POLICE_VAN,X?#PUCK,X?#GREY_WHALE,X:1}' +
-     '%I4+I5+I6%{A9?#ORGAN,X?#GREY_WHALE,X?#HALF_TRACK,X:1}',
-     'I1: VIS*GREY_WHALE, DATA*POS1*NIN;' +
-     'I2: VIS*POLICE_VAN, DATA*POS1*SEV;' +
-     'I3: VIS*PUCK, DATA*POS1*THR;' +
-     'I4: VIS*GREY_WHALE, DATA*POS1*EIG;' +
-     'I5: VIS*HALF_TRACK, DATA*POS1*TWO;' +
-     'I6: VIS*ORGAN, DATA*POS1*ONE')
-
-# Thesis instruction following delayed instr stim list task (single task, changing list length)
-stim_resp_i = 'I1: VIS*ONE, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX);' + \
-              'I2: VIS*TWO, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV);' + \
-              'I3: VIS*THR, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV + POS6*FOR);' + \
-              'I4: VIS*FOR, DATA*(POS1*NIN + POS2*EIG + POS3*SEV + POS4*SIX + POS5*FIV + POS6*FOR + POS7*THR);' + \
-              'I5: VIS*FIV, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR);' + \
-              'I6: VIS*SIX, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR);' + \
-              'I7: VIS*SEV, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR + POS6*FIV);' + \
-              'I8: VIS*EIG, DATA*(POS1*ZER + POS2*ONE + POS3*TWO + POS4*THR + POS5*FOR + POS6*FIV + POS7*SIX)'
-stim_presets['delay_instr_stim_resp_4'] = \
-    ('%I1%{M1.?XXXXX:5}%I5%{M5.?XXXXX:5}', stim_resp_i)
-stim_presets['delay_instr_stim_resp_5'] = \
-    ('%I2%{M2.?XXXXXX:5}%I6%{M6.?XXXXXX:5}', stim_resp_i)
-stim_presets['delay_instr_stim_resp_6'] = \
-    ('%I3%{M3.?XXXXXXX:5}%I7%{M7.?XXXXXXX:5}', stim_resp_i)
-stim_presets['delay_instr_stim_resp_7'] = \
-    ('%I4%{M4.?XXXXXXXX:5}%I8%{M8.?XXXXXXXX:5}', stim_resp_i)
-
-# -------------------------- Thesis Presets -----------------------------------
-# Thesis instruction following custom tasks test
-stim_resp_i = 'I1: POS1, TASK*A;' + \
-              'I2: POS2, TASK*A + STATE*QAK;' + \
-              'I3: POS3, TASK*A + STATE*QAP'
-stim_presets['instr_custom0'] = \
-    ('%I1+I2+I3%MP1.[2764]P[3]?XV.[2]?XV.[2]?X', stim_resp_i)
-
-stim_resp_i = 'I1: POS1, TASK*V;' + \
-              'I2: POS2, TASK*M;' + \
-              'I3: POS3, TASK*V + STATE*TRANS1'
-stim_presets['instr_custom1'] = \
-    ('%I1+I2+I3%MP1.[1][3][2][4]V.[472]V.?XXX', stim_resp_i)
-
-stim_resp_i = 'I1: POS1, TASK*M;' + \
-              'I2: POS2, TASK*C + STATE*CNT0;' + \
-              'I3: POS3, TASK*A'
-stim_presets['instr_custom2'] = \
-    ('%I1+I2+I3%MP1.[326]V.[3]?XXXXXV.P[2]?X', stim_resp_i)
-
-stim_resp_i = 'I1: POS1, TASK*V;' + \
-              'I2: POS2, TASK*A;' + \
-              'I3: POS3, TASK*F + STATE*TRANS1;' + \
-              'I4: POS4, TASK*F + STATE*TRANS2'
-stim_presets['instr_custom3'] = \
-    ('%I1+I2+I3+I4%MP1.[1][3][2][4]V.[472]P[2]?XXV.?XXXXV.?XX', stim_resp_i)
-
-# Thesis demo graphs
-stim_resp_i = 'I1: VIS*ONE, DATA*POS1*EIG;' + \
-              'I2: VIS*TWO, DATA*POS1*ONE;' + \
-              'I3: VIS*ONE, DATA*POS1*TWO;' + \
-              'I4: VIS*TWO, DATA*POS1*EIG'
-stim_presets['instr_demo_stage2'] = \
-    ('%I1+I2%A9?1X?2X%I3+I4%A9?1X?2X', stim_resp_i)
-stim_presets['instr_demo_stage3'] = \
-    ('%I1+I2%M1?X2?X%I3+I4%M1?X2?X', stim_resp_i)
-
-stim_resp_i = 'I1: VIS*ONE, TASK*M;' + \
-              'I2: VIS*TWO, TASK*A;' + \
-              'I3: VIS*ONE, TASK*C'
-stim_presets['instr_demo_stage4'] = \
-    ('%I1+I2%M1.[523]?XXXXM2.[679]P[2]?XX%I3%M1.[5][2]?XXXX', stim_resp_i)
-
-stim_resp_i = 'I1: POS1, TASK*C;' + \
-              'I2: POS2, TASK*M'
-stim_presets['instr_demo_stage5'] = \
-    ('%I1+I2%MP2.[154]?XXXMP1.[6][1]?XXV.[83]?XX', stim_resp_i)
-
-# ----- Configuration presets -----
-cfg_presets = {}
-cfg_presets['mtr_adapt_qvelff'] = ["mtr_dyn_adaptation=True",
-                                   "mtr_forcefield='QVelForcefield'"]
-cfg_presets['mtr_adapt_constff'] = ["mtr_dyn_adaptation=True",
-                                    "mtr_forcefield='ConstForcefield'"]
-
-cfg_presets['vis_imagenet'] = ["stim_module='imagenet'",
-                               "vis_module='lif_imagenet'"]
-cfg_presets['vis_imagenet_wta'] = ["stim_module='imagenet'",
-                                   "vis_module='lif_imagenet_wta'"]
-
-# Darpa adaptive motor demo configs
-cfg_presets['darpa_adapt_qvelff_demo'] = \
-    ["mtr_dyn_adaptation=True", "mtr_forcefield='QVelForcefield'",
-     "probe_graph_config='ProbeCfgDarpaMotor'"]
-cfg_presets['darpa_adapt_constff_demo'] = \
-    ["mtr_dyn_adaptation=True", "mtr_forcefield='ConstForcefield'",
-     "probe_graph_config='ProbeCfgDarpaMotor'"]
-
-# Darpa imagenet demo configs
-cfg_presets['darpa_vis_imagenet'] = \
-    ["stim_module='imagenet'", "vis_module='lif_imagenet'",
-     "probe_graph_config='ProbeCfgDarpaVisionImagenet'"]
-cfg_presets['darpa_vis_imagenet_wta'] = \
-    ["stim_module='imagenet'", "vis_module='lif_imagenet_wta'",
-     "probe_graph_config='ProbeCfgDarpaVisionImagenet'"]
-
-# Darpa imagenet + instruction following + adaptive motor configs
-cfg_presets['darpa_combined_demo'] = \
-    ["mtr_dyn_adaptation=True", "mtr_forcefield='QVelForcefield'",
-     "stim_module='imagenet'", "vis_module='lif_imagenet'",
-     "probe_graph_config='ProbeCfgDarpaImagenetAdaptMotor'"]
-cfg_presets['darpa_combined_noadapt_demo'] = \
-    ["mtr_dyn_adaptation=False", "mtr_forcefield='QVelForcefield'",
-     "stim_module='imagenet'", "vis_module='lif_imagenet'",
-     "probe_graph_config='ProbeCfgDarpaImagenetAdaptMotor'"]
-cfg_presets['cbc_combined_noadapt_demo'] = \
-    ["mtr_dyn_adaptation=False",
-     "stim_module='imagenet'", "vis_module='lif_imagenet'",
-     "probe_graph_config='ProbeCfgVisMtrMemSpikes'"]
-
-# ----- Definite maximum probe time (if est_sim_time > max_probe_time,
-#       disable probing)
-max_probe_time = 80
+# def_seq = "A1[1]?XXA1[22]?XX"
+# def_seq = "{A1[R]?X:5}"
+# def_seq = "{A3[{R:7}]?{X:8}:5}"
+# def_seq = "{A3[{R:7}]?{X:8}:160}"
+# def_seq = "A3[{R:7}]?{X:8}"
+# def_seq = "%I1+I2%MP1.5[123]?XXXMP1.8[123]?XXX"
+# def_i = "I1: 0.5*POS1 + 0.5*VIS*FOR, TASK*M + DEC*FWD;" + \
+#         "I2: 0.5*POS1 + 0.5*VIS*EIG, TASK*M + DEC*REV"
 
 # ----- Add current directory to system path ---
-cur_dir = os.getcwd()
+cfg.cwd = os.getcwd()
 
 # ----- Parse arguments -----
-parser = argparse.ArgumentParser(description='Script for running Spaun.')
+parser = argparse.ArgumentParser(description="Script for running Spaun.")
 
 parser.add_argument(
-    '-d', type=int, default=def_dim,
-    help='Number of dimensions to use for the semantic pointers.')
+    "-d", type=int, default=def_dim,
+    help="Number of dimensions to use for the semantic pointers.")
 parser.add_argument(
-    '--modules', type=str, default=None,
-    help='A string of characters that determine what Spaun modules to ' +
-         'include when building Spaun: \n' +
-         'S: Stimulus and monitor modules\n' +
-         'V: Vision module\n' +
-         'P: Production system module\n' +
-         'R: Reward system module\n' +
-         'E: Encoding system module\n' +
-         'W: Working memory module\n' +
-         'T: Transformation system module\n' +
-         'D: Decoding system module\n' +
-         'M: Motor system module\n' +
-         'I: Instruction processing module\n' +
-         'E.g. For all modules, provide "SVPREWTDMI". Note: Provide a "-" ' +
-         'as the first character to exclude all modules listed. E.g. To ' +
-         'exclude instruction processing module, provide "-I". ')
+    "--modules", type=str, default=None,
+    help="A string of characters that determine what Spaun modules to " +
+         "include when building Spaun: \n" +
+         "S: Stimulus and monitor modules\n" +
+         "V: Vision module\n" +
+         "P: Production system module\n" +
+         "R: Reward system module\n" +
+         "E: Encoding system module\n" +
+         "W: Working memory module\n" +
+         "T: Transformation system module\n" +
+         "D: Decoding system module\n" +
+         "M: Motor system module\n" +
+         "I: Instruction processing module\n" +
+         "E.g. For all modules, provide \"SVPREWTDMI\". Note: Provide a \"-\" " +
+         "as the first character to exclude all modules listed. E.g. To " +
+         "exclude instruction processing module, provide \"-I\". ")
 
 parser.add_argument(
-    '-t', type=float, default=-1,
-    help=('Simulation run time in seconds. If undefined, will be estimated' +
-          ' from the stimulus sequence.'))
+    "-t", type=float, default=-1,
+    help=("Simulation run time in seconds. If undefined, will be estimated" +
+          " from the stimulus sequence."))
 parser.add_argument(
-    '-n', type=int, default=1,
-    help='Number of batches to run (each batch is a new model).')
+    "-n", type=int, default=1,
+    help="Number of batches to run (each batch is a new model).")
 
 parser.add_argument(
-    '-s', type=str, default=def_seq,
-    help='Stimulus sequence. Use digits to use canonical digits, prepend a ' +
-         '"#" to a digit to use handwritten digits, a "[" for the open ' +
-         'bracket, a "]" for the close bracket, and a "X" for each expected ' +
-         'motor response. e.g. A3[1234]?XXXX or A0[#1]?X')
+    "-s", type=str, default=def_seq,
+    help="Stimulus sequence. Use digits to use canonical digits, prepend a " +
+         "'#' to a digit to use handwritten digits, a '[' for the open " +
+         "bracket, a ']' for the close bracket, and a 'X' for each expected " +
+         "motor response. e.g. A3[1234]?XXXX or A0[#1]?X")
 # Stimulus formats:
 # Special characters - A [ ] ?
 # To denote Spaun stereotypical numbers: 0 1 2 3 4 5 6 7 8 9
@@ -399,7 +83,7 @@ parser.add_argument(
 # To denote a image chosen using an array index: <1000>
 # To denote random numbers chosen without replacement: N
 # To denote random numbers chosen with replacement: R
-# To denote 'reverse' option for memory task: B
+# To denote "reverse" option for memory task: B
 # To denote matched random digits (with replacement): a - z (lowercase char)
 # To denote forced blanks: .
 # To denote changes in given instructions (see below): %INSTR_STR%
@@ -408,80 +92,87 @@ parser.add_argument(
 #     {<STIM_STR>:<DUPLICATION AMOUNT>}, e.g.,
 #     {A3[RRR]?XXX:10}
 parser.add_argument(
-    '-i', type=str, default=def_i,
-    help='Instructions event sequence. Use the following format to provide ' +
-         'customized instructions to spaun (which can then be put into the ' +
-         'stimulus string using %%INSTR_KEYN+INSTR_KEYM%%": ' +
-         '"INSTR_KEY: ANTECEDENT_SP_STR, CONSEQUENCE_SP_STR; ..."' +
-         'e.g. "I1: TASK*INSTR + VIS*ONE, TRFM*POS1*THR", and the stimulus ' +
-         'string: "%%I1+I2%%A0[0]?XX"')
+    "-i", type=str, default=def_i,
+    help="Instructions event sequence. Use the following format to provide " +
+         "customized instructions to spaun (which can then be put into the " +
+         "stimulus string using \"%%INSTR_KEYN+INSTR_KEYM%%\": " +
+         "\"INSTR_KEY: ANTECEDENT_SP_STR, CONSEQUENCE_SP_STR; ...\"" +
+         "e.g. \"I1: TASK*INSTR + VIS*ONE, TRFM*POS1*THR\", and the stimulus " +
+         "string: \"%%I1+I2%%A0[0]?XX\"")
 # Note: For sequential position instructions, instruction must be encoded with
 #       POS sp. E.g. I1: POS1+VIS*ONE, TASK*C
 parser.add_argument(
-    '--stim_preset', type=str, default='',
-    help='Stimulus (stimulus sequence and instruction sequence pairing) to ' +
-         'use for Spaun stimulus. Overrides -s and -i command line options ' +
-         'if they are provided.')
+    "--stim_preset", type=str, default="",
+    help="Stimulus (stimulus sequence and instruction sequence pairing) to " +
+         "use for Spaun stimulus. Overrides -s and -i command line options " +
+         "if they are provided.")
 
 parser.add_argument(
-    '-b', type=str, default='ref',
-    help='Backend to use for Spaun. One of ["ref", "ocl", "spinn"]')
+    "-b", type=str, default="ref",
+    help="Backend to use for Spaun. One of [\"ref\", \"ocl\", \"spinn\"]")
 parser.add_argument(
-    '--data_dir', type=str, default=os.path.join(cur_dir, 'data'),
-    help='Directory to store output data.')
+    "--data-dir", type=str, default=os.path.join(cfg.cwd, "data"),
+    help="Directory to store output data.")
 parser.add_argument(
-    '--noprobes', action='store_true',
-    help='Supply to disable probes.')
+    "--no-probes", action="store_true",
+    help="Supply to disable probes.")
 parser.add_argument(
-    '--probeio', action='store_true',
-    help='Supply to generate probe data for spaun inputs and outputs.' +
-         '(recorded in a separate probe data file)')
+    "--probeio", action="store_true",
+    help="Supply to generate probe data for spaun inputs and outputs." +
+         "(recorded in a separate probe data file)")
 parser.add_argument(
-    '--seed', type=int, default=-1,
-    help='Random seed to use.')
+    "--seed", type=int, default=-1,
+    help="Random seed to use.")
 parser.add_argument(
-    '--showgrph', action='store_true',
-    help='Supply to show graphing of probe data.')
+    "--showgrph", action="store_true",
+    help="Supply to show graphing of probe data.")
 parser.add_argument(
-    '--showanim', action='store_true',
-    help='Supply to show animation of probe data.')
+    "--savegrph", action="store_true",
+    help="Supply to save graphed probed data.")
 parser.add_argument(
-    '--showiofig', action='store_true',
-    help='Supply to show Spaun input/output figure.')
+    "--showanim", action="store_true",
+    help="Supply to show animation of probe data.")
 parser.add_argument(
-    '--tag', type=str, default="",
-    help='Tag string to apply to probe data file name.')
+    "--showiofig", action="store_true",
+    help="Supply to show Spaun input/output figure.")
 parser.add_argument(
-    '--enable-cache', action='store_true',
-    help='Supply to use nengo caching system when building the nengo model.')
+    "--tag", type=str, default="",
+    help="Tag string to apply to probe data file name.")
+parser.add_argument(
+    "--enable-cache", action="store_true",
+    help="Supply to use nengo caching system when building the nengo model.")
 
 parser.add_argument(
-    '--ocl', action='store_true',
-    help='Supply to use the OpenCL backend (will override -b).')
-parser.add_argument(
-    '--ocl-platform', type=int, default=-1,
-    help=('OCL Only: List index of the OpenCL platform to use. OpenCL ' +
-          ' backend can be listed using "pyopencl.get_platforms()"'))
-parser.add_argument(
-    '--ocl-device', type=int, default=-1,
-    help=('OCL Only: List index of the device on the OpenCL platform to use.' +
-          ' OpenCL devices can be listed using ' +
-          '"pyopencl.get_platforms()[X].get_devices()" where X is the index ' +
-          'of the plaform to use.'))
-parser.add_argument(
-    '--ocl-profile', action='store_true',
-    help='Supply to use NengoOCL profiler.')
+    "--multi-process", action="store_true",
+    help="Supply to split model across multiple processes.")
 
 parser.add_argument(
-    '--spinn', action='store_true',
-    help='Supply to use the SpiNNaker backend (will override -b).')
+    "--ocl", action="store_true",
+    help="Supply to use the OpenCL backend (will override -b).")
+parser.add_argument(
+    "--ocl-platform", type=int, default=0,
+    help=("OCL Only: List index of the OpenCL platform to use. OpenCL " +
+          " backend can be listed using \"pyopencl.get_platforms()\""))
+parser.add_argument(
+    "--ocl-device", type=int, default=0,
+    help=("OCL Only: List index of the device on the OpenCL platform to use." +
+          " OpenCL devices can be listed using " +
+          "\"pyopencl.get_platforms()[X].get_devices()\" where X is the index " +
+          "of the plaform to use."))
+parser.add_argument(
+    "--ocl-profile", action="store_true",
+    help="Supply to use NengoOCL profiler.")
 
 parser.add_argument(
-    '--nengo-gui', action='store_true',
-    help='Supply to use the nengo_viz vizualizer to run Spaun.')
+    "--spinn", action="store_true",
+    help="Supply to use the SpiNNaker backend (will override -b).")
 
 parser.add_argument(
-    '--config', type=str, nargs='*',
+    "--nengo-gui", action="store_true",
+    help="Supply to use the nengo_viz vizualizer to run Spaun.")
+
+parser.add_argument(
+    "--config", type=str, nargs="*",
     help="Use to set the various parameters in Spaun's configuration. Takes" +
          " arguments in list format. Each argument should be in the format" +
          " ARG_NAME=ARG_VALUE. " +
@@ -489,22 +180,22 @@ parser.add_argument(
          "\"raw_seq_str='A1[123]?XX'\"" +
          "\nNOTE: Will override all other options that set configuration" +
          " options (i.e. --seed, --d, --s)" +
-         '\nNOTE: Use quotes (") to encapsulate strings if you encounter' +
-         ' problems.')
+         "\nNOTE: Use quotes (\") to encapsulate strings if you encounter" +
+         " problems.")
 parser.add_argument(
-    '--config-presets', type=str, nargs='*',
+    "--config-presets", type=str, nargs="*",
     help="Use to provide preset configuration options (which can be " +
          "individually provided using --config). Appends to list of " +
          "configuration options provided through --config.")
 
 parser.add_argument(
-    '--debug', action='store_true',
-    help='Supply to output debug stuff.')
+    "--debug", action="store_true",
+    help="Supply to output debug stuff.")
 
 args = parser.parse_args()
 
 # ----- Nengo RC Cache settings -----
-# Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
+# Disable cache unless seed is set (i.e. seed > 0) or if the "--enable_cache"
 # option is given
 if args.seed > 0 or args.enable_cache:
     print("USING CACHE")
@@ -516,11 +207,14 @@ else:
 # ----- Backend Configurations -----
 cfg.backend = args.b
 if args.ocl:
-    cfg.backend = 'ocl'
+    cfg.backend = "ocl"
 if args.spinn:
-    cfg.backend = 'spinn'
+    cfg.backend = "spinn"
 
 print("BACKEND: %s" % cfg.backend.upper())
+
+# ----- Multi-process Configurations ------
+cfg.multi_process = args.multi_process
 
 # ----- Stimulus sequence settings -----
 if args.stim_preset in stim_presets:
@@ -545,8 +239,10 @@ for n in range(args.n):
           (n + 1, args.n))
 
     # ----- Seeeeeeeed -----
+    timestamp = time.time()
+
     if args.seed < 0:
-        seed = int(time.time() * 1000000) % (2 ** 32)
+        seed = int(timestamp* 1000000) % (2 ** 32)
     else:
         seed = args.seed
 
@@ -561,7 +257,7 @@ for n in range(args.n):
     if len(config_list) > 0:
         print("USING CONFIGURATION OPTIONS: ")
         for cfg_options in config_list:
-            cfg_opts = cfg_options.split('=')
+            cfg_opts = cfg_options.split("=")
             cfg_param = cfg_opts[0]
             cfg_value = cfg_opts[1]
             if hasattr(cfg, cfg_param):
@@ -576,9 +272,9 @@ for n in range(args.n):
 
     # ----- Check if data folder exists -----
     if not(os.path.isdir(cfg.data_dir) and os.path.exists(cfg.data_dir)):
-        raise RuntimeError('Data directory "%s"' % (cfg.data_dir) +
-                           ' does not exist. Please ensure the correct path' +
-                           ' has been specified.')
+        raise RuntimeError("Data directory \"%s\"" % (cfg.data_dir) +
+                           " does not exist. Please ensure the correct path" +
+                           " has been specified.")
 
     # ----- Spaun imports -----
     from _spaun.utils import get_total_n_neurons
@@ -590,7 +286,7 @@ for n in range(args.n):
 
     # ----- Enable debug logging -----
     if args.debug:
-        nengo.log('debug')
+        nengo.log("debug")
 
     # ----- Experiment and vocabulary initialization -----
     experiment.initialize(stim_seq_str, stim_data.get_image_ind,
@@ -607,9 +303,9 @@ for n in range(args.n):
         used_modules = cfg.spaun_modules
         arg_modules = args.modules.upper()
 
-        if arg_modules[0] == '-':
+        if arg_modules[0] == "-":
             used_modules = \
-                ''.join([s if s not in arg_modules else ''
+                "".join([s if s not in arg_modules else ""
                          for s in used_modules])
         else:
             used_modules = arg_modules
@@ -620,12 +316,12 @@ for n in range(args.n):
     cfg.probe_data_filename = get_probe_data_filename(suffix=args.tag)
 
     # ----- Initalize looger and write header data -----
-    logger.initialize(cfg.data_dir, cfg.probe_data_filename[:-4] + '_log.txt')
+    logger.initialize(cfg.data_dir, cfg.probe_data_filename[:-4] + "_log.txt")
 
-    logger.write('# Spaun Command Line String:\n')
-    logger.write('# -------------------------\n')
-    logger.write('# python ' + ' '.join(sys.argv) + '\n')
-    logger.write('#\n')
+    logger.write("# Spaun Command Line String:\n")
+    logger.write("# -------------------------\n")
+    logger.write("# python " + " ".join(sys.argv) + "\n")
+    logger.write("#\n")
 
     cfg.write_header()
     experiment.write_header()
@@ -636,248 +332,111 @@ for n in range(args.n):
     print("RAW STIM SEQ: %s" % (str(experiment.raw_seq_str)))
 
     # ----- Spaun proper -----
-    model = Spaun()
+    spaun_networks = Spaun()
+
+    # ----- Validate multi-process resource requirements -----
+    if cfg.multi_process and cfg.use_opencl:
+        validate_num_gpus(len(spaun_networks) + args.ocl_device, args.ocl_platform)
 
     # ----- Display stimulus seq -----
     print("PROCESSED RAW STIM SEQ: %s" % (str(experiment.raw_seq_list)))
     print("STIMULUS SEQ: %s" % (str(experiment.stim_seq_list)))
 
+    # ----- Neuron count debug -----
+    neuron_counts = {}
+    conn_counts = 0
+
+    for net in spaun_networks:
+        for module_name in ["vis", "ps", "reward", "bg", "thal", "enc",
+                            "mem", "trfm", "instr", "dec", "mtr"]:
+            if hasattr(net, module_name):
+                if module_name not in neuron_counts:
+                    neuron_counts[module_name] = 0
+                neuron_counts[module_name] += \
+                    get_total_n_neurons(getattr(net, module_name))
+            # elif hasattr(net, "id_str") and net.id_str == module_name:
+            #     if module_name not in neuron_counts:
+            #         neuron_counts[module_name] = 0
+            #     neuron_counts[module_name] += \
+            #         get_total_n_neurons(net)
+        conn_counts += len(net.all_connections)
+
+    total_neuron_count = 0
+    neuron_count_str = ""
+
+    for module_name, count in neuron_counts.items():
+        total_neuron_count += count
+        neuron_count_str += f"\n- {module_name:6} n_neurons: {count}"
+
+    neuron_count_str = f"MODEL N_NEURONS:  {total_neuron_count}" + neuron_count_str
+    print(neuron_count_str)
+
+    # ----- Connections count debug -----
+    print(f"MODEL N_CONNECTIONS: {conn_counts}")
+
     # ----- Calculate runtime -----
     # Note: Moved up here so that we have data to disable probes if necessary
     runtime = args.t if args.t > 0 else experiment.get_est_simtime()
 
-    # ----- Set up probes -----
-    from _spaun import probes as probe_module
+    # ----- Build and run the Spaun model -----
+    buildtimes = Array("f", [0] * (len(spaun_networks)))
+    walltimes = Array("f", [0] * (len(spaun_networks)))
+    if len(spaun_networks) > 1:
+        pids = []
+        for proc_num, net in enumerate(spaun_networks):
+            p = Process(
+                    target=build_and_run_spaun_network,
+                    args=(net, args, runtime, buildtimes, walltimes, proc_num)
+                )
+            p.start()
+            pids.append(p)
 
-    make_probes = not args.noprobes
-    if runtime > max_probe_time and make_probes:
-        print(">>> !!! WARNING !!! EST RUNTIME > %0.2fs - DISABLING PROBES" %
-              max_probe_time)
-        make_probes = False
+        for p in pids:
+            p.join()
+    else:
+        build_and_run_spaun_network(net, args, runtime, buildtimes, walltimes)
 
-    if make_probes:
-        print("PROBE FILENAME: %s" % cfg.probe_data_filename)
-        default_probe_config = getattr(probe_module, cfg.probe_graph_config)
-        probe_cfg = default_probe_config(model, vocab, cfg.sim_dt,
-                                         cfg.data_dir,
-                                         cfg.probe_data_filename)
-
-    # ----- Set up animation probes -----
-    if args.showanim or args.showiofig or args.probeio:
-        anim_probe_data_filename = cfg.probe_data_filename[:-4] + '_anim.npz'
-        default_anim_config = getattr(probe_module, cfg.probe_anim_config)
-        print("ANIM PROBE FILENAME: %s" % anim_probe_data_filename)
-        probe_anim_cfg = default_anim_config(model, vocab,
-                                             cfg.sim_dt, cfg.data_dir,
-                                             anim_probe_data_filename)
-
-    # ----- Neuron count debug -----
-    print("MODEL N_NEURONS:  %i" % (get_total_n_neurons(model)))
-    if hasattr(model, 'vis'):
-        print("- vis   n_neurons: %i" % (get_total_n_neurons(model.vis)))
-    if hasattr(model, 'ps'):
-        print("- ps    n_neurons: %i" % (get_total_n_neurons(model.ps)))
-    if hasattr(model, 'reward'):
-        print("- rewrd n_neurons: %i" % (get_total_n_neurons(model.reward)))
-    if hasattr(model, 'bg'):
-        print("- bg    n_neurons: %i" % (get_total_n_neurons(model.bg)))
-    if hasattr(model, 'thal'):
-        print("- thal  n_neurons: %i" % (get_total_n_neurons(model.thal)))
-    if hasattr(model, 'enc'):
-        print("- enc   n_neurons: %i" % (get_total_n_neurons(model.enc)))
-    if hasattr(model, 'mem'):
-        print("- mem   n_neurons: %i" % (get_total_n_neurons(model.mem)))
-    if hasattr(model, 'trfm'):
-        print("- trfm  n_neurons: %i" % (get_total_n_neurons(model.trfm)))
-    if hasattr(model, 'instr'):
-        print("- instr n_neurons: %i" % (get_total_n_neurons(model.instr)))
-    if hasattr(model, 'dec'):
-        print("- dec   n_neurons: %i" % (get_total_n_neurons(model.dec)))
-    if hasattr(model, 'mtr'):
-        print("- mtr   n_neurons: %i" % (get_total_n_neurons(model.mtr)))
-
-    # ----- Connections count debug -----
-    print("MODEL N_CONNECTIONS: %i" % (len(model.all_connections)))
-
-    # ----- Spaun simulation build -----
-    print("START BUILD")
-    timestamp = time.time()
-
-    if args.nengo_gui:
-        # Set environment variables (for nengo_gui)
-        if cfg.use_opencl:
-            if args.ocl_platform >= 0 and args.ocl_device >= 0:
-                os.environ['PYOPENCL_CTX'] = '%s:%s' % (args.ocl_platform,
-                                                        args.ocl_device)
-            else:
-                raise RuntimeError('Error - OCL platform and device must be' +
-                                   'specified when using ocl with nengo_gui.' +
-                                   ' Use the --ocl_platform and --ocl_device' +
-                                   ' argument options to set.')
-
-        print("STARTING NENGO_GUI")
-        import nengo_gui
-        nengo_gui.GUI(__file__, model=model, locals=locals(),
-                      editor=False).start()
-        print("NENGO_GUI STOPPED")
+    # Special case where all build times are negative. This indicates that NengoGUI
+    # was instantiated, so exit the script here.
+    if np.allclose(buildtimes, -1):
         sys.exit()
 
-    if cfg.use_opencl:
-        import pyopencl as cl
-        import nengo_ocl
-
-        print("------ OCL ------")
-        print("AVAILABLE PLATFORMS:")
-        print('  ' + '\n  '.join(map(str, cl.get_platforms())))
-
-        if args.ocl_platform >= 0:
-            pltf = cl.get_platforms()[args.ocl_platform]
-            print("USING PLATFORM:")
-            print('  ' + str(pltf))
-
-            print("AVAILABLE DEVICES:")
-            print('  ' + '\n  '.join(map(str, pltf.get_devices())))
-            if args.ocl_device >= 0:
-                ctx = cl.Context([pltf.get_devices()[args.ocl_device]])
-                print("USING DEVICE:")
-                print('  ' + str(pltf.get_devices()[args.ocl_device]))
-            else:
-                ctx = cl.Context(pltf.get_devices())
-                print("USING DEVICES:")
-                print('  ' + '\n  '.join(map(str, pltf.get_devices())))
-            sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt, context=ctx,
-                                      profiling=args.ocl_profile)
-        else:
-            sim = nengo_ocl.Simulator(model, dt=cfg.sim_dt,
-                                      profiling=args.ocl_profile)
-    else:
-        print("------ REF ------")
-        sim = nengo.Simulator(model, dt=cfg.sim_dt)
-
-    t_build = time.time() - timestamp
-    t_walltime = -1
-    timestamp = time.time()
-    print("BUILD FINISHED - build time: %fs" % t_build)
-
-    # ----- Spaun simulation run -----
+    # Reset the experiment
     experiment.reset()
-    if cfg.use_opencl or cfg.use_ref:
-        print("START SIM - est_runtime: %f" % runtime)
-        sim_start_time = time.time()
-        sim.run(runtime)
-        t_walltime = time.time() - sim_start_time
 
-        # Close output logging file
-        logger.close()
-
-        if args.ocl_profile:
-            sim.print_plans()
-            sim.print_profiling()
-
-        print("MODEL N_NEURONS: %i" % (get_total_n_neurons(model)))
-        print(f"FINISHED! - Build time: {t_build}, " +
-              f"Sim runtime: {runtime}s, " +
-              f"Wall time: {t_walltime}s")
-
-    # ----- Generate debug printouts -----
-    n_bytes_ev = 0
-    n_bytes_gain = 0
-    n_bytes_bias = 0
-    n_ens = 0
-    for ens in sim.model.toplevel.all_ensembles:
-        n_bytes_ev += sim.model.params[ens].eval_points.nbytes
-        n_bytes_gain += sim.model.params[ens].gain.nbytes
-        n_bytes_bias += sim.model.params[ens].bias.nbytes
-        n_ens += 1
-
-    if args.debug:
-        print("## DEBUG: num bytes used for eval points: %s B" %
-              ("{:,}".format(n_bytes_ev)))
-        print("## DEBUG: num bytes used for gains: %s B" %
-              ("{:,}".format(n_bytes_gain)))
-        print("## DEBUG: num bytes used for biases: %s B" %
-              ("{:,}".format(n_bytes_bias)))
-        print("## DEBUG: num ensembles: %s" % n_ens)
-
-    # ----- Close simulator -----
-    if hasattr(sim, 'close'):
-        sim.close()
-
-    # ----- Write probe data to file -----
-    logger.write("\n\n# Command line options for displaying recorded probed " +
-                 "data:")
-    logger.write("\n# ------------------------------------------------------" +
-                 "---")
-    if make_probes:
-        print("WRITING PROBE DATA TO FILE")
-        probe_cfg.write_simdata_to_file(sim, experiment)
-
-        # Assemble graphing subprocess call string
-        subprocess_call_list = ["python",
-                                os.path.join(cur_dir,
-                                             'disp_probe_data.py'),
-                                '"' + cfg.probe_data_filename + '"',
-                                '--data_dir', '"' + cfg.data_dir + '"',
-                                '--showgrph']
-
-        # Log subprocess call
-        logger.write("\n#\n# To display graphs of the recorded probe data:")
-        logger.write("\n# > " + " ".join(subprocess_call_list))
-
-        if args.showgrph:
-            # Open subprocess
-            print("CALLING: \n%s" % (" ".join(subprocess_call_list)))
-            import subprocess
-            subprocess.Popen(subprocess_call_list)
-
-    if (args.showanim or args.showiofig or args.probeio):
-        print("WRITING ANIMATION PROBE DATA TO FILE")
-        probe_anim_cfg.write_simdata_to_file(sim, experiment)
-
-        # Assemble graphing subprocess call string
-        subprocess_call_list = ["python",
-                                os.path.join(cur_dir,
-                                             'disp_probe_data.py'),
-                                '"' + anim_probe_data_filename + '"',
-                                '--data_dir', '"' + cfg.data_dir + '"']
-
-        # Log subprocess call
-        logger.write("\n#\n# To display Spaun's input/output plots:")
-        logger.write("\n# > " + " ".join(subprocess_call_list +
-                                         ['--showiofig']))
-        logger.write("\n#\n# To display Spaun's input/output animation:")
-        logger.write("\n# > " + " ".join(subprocess_call_list +
-                                         ['--showanim']))
-        logger.write("\n# (Flags can be combined to display both plots and" +
-                     " animations)")
-
-        if args.showanim:
-            subprocess_call_list += ['--showanim']
-        if args.showiofig:
-            subprocess_call_list += ['--showiofig']
-
-        if args.showanim or args.showiofig:
-            # Open subprocess
-            print("CALLING: \n%s" % (" ".join(subprocess_call_list)))
-            import subprocess
-            subprocess.Popen(subprocess_call_list)
-
-    if not (make_probes or args.showanim or args.showiofig or args.probeio):
+    if args.no_probes and not (args.showanim or args.showiofig or args.probeio):
         logger.write("\n# run_spaun.py was not instructed to record probe " +
                      "data.")
 
+    # Close output logging file
+    logger.close()
+
     # ----- Write runtime data -----
-    runtime_filename = os.path.join(cfg.data_dir, 'runtimes.txt')
-    rt_file = open(runtime_filename, 'a')
-    rt_file.write('# ---------- TIMESTAMP: %i -----------\n' % timestamp)
-    rt_file.write('Backend: %s | Num neurons: %i | Tag: %s | Seed: %i\n' %
-                  (cfg.backend, get_total_n_neurons(model), args.tag,
-                   cfg.seed))
+    runtime_filename = os.path.join(cfg.data_dir, "runtimes.txt")
+    rt_file = open(runtime_filename, "a")
+    rt_file.write("# ---------- TIMESTAMP: %i -----------\n" % timestamp)
+    rt_file.write("Backend: %s | Num neurons: %i | Tag: %s | Seed: %i\n" %
+                  (cfg.backend, total_neuron_count, args.tag, cfg.seed))
     if args.config is not None:
-        rt_file.write('Config options: %s\n' % (str(args.config)))
-    rt_file.write('Build time: %fs | Model sim time: %fs | ' % (t_build,
-                                                                runtime))
-    rt_file.write('Sim wall time: %fs\n' % (t_walltime))
+        rt_file.write("Config options: %s\n" % (str(args.config)))
+    if len(spaun_networks) > 1:
+        rt_file.write("Spaun networks: ")
+        rt_file.write(", ".join([f"{net.label}" for net in spaun_networks]))
+        rt_file.write("\n")
+
+        rt_file.write("Build times: ")
+        rt_file.write(", ".join([f"{t:.3f}s" for t in buildtimes]))
+        rt_file.write("\n")
+
+        rt_file.write(f"Model sim time: {runtime}s\n")
+
+        rt_file.write("Sim wall times: ")
+        rt_file.write(", ".join([f"{t:.3f}s" for t in walltimes]))
+        rt_file.write("\n")
+    else:
+        rt_file.write(f"Build time: {buildtimes[0]:.3f}s | ")
+        rt_file.write(f"Model sim time: {runtime}s | ")
+        rt_file.write(f"Sim wall time: {walltimes[0]:.3f}s\n")
     rt_file.close()
 
     # ----- Cleanup -----

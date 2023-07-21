@@ -2,6 +2,8 @@ import os
 import numpy as np
 import bisect as bs
 
+from nengo.utils.numpy import is_integer
+
 from . import mnist
 
 
@@ -86,7 +88,7 @@ class MNISTDataObject(object):
         if isinstance(label, tuple):
             label = label[0]
 
-        if isinstance(label, int):
+        if is_integer(label):
             # Case when 'label' given is really just the image index number
             return (self.images_data[label], label)
         elif label is None:
@@ -105,6 +107,7 @@ class MNISTDataObject(object):
 
     def get_image_ind(self, label, rng):
         label_ind = np.where(self.images_labels_unique == label)
+
         if label_ind[0].shape[0] > 0:
             image_ind = rng.choice(
                 self.images_labels_inds[label_ind[0][0]])

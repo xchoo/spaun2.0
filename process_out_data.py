@@ -10,7 +10,7 @@ from _spaun.utils import conf_interval
 
 parser = argparse.ArgumentParser(description='Script for analyzing spaun2.0' +
                                  'results.')
-parser.add_argument('--data_dir', type=str, default='data',
+parser.add_argument('--data-dir', type=str, default='data',
                     help='Probe directory.')
 parser.add_argument('-p', type=str, default='probe_data',
                     help='Probe data filename prefix. E.g. probe_data')

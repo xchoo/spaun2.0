@@ -6,31 +6,43 @@ from nengo.spa.module import Module
 from nengo.utils.network import with_self
 
 from .._networks import DetectChange
-
 from ..configurator import cfg
 from ..vocabulator import vocab
+
+from .spaun_module import SpaunModule, SpaunMPHub
 from .stimulus import stim_func_vocab
 from .stim import stim_data
 from .vision import vis_data, VisionNet, VisionNetClassifier
 
 
-class VisionSystem(Module):
+class VisionSystem(SpaunModule):
     def __init__(self, label="Vision Sys", seed=None, add_to_container=None,
                  vis_net=None, detect_net=None,
                  vis_net_cfg=None, vis_net_neuron_type=None):
-        super(VisionSystem, self).__init__(label, seed, add_to_container)
+
+        module_id_str = "vis"
+        module_ind_num = 10
+
         if vis_net_cfg is None:
             vis_net_cfg = vis_data
-        self.init_module(vis_net, detect_net, vis_net_cfg, vis_net_neuron_type)
+
+        self.vis_net = vis_net
+        self.detect_change_net = detect_net
+        self.vis_net_cfg = vis_net_cfg
+        self.vis_net_neuron_type = vis_net_neuron_type
+
+        super(VisionSystem, self).__init__(
+            module_id_str, module_ind_num, label, seed, add_to_container
+        )
 
     @with_self
-    def init_module(self, vis_net, detect_net, vis_net_cfg,
-                    vis_net_neuron_type):
+    def init_module(self):
+        super().init_module()
+
         # Make LIF vision network
-        if vis_net is None:
-            vis_net = VisionNet(vis_net_cfg, stim_data,
-                                net_neuron_type=vis_net_neuron_type)
-        self.vis_net = vis_net
+        if self.vis_net is None:
+            self.vis_net = VisionNet(self.vis_net_cfg, stim_data,
+                                     net_neuron_type=self.vis_net_neuron_type)
 
         # Make network to detect changes in visual input stream
         # Limit detection network dimensionality to avoid massive neuron count
@@ -38,17 +50,17 @@ class VisionSystem(Module):
         detect_net_max_dim = min(cfg.vis_detect_dim, image_dim)
         detect_net_inds = np.random.permutation(image_dim)[:detect_net_max_dim]
 
-        if detect_net is None:
-            detect_net = \
+        if self.detect_change_net is None:
+            self.detect_change_net = \
                 DetectChange(dimensions=detect_net_max_dim,
                              n_neurons=cfg.n_neurons_ens)
-        self.detect_change_net = detect_net
+
         nengo.Connection(self.vis_net.raw_output[detect_net_inds],
                          self.detect_change_net.input, synapse=None)
 
         # Make associative memory to map visual image semantic pointers to
         # visual conceptual semantic pointers
-        self.vis_classify = VisionNetClassifier(vis_net_cfg,
+        self.vis_classify = VisionNetClassifier(self.vis_net_cfg,
                                                 vocab.vis_main.vectors)
         nengo.Connection(self.vis_net.to_classify_output,
                          self.vis_classify.input, synapse=0.005)
@@ -67,13 +79,13 @@ class VisionSystem(Module):
                                        dimensions=vocab.vis_dim,
                                        ens_dimensions=1,
                                        make_ens_func=cfg.make_ens_array,
-                                       radius=vis_net_cfg.sps_element_scale)
+                                       radius=self.vis_net_cfg.sps_element_scale)
         nengo.Connection(self.vis_net.to_mem_output, self.vis_mem.input,
                          synapse=0.02)
 
-        # bias_node = nengo.Node(1, label='Bias')
+        # bias_node = nengo.Node(1, label="Bias")
         # nengo.Connection(bias_node, self.vis_mem.gate)
-        # vis_mem_gate_sp_vecs = vocab.main.parse('+'.join(vocab.num_sp_strs)).v
+        # vis_mem_gate_sp_vecs = vocab.main.parse("+".join(vocab.num_sp_strs)).v
         # nengo.Connection(self.vis_classify.output, self.vis_mem.gate,
         #                  transform=[cfg.mb_neg_gate_scale *
         #                             vis_mem_gate_sp_vecs])
@@ -82,7 +94,7 @@ class VisionSystem(Module):
         # # circuit here.
 
         vis_mem_no_gate_sp_vecs = \
-            vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+            vocab.main.parse("+".join(vocab.ps_task_vis_sp_strs +
                                       vocab.misc_vis_sp_strs)).v
         nengo.Connection(self.vis_classify.output, self.vis_mem.gate,
                          transform=[cfg.mb_gate_scale *
@@ -104,16 +116,6 @@ class VisionSystem(Module):
                          synapse=0.02)
         nengo.Connection(self.detect_change_net.output,
                          self.vis_main_mem.gate, transform=5)
-
-        # Define network input and outputs
-        self.input = self.vis_net.input
-        self.output = self.vis_classify.output
-        self.mb_output = self.vis_mem.output
-        self.neg_attention = self.detect_change_net.output
-
-        # Define module inputs and outputs
-        self.outputs = dict(default=(self.output, vocab.vis_main),
-                            mem=(self.vis_main_mem.output, vocab.vis_main))
 
         # ######################## DEBUG PROBES ###############################
         self.vis_out = self.vis_net.to_classify_output
@@ -155,12 +157,24 @@ class VisionSystem(Module):
         # nengo.Connection(self.cleanup_node, self.diff_node[vocab.sp_dim:],
         #                  synapse=0.01)
 
-    def setup_connections(self, parent_net):
-        # Set up connections from stimulus module
-        if hasattr(parent_net, 'stim'):
-            nengo.Connection(parent_net.stim.output, self.input)
-        else:
-            warn("Vision Module - Cannot connect from 'stim'")
+    def setup_inputs_and_outputs(self):
+        # ------ Define network input and outputs ------
+        self.expose_output("main", self.vis_classify.output)
+        self.expose_output("main_mb", self.vis_main_mem.output)
+        self.expose_output("vis_mb", self.vis_mem.output)
+        self.expose_output("neg_attn", self.detect_change_net.output)
+
+        # ------ Expose inputs for external connections ------
+        if cfg.has_stim:
+            self.add_module_input("stim", "out", self.vis_net.input)
+
+    def setup_spa_inputs_and_outputs(self):
+        # ------ Define SPA module inputs and outputs ------
+        self.outputs = dict(default=(self.get_out("main"), vocab.vis_main),
+                            mem=(self.get_out("main_mb"), vocab.vis_main))
+
+    def get_multi_process_hub(self):
+        return VisionSystemMPHub(self)
 
 
 class VisionSystemDummy(VisionSystem):
@@ -180,12 +194,17 @@ class VisionSystemDummy(VisionSystem):
     def dummy_lif_vis_net(self):
         with nengo.Network(label="Dummy LIF Vision") as net:
             net.input = nengo.Node(size_in=stim_data.images_data_dimensions,
-                                   label='Input')
+                                   label="Input")
             net.output = nengo.Node(output=stim_func_vocab,
-                                    label='Dummy LIF Vision Out')
+                                    label="Dummy LIF Vision Out")
             net.raw_output = net.output
         return net
 
     def dummy_detect_net(self):
         return DetectChange(None, dimensions=vocab.sp_dim,
                             item_magnitude=(cfg.get_optimal_sp_radius() / 2.0))
+
+
+class VisionSystemMPHub(SpaunMPHub, VisionSystem):
+    def __init__(self, parent_module):
+        SpaunMPHub.__init__(self, parent_module)

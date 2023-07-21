@@ -7,18 +7,27 @@ from nengo.utils.network import with_self
 from ..configurator import cfg
 from ..vocabulator import vocab
 
+from .spaun_module import SpaunModule, SpaunMPHub
 from .encoding import Pos_Inc_Network
 
 
-class InfoEncoding(Module):
+class InfoEncoding(SpaunModule):
     def __init__(self, label="Information Enc", seed=None,
                  add_to_container=None):
-        super(InfoEncoding, self).__init__(label, seed, add_to_container)
-        self.init_module()
+
+        module_id_str = "enc"
+        module_ind_num = 13
+
+        super(InfoEncoding, self).__init__(
+            module_id_str, module_ind_num, label, seed, add_to_container
+        )
 
     @with_self
     def init_module(self):
-        self.bias_node = nengo.Node(1, label='Bias')
+        super().init_module()
+
+        # --------------------------- Bias nodes ---------------------------- #
+        self.bias_node = nengo.Node(1, label="Bias")
 
         # ------ Common gate signal -----
         self.pos_gate = cfg.make_thresh_ens_net(0.25)
@@ -64,108 +73,102 @@ class InfoEncoding(Module):
         nengo.Connection(self.pos_inc_rev_gate_bias.output,
                          self.pos_inc.reverse, transform=cfg.mb_gate_scale)
 
-        # Define network inputs and outputs
-        self.pos_output = self.pos_inc.output
-        self.pos_acc_output = self.pos_mb_acc.output
-        self.item_input = self.item_cconv.B
-        self.enc_output = self.item_cconv.output
+    @with_self
+    def setup_inputs_and_outputs(self):
+        # ------ Define inputs and outputs ------
+        self.expose_input("item", self.item_cconv.B)
+        self.expose_output("out", self.item_cconv.output)
+        self.expose_output("pos", self.pos_inc.output)
+        self.expose_output("pos_acc", self.pos_mb_acc.output)
 
-        # Define module inputs and outputs
-        self.inputs = dict(default=(self.item_input, vocab.item))
-        self.outputs = dict(default=(self.pos_output, vocab.pos))
-
-    def setup_connections(self, parent_net):
+        # ------ Expose inputs for external connections ------
         # Set up connections from vision module
-        if hasattr(parent_net, 'vis'):
+        if cfg.has_vis:
+            self.add_module_input("vis", "main", vocab.sp_dim)
+            self.add_module_input("vis", "neg_attn", 1)
+
             # VIS ITEM Input
-            nengo.Connection(parent_net.vis.output, self.item_input)
+            nengo.Connection(self.get_inp("vis_main"), self.get_inp("item"))
 
             # POS GATE control signal
-            # pos_mb_gate_sp_vecs = \
-            #     vocab.main.parse('+'.join(vocab.num_sp_strs)).v
             pos_mb_no_gate_sp_vecs = \
-                vocab.main.parse('+'.join(vocab.ps_task_vis_sp_strs +
+                vocab.main.parse("+".join(vocab.ps_task_vis_sp_strs +
                                           vocab.misc_vis_sp_strs)).v
-            nengo.Connection(parent_net.vis.output, self.pos_gate.input,
+            nengo.Connection(self.get_inp("vis_main"), self.pos_gate.input,
                              transform=[-cfg.mb_gate_scale *
                                         pos_mb_no_gate_sp_vecs])
-            nengo.Connection(parent_net.vis.neg_attention,
+            nengo.Connection(self.get_inp("vis_neg_attn"),
                              self.pos_gate.input,
                              transform=-cfg.mb_neg_attn_scale * 2.0,
                              synapse=0.02)
 
             # POS MB Control signals
-            pos_mb_rst_sp_vecs = vocab.main.parse('A+OPEN+QM').v
-
-            # nengo.Connection(parent_net.vis.output, self.pos_inc.gate,
-            #                  transform=[cfg.mb_gate_scale *
-            #                             pos_mb_gate_sp_vecs])
-            # nengo.Connection(parent_net.vis.neg_attention,
-            #                  self.pos_inc.gate, transform=-1.25,
-            #                  synapse=0.01)
-
-            nengo.Connection(parent_net.vis.output, self.pos_inc.reset,
+            pos_mb_rst_sp_vecs = vocab.main.parse("A+OPEN+QM").v
+            nengo.Connection(self.get_inp("vis_main"), self.pos_inc.reset,
                              transform=[pos_mb_rst_sp_vecs])
 
             # POS REV gate bias control signal
-            pos_mb_rev_gate_sp_vecs = vocab.main.parse('QM').v
-            nengo.Connection(parent_net.vis.output,
+            pos_mb_rev_gate_sp_vecs = vocab.main.parse("QM").v
+            nengo.Connection(self.get_inp("vis_main"),
                              self.pos_inc_rev_gate_bias.input,
                              transform=[pos_mb_rev_gate_sp_vecs])
 
             # POS MB ACC Control signals
-            pos_mb_acc_rst_sp_vecs = vocab.main.parse('A+OPEN').v
-
-            # nengo.Connection(parent_net.vis.output, self.pos_mb_acc.gate,
-            #                  transform=[cfg.mb_gate_scale *
-            #                             pos_mb_gate_sp_vecs])
-            # nengo.Connection(parent_net.vis.neg_attention,
-            #                  self.pos_mb_acc.gate, transform=-1.25,
-            #                  synapse=0.01)
-            nengo.Connection(parent_net.vis.output, self.pos_mb_acc.reset,
+            pos_mb_acc_rst_sp_vecs = vocab.main.parse("A+OPEN").v
+            nengo.Connection(self.get_inp("vis_main"), self.pos_mb_acc.reset,
                              transform=[pos_mb_acc_rst_sp_vecs])
-        else:
-            warn("InfoEncoding Module - Cannot connect from 'vis'")
 
         # Set up connections from production system module
-        if hasattr(parent_net, 'ps'):
+        if cfg.has_ps:
+            self.add_module_input("ps", "task", vocab.sp_dim)
+            self.add_module_input("ps", "dec", vocab.sp_dim)
+
             # Suppress the pos acc gate signal when in the decoding task stage
-            pos_mb_acc_no_gate_sp_vecs = vocab.main.parse('DEC').v
-            nengo.Connection(parent_net.ps.task, self.pos_mb_acc.gate,
+            pos_mb_acc_no_gate_sp_vecs = vocab.main.parse("DEC").v
+            nengo.Connection(self.get_inp("ps_task"), self.pos_mb_acc.gate,
                              transform=[-1.25 * pos_mb_acc_no_gate_sp_vecs])
 
             # Suppress the pos inc reset if dec == REV
-            pos_mb_no_rst_sp_vecs = vocab.main.parse('REV').v
-            nengo.Connection(parent_net.ps.dec, self.pos_inc.reset,
+            pos_mb_no_rst_sp_vecs = vocab.main.parse("REV").v
+            nengo.Connection(self.get_inp("ps_dec"), self.pos_inc.reset,
                              transform=[-1.25 * pos_mb_no_rst_sp_vecs])
 
             # Provide rev signal for pos_inc network
-            pos_inc_rev_sp_vecs = vocab.main.parse('REV').v
-            nengo.Connection(parent_net.ps.dec, self.pos_inc.reverse,
+            pos_inc_rev_sp_vecs = vocab.main.parse("REV").v
+            nengo.Connection(self.get_inp("ps_dec"), self.pos_inc.reverse,
                              transform=[pos_inc_rev_sp_vecs])
             # But only when decoding
-            pos_inc_no_rev_sp_vecs = vocab.main.parse('DEC').v
+            pos_inc_no_rev_sp_vecs = vocab.main.parse("DEC").v
             nengo.Connection(self.bias_node, self.pos_inc.reverse,
                              transform=-1.25)
-            nengo.Connection(parent_net.ps.task, self.pos_inc.reverse,
+            nengo.Connection(self.get_inp("ps_task"), self.pos_inc.reverse,
                              transform=[1.25 * pos_inc_no_rev_sp_vecs])
 
             # Provide rev signal for pos_inc_rev_gate_bias signal
-            nengo.Connection(parent_net.ps.dec,
+            nengo.Connection(self.get_inp("ps_dec"),
                              self.pos_inc_rev_gate_bias.input,
                              transform=[pos_inc_rev_sp_vecs])
-        else:
-            warn("InfoEncoding Module - Cannot connect from 'ps'")
 
         # Set up connections from decoding module
-        if hasattr(parent_net, 'dec'):
-            # nengo.Connection(parent_net.dec.pos_mb_gate_bias.output,
-            #                  self.pos_inc.gate, transform=4, synapse=0.01)
-            # nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
-            #                  self.pos_inc.gate, transform=-4, synapse=0.01)
-            nengo.Connection(parent_net.dec.pos_mb_gate_bias.output,
-                             self.pos_inc.gate, transform=2.5, synapse=0.01)
-            nengo.Connection(parent_net.dec.pos_mb_gate_sig.output,
+        if cfg.has_dec:
+            self.add_module_input("dec", "pos_gate", 1)
+            self.add_module_input("dec", "pos_gate_bias", 1)
+
+            # Pos MB gate control from the decoding module
+            nengo.Connection(self.get_inp("dec_pos_gate"),
                              self.pos_inc.gate, transform=-2.5, synapse=0.01)
-        else:
-            warn("InfoEncoding Module - Cannot connect from 'dec'")
+            nengo.Connection(self.get_inp("dec_pos_gate_bias"),
+                             self.pos_inc.gate, transform=2.5, synapse=0.01)
+
+    def setup_spa_inputs_and_outputs(self):
+        # ------ Define SPA module input and outputs ------
+        self.inputs = dict(default=(self.get_inp("item"), vocab.item))
+        self.outputs = dict(default=(self.get_out("pos"), vocab.pos))
+
+    def get_multi_process_hub(self):
+        return InfoEncodingMPHub(self)
+
+
+class InfoEncodingMPHub(SpaunMPHub, InfoEncoding):
+    def __init__(self, parent_module):
+        SpaunMPHub.__init__(self, parent_module)

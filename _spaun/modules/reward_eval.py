@@ -11,20 +11,29 @@ from ..configurator import cfg
 from ..vocabulator import vocab
 from ..experimenter import experiment
 
+from .spaun_module import SpaunModule, SpaunMPHub
 
-class RewardEvaluationSystem(Module):
+
+class RewardEvaluationSystem(SpaunModule):
     def __init__(self, label="Reward Evaluation Sys", seed=None,
                  add_to_container=None):
-        super(RewardEvaluationSystem, self).__init__(label, seed,
-                                                     add_to_container)
-        self.init_module()
+
+        module_id_str = "reward"
+        module_ind_num = 12
+
+        super(RewardEvaluationSystem, self).__init__(
+            module_id_str, module_ind_num, label, seed, add_to_container
+        )
 
     @with_self
     def init_module(self):
-        bias_node = nengo.Node(1)
+        super().init_module()
 
         # Number of actions in this spaun setup
         num_actions = experiment.num_learn_actions
+
+        # --------------------------- Bias nodes ---------------------------- #
+        bias_node = nengo.Node(1, label="Bias")
 
         # ------------------- Action detection network ------------------------
         # Translates action semantic pointers (from production system) into
@@ -83,26 +92,31 @@ class RewardEvaluationSystem(Module):
         nengo.Connection(self.bg_utilities_input,
                          self.util_vals.input, transform=1, synapse=None)
 
-        # DEBUG node for computed reward values
+        # ################ DEBUG node for computed reward values ################
         self.reward_node = nengo.Node(size_in=num_actions)
 
-    def setup_connections(self, parent_net, learn_conns=None):
-        p_net = parent_net
-
+    @with_self
+    def setup_inputs_and_outputs(self):
+        # ------ Expose inputs for external connections ------
         # Set up connections from vision module
-        if hasattr(p_net, 'vis'):
-            nengo.Connection(p_net.vis.output, self.vis_sp_input)
-        else:
-            warn("RewardEvaluation Module - Cannot connect from 'vis'")
+        if cfg.has_vis:
+            self.add_module_input("vis", "main", vocab.sp_dim)
 
-        if hasattr(p_net, 'ps'):
-            nengo.Connection(p_net.ps.action, self.action_input,
+            nengo.Connection(self.get_inp("vis_main"), self.vis_sp_input)
+
+        if cfg.has_ps:
+            self.add_module_input("ps", "action", vocab.ps_action.dimensions)
+            nengo.Connection(self.get_inp("ps_action"), self.action_input,
                              transform=vocab.ps_action.vectors)
-        else:
-            warn("RewardEvaluation Module - Cannot connect from 'ps'")
 
-        if hasattr(p_net, 'bg'):
-            nengo.Connection(p_net.bg.input[:experiment.num_learn_actions],
+    def setup_spa_inputs_and_outputs(self):
+        pass
+
+    def setup_module_connections(self, parent_net, learn_conns=None):
+        super(RewardEvaluationSystem, self).setup_module_connections(parent_net)
+
+        if hasattr(parent_net, "bg"):
+            nengo.Connection(parent_net.bg.input[:experiment.num_learn_actions],
                              self.bg_utilities_input)
 
         # Configure learning rules on learned connections
@@ -116,14 +130,20 @@ class RewardEvaluationSystem(Module):
                 nengo.Connection(self.util_vals.output[i],
                                  conn.learning_rule, transform=1)
 
-                # DEBUG connections
+                # ################ DEBUG connections ################
                 nengo.Connection(self.pos_reward_vals.output[i],
                                  self.reward_node[i], transform=-1)
                 nengo.Connection(self.neg_reward_vals.output[i],
                                  self.reward_node[i], transform=-1)
                 nengo.Connection(self.util_vals.output[i],
                                  self.reward_node[i], transform=1)
-                # DEBUG connections
+                # ################ DEBUG connections ################
         else:
             warn("RewardEvaluation Module - No learned connections to " +
                  "configure")
+
+    def get_multi_process_hub(self):
+        raise RuntimeError("Reward module must be built as part of the " +
+                           "main Spaun network, and does not support " +
+                           "creation as a separate Spaun process.")
+

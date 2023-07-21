@@ -23,6 +23,9 @@ class SpaunConfig(object):
         self.seed = -1
         self.set_seed(self.seed)
 
+        self.multi_process = False
+        self.mp_modules = None
+
         self.learn_init_trfm_max = 0.25
         self.learn_init_trfm_bias = 0.05
         self.learn_util_min = 0.0
@@ -108,9 +111,11 @@ class SpaunConfig(object):
         self._backend = 'ref'
 
         self.data_dir = ''
-        self.probe_data_filename = 'probe_data.npz'
+        self.probe_data_filename = 'probe_data'
         self.probe_graph_config = 'ProbeCfgDefault'
         self.probe_anim_config = 'ProbeCfgAnimDefault'
+
+        self.cwd = ""
 
     @property
     def backend(self):
@@ -140,6 +145,46 @@ class SpaunConfig(object):
     @property
     def use_spinn(self):
         return self.backend == 'spinn'
+
+    @property
+    def has_stim(self):
+        return "S" in self.spaun_modules
+
+    @property
+    def has_vis(self):
+        return "V" in self.spaun_modules
+
+    @property
+    def has_ps(self):
+        return "P" in self.spaun_modules
+
+    @property
+    def has_reward(self):
+        return "R" in self.spaun_modules
+
+    @property
+    def has_enc(self):
+        return "E" in self.spaun_modules
+
+    @property
+    def has_wm(self):
+        return "W" in self.spaun_modules
+
+    @property
+    def has_trfm(self):
+        return "T" in self.spaun_modules
+
+    @property
+    def has_dec(self):
+        return "D" in self.spaun_modules
+
+    @property
+    def has_mtr(self):
+        return "M" in self.spaun_modules
+
+    @property
+    def has_instr(self):
+        return "I" in self.spaun_modules
 
     @property
     def mtr_arm_class(self):

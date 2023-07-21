@@ -10,21 +10,30 @@ from ..configurator import cfg
 from ..vocabulator import vocab
 from .._networks import DetectChange
 
+from .spaun_module import SpaunModule, SpaunMPHub
 from .decoding import Serial_Recall_Network, Free_Recall_Network
 from .decoding import Visual_Transform_Network, Output_Classification_Network
 from .vision import vis_data
 from .motor import mtr_data
 
 
-class InfoDecoding(Module):
+class InfoDecoding(SpaunModule):
     def __init__(self, label="Information Dec", seed=None,
                  add_to_container=None):
-        super(InfoDecoding, self).__init__(label, seed, add_to_container)
-        self.init_module()
+
+        module_id_str = "dec"
+        module_ind_num = 16
+
+        super(InfoDecoding, self).__init__(
+            module_id_str, module_ind_num, label, seed, add_to_container
+        )
 
     @with_self
     def init_module(self):
-        bias_node = nengo.Node(output=1)
+        super().init_module()
+
+        # --------------------------- Bias nodes ---------------------------- #
+        bias_node = nengo.Node(1, label="Bias")
 
         # ---------------------- Inputs and outputs ------------------------- #
         self.items_input = nengo.Node(size_in=vocab.sp_dim)
@@ -32,8 +41,8 @@ class InfoDecoding(Module):
 
         # ----------------- Items input gated integrator -------------------- #
         # Holds item (list) vector stable if necessary
-        items_input_mem = cfg.make_memory()
-        nengo.Connection(self.items_input, items_input_mem.input,
+        self.items_input_mem = cfg.make_memory()
+        nengo.Connection(self.items_input, self.items_input_mem.input,
                          synapse=None)
 
         # ----------------- Inhibition signal generation -------------------- #
@@ -63,7 +72,7 @@ class InfoDecoding(Module):
 
         # -------------------- Serial decoding network ---------------------- #
         serial_decode = Serial_Recall_Network(vocab.item, vocab.mtr)
-        nengo.Connection(items_input_mem.output, serial_decode.items_input,
+        nengo.Connection(self.items_input_mem.output, serial_decode.items_input,
                          transform=cfg.dcconv_item_in_scale, synapse=None)
         nengo.Connection(self.pos_input, serial_decode.pos_input,
                          synapse=None)
@@ -76,7 +85,7 @@ class InfoDecoding(Module):
         # ---------------- Free recall decoding network --------------------- #
         self.free_recall_decode = Free_Recall_Network(vocab.item, vocab.pos,
                                                       vocab.mtr)
-        nengo.Connection(items_input_mem.output,
+        nengo.Connection(self.items_input_mem.output,
                          self.free_recall_decode.items_input,
                          transform=cfg.dec_fr_item_in_scale, synapse=None)
         nengo.Connection(self.pos_input, self.free_recall_decode.pos_input,
@@ -107,17 +116,17 @@ class InfoDecoding(Module):
 
         # ------------- Visual transform decoding network ------------------- #
         if vocab.vis_dim > 0:
-            # Takes visual SP and transforms them to the 'copy-drawn' motor SP
+            # Takes visual SP and transforms them to the "copy-drawn" motor SP
             # TODO: Use output of Serial Decode instead of replicating code?
             copy_draw_tfrm_data = \
                 np.load(os.path.join(mtr_data.filepath, cfg.mtr_module,
-                                     '_'.join([cfg.vis_module,
-                                               'copydraw_trfms.npz'])),
-                        encoding='latin1')
-            copy_draw_trfms_x = copy_draw_tfrm_data['trfms_x']
-            copy_draw_trfms_y = copy_draw_tfrm_data['trfms_y']
+                                     "_".join([cfg.vis_module,
+                                               "copydraw_trfms.npz"])),
+                        encoding="latin1")
+            copy_draw_trfms_x = copy_draw_tfrm_data["trfms_x"]
+            copy_draw_trfms_y = copy_draw_tfrm_data["trfms_y"]
 
-            vis_trfm_decode = \
+            self.vis_trfm_decode = \
                 Visual_Transform_Network(vocab.vis,
                                          vis_data.am_threshold * 0.5, 1,
                                          copy_draw_trfms_x,
@@ -126,10 +135,10 @@ class InfoDecoding(Module):
 
             # Inhibitory connections
             nengo.Connection(self.dec_am_task_inhibit.output,
-                             vis_trfm_decode.am_inhibit, synapse=0.01)
+                             self.vis_trfm_decode.am_inhibit, synapse=0.01)
         else:
             from .decoding.vis_trfm_net import Dummy_Visual_Transform_Network
-            vis_trfm_decode = \
+            self.vis_trfm_decode = \
                 Dummy_Visual_Transform_Network(vectors_in=vocab.item.vectors,
                                                vectors_out=vocab.mtr.vectors)
 
@@ -179,7 +188,7 @@ class InfoDecoding(Module):
                          self.select_out.sel4, transform=-1)
 
         # Connections for sel1 - Copy Drawing
-        nengo.Connection(vis_trfm_decode.output, self.select_out.input1)
+        nengo.Connection(self.vis_trfm_decode.output, self.select_out.input1)
         nengo.Connection(self.output_classify.output_unk,
                          self.select_out.sel1, transform=-1)
         nengo.Connection(self.output_classify.output_stop,
@@ -195,7 +204,7 @@ class InfoDecoding(Module):
 
         # Connections for sel3 - UNK
         nengo.Connection(bias_node, self.select_out.input3,
-                         transform=vocab.mtr_unk['UNK'].v[:, None])
+                         transform=vocab.mtr_unk["UNK"].v[:, None])
         nengo.Connection(self.output_classify.output_unk,
                          self.select_out.sel3)
         nengo.Connection(self.output_classify.output_stop,
@@ -204,6 +213,15 @@ class InfoDecoding(Module):
         # Connections for sel4 - NULL
         nengo.Connection(self.output_classify.output_stop,
                          self.select_out.sel4)
+
+        # ------ Direct motor (digit) index output to the experimenter system --------
+        self.dec_ind_output = nengo.Node(size_in=len(vocab.mtr.keys) + 1)
+        nengo.Connection(serial_decode.dec_am1.cleaned_output_utilities,
+                         self.dec_ind_output[:len(vocab.mtr.keys)],
+                         synapse=None)
+        nengo.Connection(self.output_classify.output_unk,
+                         self.dec_ind_output[len(vocab.mtr.keys)],
+                         synapse=None)
 
         # ############################ DEBUG ##################################
         self.item_dcconv = serial_decode.item_dcconv.output
@@ -240,8 +258,8 @@ class InfoDecoding(Module):
 
         self.debug_task = nengo.Node(size_in=1)
 
-        self.output_know = self.output_classify.output_know
-        self.output_unk = self.output_classify.output_unk
+        self.out_know = self.output_classify.output_know
+        self.out_unk = self.output_classify.output_unk
 
         self.item_dcconv_a = serial_decode.item_dcconv.A
         self.item_dcconv_b = serial_decode.item_dcconv.B
@@ -251,140 +269,129 @@ class InfoDecoding(Module):
         # self.util_diff_neg = util_diff_neg.output
         self.sel_signals = nengo.Node(size_in=5)
         for n in range(5):
-            nengo.Connection(getattr(self.select_out, 'sel%d' % n),
+            nengo.Connection(getattr(self.select_out, "sel%d" % n),
                              self.sel_signals[n], synapse=None)
-
-        self.vis_trfm_decode = vis_trfm_decode
-
         # ########################## END DEBUG ################################
 
-        # Define network inputs and outputs
-        self.items_input = self.items_input
-        self.items_input_mem = items_input_mem
-        self.pos_input = self.pos_input
-        self.pos_acc_input = self.free_recall_decode.pos_acc_input
-        self.vis_trfm_input = vis_trfm_decode.input
+    @with_self
+    def setup_inputs_and_outputs(self):
+        # ------ Define inputs and outputs ------
+        self.expose_output("out", self.select_out.output)
+        self.expose_output("stop", self.output_classify.output_stop)
+        self.expose_output("ind", self.dec_ind_output)
+        self.expose_output("pos_gate", self.pos_mb_gate_sig.output)
+        self.expose_output("pos_gate_bias", self.pos_mb_gate_bias.output)
 
-        self.output = self.select_out.output
-        self.output_stop = self.output_classify.output_stop
-
-        # Direct motor (digit) index output to the experimenter system
-        self.dec_ind_output = nengo.Node(size_in=len(vocab.mtr.keys) + 1)
-        nengo.Connection(serial_decode.dec_am1.cleaned_output_utilities,
-                         self.dec_ind_output[:len(vocab.mtr.keys)],
-                         synapse=None)
-        nengo.Connection(self.output_classify.output_unk,
-                         self.dec_ind_output[len(vocab.mtr.keys)],
-                         synapse=None)
-
-    def setup_connections(self, parent_net):
-        p_net = parent_net
-
+        # ------ Expose inputs for external connections ------
         # Set up connections from vision module
-        if hasattr(parent_net, 'vis'):
-            fr_pos_mb_rst_sp_vecs = vocab.main.parse('A+QM').v
-            nengo.Connection(parent_net.vis.output,
+        if cfg.has_vis:
+            self.add_module_input("vis", "main", vocab.sp_dim)
+            self.add_module_input("vis", "vis_mb", self.vis_trfm_decode.input)
+
+            fr_pos_mb_rst_sp_vecs = vocab.main.parse("A+QM").v
+            nengo.Connection(self.get_inp("vis_main"),
                              self.free_recall_decode.reset,
                              transform=[fr_pos_mb_rst_sp_vecs])
 
-            nengo.Connection(p_net.vis.mb_output, self.vis_trfm_input)
-        else:
-            warn("InfoEncoding Module - Cannot connect from 'vis'")
-
         # Set up connections from production system module
-        if hasattr(p_net, 'ps'):
+        if cfg.has_ps:
+            self.add_module_input("ps", "task", vocab.sp_dim)
+            self.add_module_input("ps", "dec", vocab.sp_dim)
+
             # Connections for sel0 - SR
-            dec_out_sr_sp_vecs = vocab.main.parse('FWD+REV+CNT+DECI').v
-            nengo.Connection(p_net.ps.dec, self.select_out.sel0,
+            dec_out_sr_sp_vecs = vocab.main.parse("FWD+REV+CNT+DECI").v
+            nengo.Connection(self.get_inp("ps_dec"), self.select_out.sel0,
                              transform=[dec_out_sr_sp_vecs])
 
             # Connections for sel1 - Copy Drawing
-            dec_out_copy_draw_sp_vecs = vocab.main.parse('DECW').v
-            nengo.Connection(p_net.ps.dec, self.select_out.sel1,
+            dec_out_copy_draw_sp_vecs = vocab.main.parse("DECW").v
+            nengo.Connection(self.get_inp("ps_dec"), self.select_out.sel1,
                              transform=[dec_out_copy_draw_sp_vecs])
 
             # Connections for sel2 - FR
-            dec_out_fr_sp_vecs = vocab.main.parse('0').v  # TODO: Implement
-            nengo.Connection(p_net.ps.dec, self.select_out.sel2,
+            dec_out_fr_sp_vecs = vocab.main.parse("0").v  # TODO: Implement
+            nengo.Connection(self.get_inp("ps_dec"), self.select_out.sel2,
                              transform=[dec_out_fr_sp_vecs])
 
             # Connections for gate signals
-            dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
-            nengo.Connection(p_net.ps.dec, self.pos_mb_gate_bias.input,
+            dec_pos_gate_dec_sp_vecs = vocab.main.parse("DECW+DECI+FWD+REV").v
+            nengo.Connection(self.get_inp("ps_dec"), self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_dec_sp_vecs],
                              synapse=0.02)
 
-            dec_pos_gate_task_sp_vecs = vocab.main.parse('DEC').v
-            nengo.Connection(p_net.ps.task, self.pos_mb_gate_bias.input,
+            dec_pos_gate_task_sp_vecs = vocab.main.parse("DEC").v
+            nengo.Connection(self.get_inp("ps_task"), self.pos_mb_gate_bias.input,
                              transform=[dec_pos_gate_task_sp_vecs],
                              synapse=0.02)
 
             # Connections for inhibitory signals
-            nengo.Connection(p_net.ps.task, self.dec_am_task_inhibit.input,
+            nengo.Connection(self.get_inp("ps_task"), self.dec_am_task_inhibit.input,
                              transform=[dec_pos_gate_task_sp_vecs * -1.5])
 
             # Inhibit FR for induction, learning, counting, react, and instr
             # tasks
             # - also set fr_utils_n to high
-            dec_inhibit_fr_sp_vecs = vocab.main.parse('DECI+L+C+REACT+INSTR').v
-            nengo.Connection(p_net.ps.task, self.free_recall_decode.inhibit,
+            dec_inhibit_fr_sp_vecs = vocab.main.parse("DECI+L+C+REACT+INSTR").v
+            nengo.Connection(self.get_inp("ps_task"), self.free_recall_decode.inhibit,
                              transform=[dec_inhibit_fr_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.free_recall_decode.inhibit,
+            nengo.Connection(self.get_inp("ps_dec"), self.free_recall_decode.inhibit,
                              transform=[dec_inhibit_fr_sp_vecs])
 
-            nengo.Connection(p_net.ps.task, self.output_classify.fr_utils_n,
+            nengo.Connection(self.get_inp("ps_task"), self.output_classify.fr_utils_n,
                              transform=[dec_inhibit_fr_sp_vecs])
-            nengo.Connection(p_net.ps.dec, self.output_classify.fr_utils_n,
+            nengo.Connection(self.get_inp("ps_dec"), self.output_classify.fr_utils_n,
                              transform=[dec_inhibit_fr_sp_vecs])
 
             # Inhibit output stop during counting task
-            dec_inhibit_output_stop_sp_vecs = vocab.main.parse('CNT').v
-            nengo.Connection(p_net.ps.dec,
+            dec_inhibit_output_stop_sp_vecs = vocab.main.parse("CNT").v
+            nengo.Connection(self.get_inp("ps_dec"),
                              self.output_classify.output_stop_inhibit,
                              transform=[dec_inhibit_output_stop_sp_vecs])
 
             # ###### DEBUG ########
-            dec_pos_gate_dec_sp_vecs = vocab.main.parse('DECW+DECI+FWD+REV').v
-            nengo.Connection(p_net.ps.dec, self.debug_task,
+            dec_pos_gate_dec_sp_vecs = vocab.main.parse("DECW+DECI+FWD+REV").v
+            nengo.Connection(self.get_inp("ps_dec"), self.debug_task,
                              transform=[dec_pos_gate_dec_sp_vecs])
-        else:
-            warn("InfoDecoding Module - Could not connect from 'ps'")
+            # ###### DEBUG ########
 
         # Set up connections from encoding module
-        if hasattr(p_net, 'enc'):
-            nengo.Connection(p_net.enc.pos_output, self.pos_input)
-            nengo.Connection(p_net.enc.pos_acc_output, self.pos_acc_input)
-        else:
-            warn("InfoDecoding Module - Could not connect from 'enc'")
+        if cfg.has_enc:
+            self.add_module_input("enc", "pos", self.pos_input)
+            self.add_module_input("enc", "pos_acc", self.free_recall_decode.pos_acc_input)
 
         # Set up connections from transform module
-        if hasattr(p_net, 'trfm'):
-            nengo.Connection(p_net.trfm.output, self.items_input)
-        else:
-            warn("InfoDecoding Module - Could not connect from 'trfm'")
+        if cfg.has_trfm:
+            self.add_module_input("trfm", "out", self.items_input)
 
         # Set up connections from motor module
-        if hasattr(p_net, 'mtr'):
-            # nengo.Connection(p_net.mtr.ramp_reset_hold,
-            #                  self.pos_mb_gate_sig.input,
-            #                  synapse=0.005, transform=5)
-            # nengo.Connection(p_net.mtr.ramp_reset_hold,
-            #                  self.pos_mb_gate_sig.input,
-            #                  synapse=0.08, transform=-10)
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
+        if cfg.has_mtr:
+            self.add_module_input("mtr", "ramp_reset_hold", 1)
+            self.add_module_input("mtr", "pen_down", 1)
+
+            nengo.Connection(self.get_inp("mtr_ramp_reset_hold"),
                              self.pos_mb_gate_sig.input,
                              synapse=0.005)
 
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
+            nengo.Connection(self.get_inp("mtr_ramp_reset_hold"),
                              self.dec_am_inhibit.input,
                              synapse=0.005, transform=5)
-            nengo.Connection(p_net.mtr.ramp_reset_hold,
+            nengo.Connection(self.get_inp("mtr_ramp_reset_hold"),
                              self.dec_am_inhibit.input,
                              synapse=0.01, transform=-10)
 
             # ----------- Connection to items input memory --------------------
             # Gate memory when pen is down (to stop output representation
             # from changing when writing a digit)
-            nengo.Connection(p_net.mtr.pen_down, self.items_input_mem.gate)
-        else:
-            warn("InfoDecoding Module - Could not connect from 'mtr'")
+            nengo.Connection(self.get_inp("mtr_pen_down"),
+                             self.items_input_mem.gate, synapse=None)
+
+    def setup_spa_inputs_and_outputs(self):
+        pass
+
+    def get_multi_process_hub(self):
+        return InfoDecodingMPHub(self)
+
+
+class InfoDecodingMPHub(SpaunMPHub, InfoDecoding):
+    def __init__(self, parent_module):
+        SpaunMPHub.__init__(self, parent_module)
