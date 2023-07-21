@@ -42,10 +42,10 @@ class SpaunConfig(object):
 
         self.sim_dt = 0.001
 
-        self.stim_module = 'mnist'
-        self.vis_module = 'lif_vision'
+        self.stim_module = "mnist"
+        self.vis_module = "lif_vision"
 
-        self.spaun_modules = 'SVPREWTDMI'
+        self.spaun_modules = "SVPREWTDMI"
 
         self.vis_detect_dim = 5000
 
@@ -63,8 +63,8 @@ class SpaunConfig(object):
         self.mb_decaybuf_input_scale = 1.5  # 1.75
         self.mb_decay_val = 0.975
         self.mb_fdbk_val = 1.3
-        self.mb_config = {'mem_synapse': Lowpass(0.08), 'difference_gain': 6,
-                          'gate_gain': 5}
+        self.mb_config = {"mem_synapse": Lowpass(0.08), "difference_gain": 6,
+                          "gate_gain": 5}
         self.mb_gate_scale = 1.25  # 1.2
         self.mb_neg_gate_scale = -1.5  # 1.2
         self.mb_neg_attn_scale = 2.0
@@ -87,11 +87,11 @@ class SpaunConfig(object):
         self.mtr_ramp_init_hold_transform = 0.01
         self.mtr_ramp_scale = 3
 
-        self.mtr_module = 'osc'
+        self.mtr_module = "osc"
         self.mtr_kp = None
         self.mtr_kv1 = None
         self.mtr_kv2 = 0
-        self.mtr_arm_type = 'three_link'
+        self.mtr_arm_type = "three_link"
         self.mtr_arm_rest_x_bias = -0.3
         self.mtr_arm_rest_y_bias = 2.5
         self.mtr_tgt_threshold = 0.035  # 0.05  # 0.075
@@ -100,7 +100,7 @@ class SpaunConfig(object):
         self.mtr_dyn_adaptation_n_neurons = 1000
         self.mtr_dyn_adaptation_learning_rate = 1e-4  # 8e-5
         self.mtr_dyn_adaptation_synapse = 0.02
-        self.mtr_forcefield = 'NoForcefield'
+        self.mtr_forcefield = "NoForcefield"
         self.mtr_forcefield_synapse = 0.05  # 0.0525
 
         self.instr_cconv_radius = 2.0
@@ -108,12 +108,12 @@ class SpaunConfig(object):
         self.instr_ps_threshold = 0.5
         self.instr_pos_inc_cleanup_mode = 1
 
-        self._backend = 'ref'
+        self._backend = "ref"
 
-        self.data_dir = ''
-        self.probe_data_filename = 'probe_data'
-        self.probe_graph_config = 'ProbeCfgDefault'
-        self.probe_anim_config = 'ProbeCfgAnimDefault'
+        self.data_dir = ""
+        self.probe_data_filename = "probe_data"
+        self.probe_graph_config = "ProbeCfgDefault"
+        self.probe_anim_config = "ProbeCfgAnimDefault"
 
         self.cwd = ""
 
@@ -124,27 +124,27 @@ class SpaunConfig(object):
     @backend.setter
     def backend(self, val):
         val = val.lower()
-        if val in ['ref']:
-            self._backend = 'ref'
-        elif val in ['opencl', 'ocl']:
-            self._backend = 'ocl'
-        elif val in ['spinn']:
-            self._backend = 'spinn'
+        if val in ["ref"]:
+            self._backend = "ref"
+        elif val in ["opencl", "ocl"]:
+            self._backend = "ocl"
+        elif val in ["spinn"]:
+            self._backend = "spinn"
         else:
-            raise RuntimeError('Exception! "%s" backend is not supported!' %
+            raise RuntimeError("Exception! \"%s\" backend is not supported!" %
                                val)
 
     @property
     def use_ref(self):
-        return self.backend == 'ref'
+        return self.backend == "ref"
 
     @property
     def use_opencl(self):
-        return self.backend == 'ocl'
+        return self.backend == "ocl"
 
     @property
     def use_spinn(self):
-        return self.backend == 'spinn'
+        return self.backend == "spinn"
 
     @property
     def has_stim(self):
@@ -191,9 +191,9 @@ class SpaunConfig(object):
         if self.mtr_arm_type is None:
             return lambda: None
 
-        # arm_module = __import__('_spaun.arms.%s' % self.mtr_arm_type,
-        #                         globals(), locals(), 'Arm')
-        arm_module = import_module('.arms.%s' % self.mtr_arm_type,
+        # arm_module = __import__("_spaun.arms.%s" % self.mtr_arm_type,
+        #                         globals(), locals(), "Arm")
+        arm_module = import_module(".arms.%s" % self.mtr_arm_type,
                                    __package__)
         return arm_module.Arm
 
@@ -203,13 +203,13 @@ class SpaunConfig(object):
 
     def write_header(self):
         # Write spaun configurator options
-        logger.write('# Spaun Configuration Options:\n')
-        logger.write('# ----------------------------\n')
+        logger.write("# Spaun Configuration Options:\n")
+        logger.write("# ----------------------------\n")
         for param_name in sorted(self.__dict__.keys()):
             param_value = getattr(self, param_name)
             if not callable(param_value):
-                logger.write('# - %s = %s\n' % (param_name, param_value))
-        logger.write('#\n')
+                logger.write("# - %s = %s\n" % (param_name, param_value))
+        logger.write("#\n")
 
     def set_seed(self, seed):
         if seed > 0:
@@ -223,11 +223,11 @@ class SpaunConfig(object):
         return get_optimal_radius(dim, subdim)
 
     def make_inhibitable(self, net, inhib_scale=3):
-        if hasattr(net, 'inhibit'):
+        if hasattr(net, "inhibit"):
             pass
-        elif hasattr(net, 'inhib'):
+        elif hasattr(net, "inhib"):
             net.inhibit = net.inhib
-        elif hasattr(net, 'make_inhibitable'):
+        elif hasattr(net, "make_inhibitable"):
             net.make_inhibitable(inhib_scale=inhib_scale)
         else:
             with net:
@@ -241,8 +241,8 @@ class SpaunConfig(object):
                        wta_inhibit_scale=3.5, cleanup_output=True,
                        default_output_vector=None, **args):
         am_args = dict(args)
-        am_args['threshold'] = args.get('threshold', 0.5)
-        am_args['n_neurons'] = args.get('n_neurons', self.n_neurons_am)
+        am_args["threshold"] = args.get("threshold", 0.5)
+        am_args["n_neurons"] = args.get("n_neurons", self.n_neurons_am)
 
         am_net = AM(input_vectors, output_vectors, **am_args)
 
@@ -259,9 +259,9 @@ class SpaunConfig(object):
 
     def make_memory(self, **args):
         mem_args = dict(args)
-        mem_args['n_neurons'] = args.get('n_neurons', self.n_neurons_mb)
-        mem_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
-        mem_args['make_ens_func'] = args.get('make_ens_func',
+        mem_args["n_neurons"] = args.get("n_neurons", self.n_neurons_mb)
+        mem_args["dimensions"] = args.get("dimensions", vocab.sp_dim)
+        mem_args["make_ens_func"] = args.get("make_ens_func",
                                              self.make_spa_ens_array)
         for key in self.mb_config.keys():
             mem_args[key] = args.get(key, self.mb_config[key])
@@ -269,10 +269,10 @@ class SpaunConfig(object):
 
     def make_mem_block(self, **args):
         mb_args = dict(args)
-        mb_args['n_neurons'] = args.get('n_neurons', self.n_neurons_mb)
-        mb_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
-        mb_args['gate_mode'] = args.get('gate_mode', 2)
-        mb_args['make_ens_func'] = args.get('make_ens_func',
+        mb_args["n_neurons"] = args.get("n_neurons", self.n_neurons_mb)
+        mb_args["dimensions"] = args.get("dimensions", vocab.sp_dim)
+        mb_args["gate_mode"] = args.get("gate_mode", 2)
+        mb_args["make_ens_func"] = args.get("make_ens_func",
                                             self.make_spa_ens_array)
         for key in self.mb_config.keys():
             mb_args[key] = args.get(key, self.mb_config[key])
@@ -280,28 +280,28 @@ class SpaunConfig(object):
 
     def make_cir_conv(self, **args):
         cconv_args = dict(args)
-        cconv_args['n_neurons'] = args.get('n_neurons', self.n_neurons_cconv)
-        cconv_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
+        cconv_args["n_neurons"] = args.get("n_neurons", self.n_neurons_cconv)
+        cconv_args["dimensions"] = args.get("dimensions", vocab.sp_dim)
         return CConv(**cconv_args)
 
     def make_thresh_ens_net(self, threshold=0.5, thresh_func=lambda x: 1,
                             exp_scale=None, num_ens=1, net=None, **args):
         if net is None:
-            label_str = args.get('label', 'Threshold_Ens_Net')
+            label_str = args.get("label", "Threshold_Ens_Net")
             net = nengo.Network(label=label_str)
         if exp_scale is None:
             exp_scale = (1 - threshold) / 10.0
 
         with net:
             ens_args = dict(args)
-            ens_args['n_neurons'] = args.get('n_neurons', self.n_neurons_ens)
-            ens_args['dimensions'] = args.get('dimensions', 1)
-            ens_args['intercepts'] = \
+            ens_args["n_neurons"] = args.get("n_neurons", self.n_neurons_ens)
+            ens_args["dimensions"] = args.get("dimensions", 1)
+            ens_args["intercepts"] = \
                 Exponential(scale=exp_scale, shift=threshold,
                             high=1)
-            ens_args['encoders'] = Choice([[1]])
-            ens_args['eval_points'] = Uniform(min(threshold + 0.1, 1.0), 1.1)
-            ens_args['n_eval_points'] = 5000
+            ens_args["encoders"] = Choice([[1]])
+            ens_args["eval_points"] = Uniform(min(threshold + 0.1, 1.0), 1.1)
+            ens_args["n_eval_points"] = 5000
 
             net.input = nengo.Node(size_in=num_ens)
             net.output = nengo.Node(size_in=num_ens)
@@ -315,31 +315,31 @@ class SpaunConfig(object):
 
     def make_ens_array(self, **args):
         ens_args = dict(args)
-        ens_args['radius'] = args.get('radius', 1)
-        ens_args['ens_dimensions'] = args.get('ens_dimensions',
+        ens_args["radius"] = args.get("radius", 1)
+        ens_args["ens_dimensions"] = args.get("ens_dimensions",
                                               self.ens_array_subdim)
-        n_ensembles = (ens_args.pop('dimensions', vocab.sp_dim) //
-                       ens_args['ens_dimensions'])
-        ens_args['n_neurons'] = (args.get('n_neurons', self.n_neurons_ens) *
-                                 ens_args['ens_dimensions'])
-        ens_args['n_ensembles'] = args.get('n_ensembles', n_ensembles)
+        n_ensembles = (ens_args.pop("dimensions", vocab.sp_dim) //
+                       ens_args["ens_dimensions"])
+        ens_args["n_neurons"] = (args.get("n_neurons", self.n_neurons_ens) *
+                                 ens_args["ens_dimensions"])
+        ens_args["n_ensembles"] = args.get("n_ensembles", n_ensembles)
         return EnsembleArray(**ens_args)
 
     def make_spa_ens_array(self, **args):
         ens_args = dict(args)
-        ens_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
-        ens_dims = ens_args.pop('ens_dimensions', self.ens_array_subdim)
-        ens_args['n_neurons'] = (args.get('n_neurons', self.n_neurons_ens) *
+        ens_args["dimensions"] = args.get("dimensions", vocab.sp_dim)
+        ens_dims = ens_args.pop("ens_dimensions", self.ens_array_subdim)
+        ens_args["n_neurons"] = (args.get("n_neurons", self.n_neurons_ens) *
                                  ens_dims)
-        ens_args['n_ensembles'] = ens_args['dimensions'] // ens_dims
+        ens_args["n_ensembles"] = ens_args["dimensions"] // ens_dims
 
         return SPAEnsembleArray(**ens_args)
 
     def make_spa_ens_array_gate(self, threshold_gate=True, inhib_scale=3,
                                 **args):
-        label_str = args.get('label', '')
+        label_str = args.get("label", "")
 
-        net = nengo.Network(label=' '.join([label_str, 'Gate']))
+        net = nengo.Network(label=" ".join([label_str, "Gate"]))
         with net:
             ens_array = self.make_spa_ens_array(**args)
             self.make_inhibitable(ens_array, inhib_scale)
@@ -358,9 +358,9 @@ class SpaunConfig(object):
 
     def make_selector(self, num_items, gate_gain=5, threshold_sel_in=True,
                       **args):
-        dimensions = args.pop('dimensions', vocab.sp_dim)
-        make_ens_func = args.pop('make_ens_func', self.make_spa_ens_array)
-        n_neurons = args.pop('n_neurons', self.n_neurons_ens)
+        dimensions = args.pop("dimensions", vocab.sp_dim)
+        make_ens_func = args.pop("make_ens_func", self.make_spa_ens_array)
+        n_neurons = args.pop("n_neurons", self.n_neurons_ens)
 
         sel_args = dict(args)
 
@@ -370,9 +370,9 @@ class SpaunConfig(object):
 
     def make_router(self, num_items, gate_gain=5, threshold_sel_in=True,
                     **args):
-        dimensions = args.pop('dimensions', vocab.sp_dim)
-        make_ens_func = args.pop('make_ens_func', self.make_spa_ens_array)
-        n_neurons = args.pop('n_neurons', self.n_neurons_ens)
+        dimensions = args.pop("dimensions", vocab.sp_dim)
+        make_ens_func = args.pop("make_ens_func", self.make_spa_ens_array)
+        n_neurons = args.pop("n_neurons", self.n_neurons_ens)
 
         rtr_args = dict(args)
 
@@ -383,12 +383,12 @@ class SpaunConfig(object):
     def make_norm_net(self, min_input_magnitude=0.7, max_input_magnitude=2.5,
                       **args):
         ens_args = dict(args)
-        ens_args['dimensions'] = args.get('dimensions', vocab.sp_dim)
-        ens_args['radius_scale'] = args.get('radius_scale',
+        ens_args["dimensions"] = args.get("dimensions", vocab.sp_dim)
+        ens_args["radius_scale"] = args.get("radius_scale",
                                             self.get_optimal_sp_radius())
-        ens_args['n_neurons_norm'] = args.get('n_neurons_norm',
+        ens_args["n_neurons_norm"] = args.get("n_neurons_norm",
                                               self.n_neurons_ens)
-        ens_args['n_neurons_prod'] = args.get('n_neurons_prod',
+        ens_args["n_neurons_prod"] = args.get("n_neurons_prod",
                                               self.n_neurons_cconv)
 
         norm_net = VectorNormalize(min_input_magnitude, max_input_magnitude,

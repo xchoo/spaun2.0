@@ -17,8 +17,8 @@ class SpaunVocabulary(object):
 
         # ############ Semantic pointer (strings) definitions #################
         # --- Numerical semantic pointers ---
-        self.num_sp_strs = ['ZER', 'ONE', 'TWO', 'THR', 'FOR',
-                            'FIV', 'SIX', 'SEV', 'EIG', 'NIN']
+        self.num_sp_strs = ["ZER", "ONE", "TWO", "THR", "FOR",
+                            "FIV", "SIX", "SEV", "EIG", "NIN"]
         self.n_num_sp = len(self.num_sp_strs)
 
         # --- Task semantic pointer list ---
@@ -32,37 +32,37 @@ class SpaunVocabulary(object):
         # F - Fluid Induction (Ravens)
         # X - Task precursor
         # DEC - Decoding task (output to motor system)
-        self.ps_task_sp_strs = ['W', 'R', 'L', 'M', 'C', 'A', 'V', 'F', 'X',
-                                'DEC', 'REACT', 'INSTR', 'CMP']
-        self.ps_task_vis_sp_strs = ['A', 'C', 'F', 'K', 'L', 'M', 'P', 'R',
-                                    'V', 'W']
+        self.ps_task_sp_strs = ["W", "R", "L", "M", "C", "A", "V", "F", "X",
+                                "DEC", "REACT", "INSTR", "CMP"]
+        self.ps_task_vis_sp_strs = ["A", "C", "F", "K", "L", "M", "P", "R",
+                                    "V", "W"]
         # --- Task visual semantic pointer usage ---
         # A - Task initialization
         # F - Forward recall
         # R - Reverse recall
-        # K - Q&A 'kind' probe
-        # P - Q&A 'position' probe
+        # K - Q&A "kind" probe
+        # P - Q&A "position" probe
 
         # --- Production system semantic pointers ---
         # DECW - Decoding state (output to motor system, but for drawing task)
         # DECI - Decoding state (output to motor system, but for inductn tasks)
-        self.ps_state_sp_strs = ['QAP', 'QAK', 'TRANS0', 'TRANS1', 'TRANS2',
-                                 'CNT0', 'CNT1', 'LEARN', 'DIRECT', 'INSTRP',
-                                 'INSTRV', 'TRANSC']
-        self.ps_dec_sp_strs = ['FWD', 'REV', 'CNT', 'DECW', 'DECI', 'NONE']
+        self.ps_state_sp_strs = ["QAP", "QAK", "TRANS0", "TRANS1", "TRANS2",
+                                 "CNT0", "CNT1", "LEARN", "DIRECT", "INSTRP",
+                                 "INSTRV", "TRANSC"]
+        self.ps_dec_sp_strs = ["FWD", "REV", "CNT", "DECW", "DECI", "NONE"]
 
         # --- Misc actions semantic pointers
         self.ps_action_sp_strs = None
         self.min_num_ps_actions = 3
 
         # --- Misc visual semantic pointers ---
-        self.misc_vis_sp_strs = ['OPEN', 'CLOSE', 'SPACE', 'QM']
+        self.misc_vis_sp_strs = ["OPEN", "CLOSE", "SPACE", "QM"]
 
         # --- Misc state semantic pointers ---
-        self.misc_ps_sp_strs = ['NO_MATCH', 'MATCH']
+        self.misc_ps_sp_strs = ["NO_MATCH", "MATCH"]
 
-        # --- 'I don't know' motor response vector
-        self.mtr_sp_strs = ['UNK']
+        # --- "I don't know" motor response vector
+        self.mtr_sp_strs = ["UNK"]
 
         # --- List of all visual semantic pointers ---
         # self.vis_sp_strs = list(self.num_sp_strs)
@@ -74,7 +74,7 @@ class SpaunVocabulary(object):
         self.max_enum_list_pos = 8
 
         # --- Operations semantic pointers
-        self.ops_sp_strs = ['ADD', 'INC']
+        self.ops_sp_strs = ["ADD", "INC"]
 
         # --- Reward semantic pointers
         self.reward_n_sp_str = self.num_sp_strs[0]
@@ -82,19 +82,19 @@ class SpaunVocabulary(object):
         self.reward_sp_strs = [self.reward_n_sp_str, self.reward_y_sp_str]
 
         # --- Instruction processing input and output tags
-        self.instr_tag_strs = ['VIS', 'TASK', 'STATE', 'DEC', 'DATA', 'ENABLE']
+        self.instr_tag_strs = ["VIS", "TASK", "STATE", "DEC", "DATA", "ENABLE"]
 
     def write_header(self):
-        logger.write('# Spaun Vocabulary Options:\n')
-        logger.write('# -------------------------\n')
+        logger.write("# Spaun Vocabulary Options:\n")
+        logger.write("# -------------------------\n")
         for param_name in sorted(self.__dict__.keys()):
             param_value = getattr(self, param_name)
             if not callable(param_value) and not isinstance(param_value, list)\
                and not isinstance(param_value, Vocabulary) \
                and not isinstance(param_value, SemanticPointer) \
                and not isinstance(param_value, np.ndarray):
-                logger.write('# - %s = %s\n' % (param_name, param_value))
-        logger.write('\n')
+                logger.write("# - %s = %s\n" % (param_name, param_value))
+        logger.write("\n")
 
     def initialize(self, stim_SP_labels, num_learn_actions=3, rng=0):
         if rng == 0:
@@ -102,7 +102,7 @@ class SpaunVocabulary(object):
 
         # ############### Semantic pointer list definitions ###################
         # --- Position (enumerated) semantic pointers ---
-        self.pos_sp_strs = ['POS%i' % (i + 1)
+        self.pos_sp_strs = ["POS%i" % (i + 1)
                             for i in range(self.max_enum_list_pos)]
 
         # --- Unitary semantic pointers
@@ -110,7 +110,7 @@ class SpaunVocabulary(object):
         self.unitary_sp_strs.extend(self.ops_sp_strs)
 
         # --- Production system (action) semantic pointers ---
-        self.ps_action_learn_sp_strs = ['A%d' % (i + 1) for i in
+        self.ps_action_learn_sp_strs = ["A%d" % (i + 1) for i in
                                         range(num_learn_actions)]
         self.ps_action_misc_sp_strs = []
         self.ps_action_sp_strs = (self.ps_action_learn_sp_strs +
@@ -122,15 +122,15 @@ class SpaunVocabulary(object):
                                max_similarity=0.2, rng=rng)
 
         # --- Add in visual sp's ---
-        self.main.parse('+'.join(self.misc_vis_sp_strs))
-        self.main.parse('+'.join(self.ps_task_vis_sp_strs))
+        self.main.parse("+".join(self.misc_vis_sp_strs))
+        self.main.parse("+".join(self.ps_task_vis_sp_strs))
         for sp_str in list(stim_SP_labels):
             if sp_str not in self.num_sp_strs and \
                sp_str not in self.pos_sp_strs:
                 self.main.parse(sp_str)
 
         # --- Add numerical sp's ---
-        self.main.parse('%s+%s' % (self.ops_sp_strs[0], self.num_sp_strs[0]))
+        self.main.parse("%s+%s" % (self.ops_sp_strs[0], self.num_sp_strs[0]))
         add_sp = self.main[self.ops_sp_strs[0]]
         num_sp = self.main[self.num_sp_strs[0]].copy()
         for i in range(len(self.num_sp_strs) - 1):
@@ -140,7 +140,7 @@ class SpaunVocabulary(object):
         self.add_sp = add_sp
 
         # --- Add positional sp's ---
-        self.main.parse('%s+%s' % (self.ops_sp_strs[1], self.pos_sp_strs[0]))
+        self.main.parse("%s+%s" % (self.ops_sp_strs[1], self.pos_sp_strs[0]))
         inc_sp = self.main[self.ops_sp_strs[1]]
         pos_sp = self.main[self.pos_sp_strs[0]].copy()
         for i in range(len(self.pos_sp_strs) - 1):
@@ -150,15 +150,15 @@ class SpaunVocabulary(object):
         self.inc_sp = inc_sp
 
         # --- Add production system sp's ---
-        self.main.parse('+'.join(self.ps_task_sp_strs))
-        self.main.parse('+'.join(self.ps_state_sp_strs))
-        self.main.parse('+'.join(self.ps_dec_sp_strs))
+        self.main.parse("+".join(self.ps_task_sp_strs))
+        self.main.parse("+".join(self.ps_state_sp_strs))
+        self.main.parse("+".join(self.ps_dec_sp_strs))
         if len(self.ps_action_sp_strs) > 0:
-            self.main.parse('+'.join(self.ps_action_sp_strs))
-        self.main.parse('+'.join(self.misc_ps_sp_strs))
+            self.main.parse("+".join(self.ps_action_sp_strs))
+        self.main.parse("+".join(self.misc_ps_sp_strs))
 
         # --- Add instruction processing system sp's ---
-        self.main.parse('+'.join(self.instr_tag_strs))
+        self.main.parse("+".join(self.instr_tag_strs))
 
         # ################### Visual Vocabulary definitions ###################
         self.vis_sp_strs = list(stim_SP_labels)
@@ -203,12 +203,12 @@ class SpaunVocabulary(object):
         self.enum = Vocabulary(self.sp_dim, rng=rng)
         for pos in self.pos_sp_strs:
             for num in self.num_sp_strs:
-                sp_str = '%s*%s' % (pos, num)
+                sp_str = "%s*%s" % (pos, num)
                 self.enum.add(sp_str, self.main.parse(sp_str))
 
         self.pos1 = Vocabulary(self.sp_dim, rng=rng)
         for num in self.num_sp_strs:
-            sp_str = '%s*%s' % (self.pos_sp_strs[0], num)
+            sp_str = "%s*%s" % (self.pos_sp_strs[0], num)
             self.pos1.add(sp_str, self.main.parse(sp_str))
 
         # ############ Instruction vocabulary definitions #####################
@@ -239,9 +239,9 @@ class SpaunVocabulary(object):
 
     def initialize_vis_vocab(self, vis_dim, vis_sps):
         if vis_sps.shape[0] != len(self.vis_sp_strs):
-            raise RuntimeError('Vocabulatory.initialize_vis_vocab: ' +
-                               'Mismatch in shape of raw vision SPs and ' +
-                               'number of vision SP labels.')
+            raise RuntimeError("Vocabulatory.initialize_vis_vocab: " +
+                               "Mismatch in shape of raw vision SPs and " +
+                               "number of vision SP labels.")
 
         self.vis_dim = vis_dim
 
@@ -250,20 +250,20 @@ class SpaunVocabulary(object):
             self.vis.add(sp_str, vis_sps[i, :])
 
     def parse_instr_sps_list(self, instr_sps_list):
-        instr_sps_list_sp = self.main.parse('0')
+        instr_sps_list_sp = self.main.parse("0")
 
         if len(instr_sps_list) > self.max_enum_list_pos:
-            raise ValueError('Vocabulator: Too many sequential ' +
-                             'instructions. Max: %d' %
-                             self.max_enum_list_pos + ', Got: ' +
+            raise ValueError("Vocabulator: Too many sequential " +
+                             "instructions. Max: %d" %
+                             self.max_enum_list_pos + ", Got: " +
                              len(instr_sps_list))
 
         for i, instr_sps in enumerate(instr_sps_list):
-            instr_sps_list_sp += (self.main.parse('POS%i' % (i + 1)) *
+            instr_sps_list_sp += (self.main.parse("POS%i" % (i + 1)) *
                                   self.parse_instr_sps(*instr_sps))
         return instr_sps_list_sp
 
-    def parse_instr_sps(self, ant_sp='0', cons_sp='0'):
+    def parse_instr_sps(self, ant_sp="0", cons_sp="0"):
         # Note: The ant and con permutations are used here to separate the
         #       possible POS tags in the ant/con from the instruction POS tag.
         #       This permutation is not necessary if the instruction POS tags

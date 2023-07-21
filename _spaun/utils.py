@@ -42,7 +42,7 @@ def strs_to_inds(str_list, ref_str_list):
 
 
 def str_to_bool(string):
-    return string.lower() in ['yes', 'true', 't', '1']
+    return string.lower() in ["yes", "true", "t", "1"]
 
 
 def invol_matrix(dim):
@@ -50,21 +50,21 @@ def invol_matrix(dim):
     return result[-np.arange(dim), :]
 
 
-def get_probe_data_filename(label='probe_data', suffix='', ext='npz'):
-    suffix = str(suffix).replace('?', '@')
+def get_probe_data_filename(label="probe_data", suffix="", ext="npz"):
+    suffix = str(suffix).replace("?", "@")
 
-    raw_seq = experiment.raw_seq_str.replace('?', '@').replace(':', ';')
-    raw_seq = raw_seq.replace('>', ')').replace('<', '(')
+    raw_seq = experiment.raw_seq_str.replace("?", "@").replace(":", ";")
+    raw_seq = raw_seq.replace(">", ")").replace("<", "(")
 
     if experiment.present_blanks:
-        raw_seq = '-'.join(raw_seq)
+        raw_seq = "-".join(raw_seq)
 
     return "+".join([label,
                      "_".join([str(type(cfg.neuron_type).__name__),
                                str(vocab.sp_dim)]),
                      raw_seq[:150],
                      str(cfg.seed)]) + \
-           ("" if suffix is '' else '(' + suffix + ')') + "." + ext
+           ("" if suffix == "" else "(" + suffix + ")") + "." + ext
 
 
 def validate_num_gpus(num_processes, cl_platform):

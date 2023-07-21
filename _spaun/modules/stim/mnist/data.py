@@ -9,26 +9,26 @@ from . import mnist
 
 class MNISTDataObject(object):
     def __init__(self, data_filepath=None):
-        self.module_name = 'mnist'
+        self.module_name = "mnist"
 
         if data_filepath is None:
-            self.filepath = os.path.join(os.path.dirname(__file__), '..',
+            self.filepath = os.path.join(os.path.dirname(__file__), "..",
                                          self.module_name)
         else:
             self.filepath = data_filepath
 
         # --- Mnist data ---
         _, _, [images_data, images_labels] = \
-            mnist.read_file('mnist.pkl.gz', self.filepath)
+            mnist.read_file("mnist.pkl.gz", self.filepath)
         images_labels = list(map(str, images_labels))
 
         # --- Spaun symbol data ---
         _, _, [symbol_data, _] = \
-            mnist.read_file('spaun_sym.pkl.gz', self.filepath)
+            mnist.read_file("spaun_sym.pkl.gz", self.filepath)
 
-        symbol_labels = ['ZER', 'ONE', 'TWO', 'THR', 'FOR', 'FIV', 'SIX',
-                         'SEV', 'EIG', 'NIN', 'OPEN', 'CLOSE', 'SPACE', 'QM',
-                         'A', 'C', 'F', 'K', 'L', 'M', 'P', 'R', 'V', 'W']
+        symbol_labels = ["ZER", "ONE", "TWO", "THR", "FOR", "FIV", "SIX",
+                         "SEV", "EIG", "NIN", "OPEN", "CLOSE", "SPACE", "QM",
+                         "A", "C", "F", "K", "L", "M", "P", "R", "V", "W"]
 
         # --- Combined image (mnist + spaun symbol) data ---
         images_data = np.append(images_data, symbol_data, axis=0)
@@ -74,11 +74,11 @@ class MNISTDataObject(object):
 
         self.probe_image_dimensions = subsample_inds.flatten().shape[0]
         self.probe_reset_imgs = \
-            [(self.get_image('A')[0] /
+            [(self.get_image("A")[0] /
              (1.0 * self.max_pixel_value))[subsample_inds],
-             (self.get_image('M')[0] /
+             (self.get_image("M")[0] /
              (1.0 * self.max_pixel_value))[subsample_inds],
-             (self.get_image('V')[0] /
+             (self.get_image("V")[0] /
              (1.0 * self.max_pixel_value))[subsample_inds]]
 
     def get_image(self, label=None, rng=None):
@@ -112,7 +112,7 @@ class MNISTDataObject(object):
             image_ind = rng.choice(
                 self.images_labels_inds[label_ind[0][0]])
         else:
-            raise RuntimeError('MNIST - Unable to find label matching ' +
-                               '[%s] in label set.' % label)
+            raise RuntimeError("MNIST - Unable to find label matching " +
+                               "[%s] in label set." % label)
             # image_ind = rng.choice(len(self.images_labels_inds))
         return image_ind
